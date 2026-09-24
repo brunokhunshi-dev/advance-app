@@ -1,0 +1,53 @@
+/* Camada mobile-first carregada junto com a configuração do Firebase. */
+:root {
+  --mobile-gutter: clamp(16px, 5vw, 28px);
+  --safe-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+html { min-width: 320px; background: var(--color-bg); }
+body { overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+button, input, textarea, select { font: inherit; }
+button { min-height: 48px; touch-action: manipulation; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+
+/* Mantém o app confortável em telas grandes sem deixar os controles esticados. */
+#app-container, .tela-login-container, .tela-relatorio-container { width: 100%; max-width: 720px; margin: 0 auto; }
+.app-header { padding: 14px var(--mobile-gutter); padding-top: max(14px, env(safe-area-inset-top)); min-height: 64px; }
+.main-content { padding: 24px var(--mobile-gutter) calc(104px + var(--safe-bottom)); }
+.page-title { font-size: clamp(1.5rem, 6vw, 2rem); line-height: 1.15; margin-bottom: 22px; }
+
+.input-box { min-height: 52px; font-size: 16px; padding: 14px 16px; }
+.textarea-box { min-height: 112px; }
+.row-inputs { gap: 10px; }
+.row-inputs > * { min-width: 0; }
+.btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps { min-height: 52px; }
+
+.card-visita, .card-agenda, .card-historico, .card-visita-atual { border-radius: 20px; }
+.card-visita { gap: 12px; align-items: stretch; flex-direction: column; }
+.card-info { margin-right: 0; }
+.card-visita .btn-checkin { width: 100% !important; }
+.card-titulo, .agenda-cliente, .hist-cliente { white-space: normal; overflow-wrap: anywhere; }
+
+.bottom-nav { padding: 8px 8px var(--safe-bottom); min-height: 72px; box-shadow: 0 -6px 24px rgba(4,4,56,.08); }
+.nav-item { min-width: 64px; min-height: 56px; gap: 3px; color: #697080; }
+.nav-item.active { color: var(--color-red); }
+.nav-item svg { width: 22px; height: 22px; }
+.fab-nova-visita { right: var(--mobile-gutter); bottom: calc(78px + var(--safe-bottom)); min-height: 52px; box-shadow: 0 8px 20px rgba(245,30,48,.25); }
+
+.tela-fullscreen { min-height: 100dvh; height: 100dvh; overflow-y: auto; padding: max(32px, env(safe-area-inset-top)) var(--mobile-gutter) var(--safe-bottom); }
+.titulo-confirmacao { font-size: clamp(1.7rem, 8vw, 2.2rem); margin-bottom: 28px; }
+.perfil-bloco { margin-bottom: 18px; }
+.botoes-acao { max-width: 100%; gap: 10px; }
+
+.tela-relatorio-container { min-height: 100dvh; }
+.relatorio-editor-section { min-height: 220px; }
+.relatorio-acoes { padding: 16px var(--mobile-gutter) calc(24px + var(--safe-bottom)); }
+
+@media (min-width: 560px) {
+  .card-visita { flex-direction: row; align-items: center; }
+  .card-visita .btn-checkin { width: auto !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
