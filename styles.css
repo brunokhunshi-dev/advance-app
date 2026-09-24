@@ -1,0 +1,115 @@
+/* 1. VARIÁVEIS DE COR E BASE */
+:root { --color-dark: #040438; --color-blue: #0F2960; --color-red: #F51E30; --color-bg: #F9F9FA; --color-white: #FFFFFF; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); color: var(--color-dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+/* 2. TELA DE LOGIN */
+.tela-login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 20px; background-color: var(--color-white); width: 100%; }
+.login-logo { margin-bottom: 60px; transform: scale(1.1); }
+.login-form { width: 100%; max-width: 380px; }
+.login-erro-msg { color: var(--color-red); font-size: 0.85rem; font-weight: 600; text-align: center; margin-top: 15px; display: none; }
+
+/* 3. CABEÇALHO (Header) */
+.app-header { background-color: var(--color-bg); padding: 16px 20px; display: flex; justify-content: center; align-items: center; position: sticky; top: 0; z-index: 100; cursor: pointer; }
+.logo-placeholder { font-size: 1.4rem; font-weight: 900; color: var(--color-dark); text-transform: uppercase; letter-spacing: -0.5px; display: flex; flex-direction: column; align-items: flex-end; line-height: 1; }
+.logo-placeholder span { color: var(--color-red); font-size: 0.6rem; font-weight: 800; margin-top: -2px; position: relative; }
+.logo-placeholder span::before { content: ''; position: absolute; left: -50px; bottom: 2px; width: 45px; height: 3px; background-color: var(--color-red); border-radius: 50% 50% 0 0; }
+.logo-small { font-size: 1.2rem; }
+
+/* 4. CONTEÚDOS COMUNS */
+.main-content { flex: 1; padding: 24px 20px; padding-bottom: 90px; }
+.page-title { font-size: 1.7rem; font-weight: 800; color: var(--color-dark); margin-bottom: 25px; }
+.card-link { font-size: 0.85rem; font-weight: 500; color: var(--color-red); text-decoration: underline; cursor: pointer; }
+.btn-checkin { background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 12px 24px; font-size: 1rem; font-weight: 600; font-family: 'Outfit', sans-serif; cursor: pointer; transition: opacity 0.2s; width: 100%;}
+.btn-checkin:active { opacity: 0.8; }
+.btn-outline-red { background: transparent; color: var(--color-red); border: 1px solid #E5E5E5; border-radius: 30px; padding: 14px 24px; font-size: 1rem; font-weight: 500; font-family: 'Outfit', sans-serif; cursor: pointer; width: 100%; margin-top: 15px; }
+.char-count { text-align: right; font-size: 0.75rem; color: #888; margin-top: 4px; padding-right: 5px; }
+
+/* 5. TELA INICIAL E FORMS */
+.card-visita { background-color: var(--color-white); border-radius: 24px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 15px;}
+.card-info { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; margin-right: 15px; }
+.card-titulo { font-size: 1.05rem; font-weight: 700; color: var(--color-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.95rem; font-weight: 500; color: var(--color-dark); margin-bottom: 8px; }
+.row-inputs { display: flex; gap: 12px; }
+.input-box { width: 100%; background-color: var(--color-bg); border: none; border-radius: 14px; padding: 14px 16px; font-family: inherit; font-size: 0.95rem; color: var(--color-dark); outline: none; }
+.input-box:read-only { color: #555; }
+.textarea-box { resize: none; min-height: 90px; }
+
+/* 6. TELA DE AGENDA & HISTÓRICO */
+#tela-agenda { padding-bottom: 130px; } 
+.section-subtitle { font-size: 1.1rem; font-weight: 800; color: var(--color-dark); margin: 25px 0 10px 0; }
+.card-agenda { background-color: var(--color-white); border-radius: 24px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 15px; }
+.agenda-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.agenda-data { font-size: 1.6rem; font-weight: 400; color: var(--color-dark); }
+.agenda-data-icon { color: var(--color-red); }
+.agenda-data-icon svg { width: 26px; height: 26px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+.agenda-cliente { font-size: 1.15rem; font-weight: 800; color: var(--color-dark); margin-bottom: 8px; }
+.agenda-info-row { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; color: #888; margin-bottom: 6px; line-height: 1.3;}
+.agenda-info-row svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; stroke-width: 2; fill: none; margin-top: 1px;}
+.agenda-motivo { font-size: 0.9rem; color: var(--color-dark); font-weight: 500; margin-top: 15px; margin-bottom: 20px; }
+.btn-gps { width: 100%; padding: 14px; border-radius: 30px; border: 1px solid #EAEAEA; background: var(--color-white); color: var(--color-red); font-size: 1.05rem; font-weight: 500; font-family: inherit; cursor: pointer; }
+.fab-nova-visita { position: fixed; bottom: 85px; right: 20px; background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 16px 24px; font-size: 0.9rem; font-weight: 800; font-family: inherit; box-shadow: 0 6px 20px rgba(245, 30, 48, 0.35); cursor: pointer; z-index: 999; }
+.card-historico { background-color: var(--color-white); border-radius: 20px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02); margin-bottom: 12px; }
+.hist-cliente { font-size: 1.05rem; font-weight: 700; color: var(--color-dark); }
+.hist-data { font-size: 0.85rem; color: #888; font-weight: 500; margin-top: 4px; }
+.hist-status { font-size: 0.75rem; font-weight: 700; color: #28a745; background-color: #e8f5e9; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
+
+/* 7. AUTOCOMPLETE */
+.autocomplete-wrapper { position: relative; }
+.autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--color-white); border: 1px solid #EAEAEA; border-radius: 12px; margin-top: 5px; z-index: 1000; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.08); display: none; }
+.autocomplete-item { padding: 14px 16px; border-bottom: 1px solid #F4F4F6; font-size: 0.95rem; cursor: pointer; color: var(--color-dark); }
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:active, .autocomplete-item:hover { background-color: var(--color-bg); }
+.autocomplete-item-novo { color: var(--color-red); font-weight: 700; background-color: #FFF5F5; }
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
+input[type="date"], input[type="time"] { -webkit-appearance: none; min-height: 48px; } 
+
+/* 8. MODAL DE CHECK-IN E TELAS FULL */
+.tela-fullscreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--color-white); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: flex-start; padding: 50px 20px 30px 20px; overflow-y: auto; }
+.titulo-confirmacao { color: var(--color-dark); font-size: 2rem; font-weight: 800; margin-bottom: 40px; text-align: center; }
+.perfil-bloco { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; text-align: center; }
+.avatar-img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; background-color: #F0F0F0; }
+.perfil-label { font-size: 0.75rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
+.perfil-nome { font-size: 1.15rem; font-weight: 400; color: var(--color-dark); }
+.data-hora-bloco { margin-top: 10px; margin-bottom: 40px; text-align: center; }
+.botoes-acao { width: 100%; max-width: 350px; display: flex; flex-direction: column; gap: 15px; margin-top: auto; }
+.btn-iniciar { background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 40px; padding: 16px; font-size: 1.1rem; font-weight: 500; font-family: inherit; width: 100%; cursor: pointer; }
+.btn-voltar { background-color: var(--color-white); color: var(--color-red); border: 1px solid #E5E5E5; border-radius: 40px; padding: 16px; font-size: 1.1rem; font-weight: 500; font-family: inherit; width: 100%; cursor: pointer; }
+
+/* 9. TELA VISITA EM ANDAMENTO (Timeline) */
+.card-visita-atual { background-color: var(--color-white); border-radius: 28px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); }
+.va-titulo { font-size: 1.2rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
+.va-status { font-size: 0.75rem; font-weight: 600; color: var(--color-red); text-transform: uppercase; margin-bottom: 20px; }
+.va-divider { border: 0; border-top: 1px solid #EAEAEA; margin: 24px 0; }
+.timeline-container { position: relative; padding-left: 20px; margin-bottom: 10px;}
+.timeline-line { position: absolute; left: 4px; top: 12px; bottom: 0; width: 6px; background-color: #EFEFEF; border-radius: 4px; z-index: 1;}
+.timeline-item { position: relative; margin-bottom: 30px; z-index: 2; display: flex;}
+.timeline-item:last-child { margin-bottom: 0; }
+.timeline-dot-gray { width: 14px; height: 14px; background-color: #EFEFEF; border-radius: 50%; margin-top: 5px; flex-shrink: 0; position: absolute; left: -16px; z-index: 3;}
+.timeline-dot-blue { width: 14px; height: 14px; background-color: var(--color-dark); border-radius: 50%; margin-top: 5px; flex-shrink: 0; position: absolute; left: -16px; z-index: 3;}
+.timeline-content { flex: 1; margin-left: 10px; }
+.timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.timeline-header strong { font-size: 1.05rem; color: var(--color-dark); font-weight: 800; }
+.timeline-header span { font-size: 0.9rem; color: #A0A0A0; font-weight: 500; }
+.timeline-desc { font-size: 0.85rem; color: #666; line-height: 1.4; margin: 0; }
+
+/* 10. TELA RELATÓRIO TÉCNICO */
+.tela-relatorio-container { display: none; flex-direction: column; min-height: 100vh; background-color: var(--color-white); width: 100%; }
+.relatorio-header-top { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background-color: var(--color-white); }
+.btn-back { background: var(--color-white); border: 1px solid #EAEAEA; border-radius: 12px; width: 44px; height: 44px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--color-red); }
+.btn-back svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.relatorio-info-section { padding: 0 20px 20px 20px; background-color: var(--color-white); }
+.rel-codigo { font-size: 0.85rem; font-weight: 600; color: #A0A0A0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+.select-wrapper { position: relative; }
+.select-wrapper::after { content: ''; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); width: 12px; height: 8px; background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="%23F51E30" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat center; pointer-events: none; }
+#rel-cliente-select { appearance: none; -webkit-appearance: none; color: var(--color-dark); opacity: 1; }
+.relatorio-editor-section { flex: 1; background-color: var(--color-bg); padding: 24px 20px; }
+.textarea-box-full { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 1rem; color: var(--color-dark); outline: none; resize: none; min-height: 200px;}
+.relatorio-acoes { display: flex; gap: 15px; padding: 20px; background-color: var(--color-bg); padding-bottom: 40px; }
+
+/* 11. NAVBAR INFERIOR */
+.bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--color-white); display: flex; justify-content: space-around; align-items: center; padding: 12px 0 20px 0; border-top: 1px solid #EEEEEE; z-index: 1000; }
+.nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--color-dark); font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
+.nav-item.active { opacity: 1; font-weight: 700; }
+.nav-item svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
