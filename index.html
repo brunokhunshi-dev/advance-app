@@ -10,6 +10,12 @@
     <title>Advance Tintas - PWA</title>
 
     <!-- O manifest precisa estar no HTML inicial para o Chrome detectar a instalação. -->
+    <!-- Ligação ao Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Cor da barra superior do Android e iOS -->
+<meta name="theme-color" content="#F51E30">
+<link rel="apple-touch-icon" href="icon-192.png">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./icons/icon-192.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -306,5 +312,15 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    <!-- Registo do Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('Service Worker registado com sucesso!', reg.scope))
+        .catch(err => console.error('Falha ao registar o Service Worker:', err));
+    });
+  }
+</script>
 </body>
 </html>
