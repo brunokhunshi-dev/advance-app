@@ -618,22 +618,36 @@ async function processarCheckin(lat, lng) {
         let clienteCoords = null;
         const dadosCli = clienteSnap.data();
 
-        // 2. Obtém as coordenadas da loja
+        // 2. Obtém as coordenadas da loja (do banco ou convertendo o endereço)
         if (dadosCli.lat && dadosCli.lng) {
             clienteCoords = { lat: parseFloat(dadosCli.lat), lng: parseFloat(dadosCli.lng) };
         } else if (dadosCli.enderecoCompleto) {
+            // Tenta traduzir o endereço completo em coordenadas geográficas
             clienteCoords = await obterCoordsPorEndereco(dadosCli.enderecoCompleto);
+
+            // AUTO-SAVE INTELIGENTE: Se encontrou com sucesso, salva no Firestore para nunca mais falhar!
+            if (clienteCoords) {
+                try {
+                    await updateDoc(doc(db, "clientes", clienteSelecionadoId), {
+                        lat: clienteCoords.lat,
+                        lng: clienteCoords.lng,
+                        atualizadoEm: new Date()
+                    });
+                    console.log("Coordenadas da loja salvas com sucesso no banco de dados!");
+                } catch (err) {
+                    console.error("Erro ao salvar cache de coordenadas do cliente:", err);
+                }
+            }
         }
 
-        // 3. Validação Separada: Erro de Cadastro vs Técnico Longe
+        // 3. Validação se as coordenadas foram obtidas com sucesso
         if (!clienteCoords) {
-            // ERRO A: A loja não tem coordenadas válidas no sistema (falha de endereço/cadastro)
-            alert("Erro de Cadastro: As coordenadas desta loja não foram encontradas no mapa. O administrador precisa atualizar o endereço ou o CEP do cliente no painel.");
+            alert("Erro de Cadastro: Não foi possível localizar este endereço no mapa para validar a proximidade. Verifique se o endereço ou o CEP estão corretos no cadastro do cliente.");
             btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
             return;
         }
 
-        // ERRO B: A loja tem coordenadas, mas o técnico está fisicamente longe
+        // 4. Validação da Cerca Virtual (500 Metros)
         const distanciaMetros = calcularDistancia(lat, lng, clienteCoords.lat, clienteCoords.lng);
         if (distanciaMetros > 500) {
             alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. É necessário estar num raio máximo de 500 metros para realizar o Check-in.`);
@@ -641,7 +655,7 @@ async function processarCheckin(lat, lng) {
             return; 
         }
 
-        // 4. Se passou por todas as validações, procede com o Check-in
+        // 5. Se passou por tudo, procede com o Check-in normalmente
         btnIniciar.textContent = "A registar morada...";
         const enderecoFisico = await obterEnderecoPorCoords(lat, lng);
         const coordGps = `${lat}, ${lng}`; 
