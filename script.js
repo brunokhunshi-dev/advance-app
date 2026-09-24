@@ -611,32 +611,37 @@ async function processarCheckin(lat, lng) {
     btnIniciar.textContent = "A validar distância...";
 
     try {
+        // 1. Busca os dados do Cliente
         const clienteSnap = await getDoc(doc(db, "clientes", clienteSelecionadoId));
         if(!clienteSnap.exists()) { throw new Error("Cliente não encontrado na base de dados."); }
         
         let clienteCoords = null;
         const dadosCli = clienteSnap.data();
 
+        // 2. Obtém as coordenadas da loja
         if (dadosCli.lat && dadosCli.lng) {
             clienteCoords = { lat: parseFloat(dadosCli.lat), lng: parseFloat(dadosCli.lng) };
         } else if (dadosCli.enderecoCompleto) {
             clienteCoords = await obterCoordsPorEndereco(dadosCli.enderecoCompleto);
         }
 
-        if (clienteCoords) {
-            const distanciaMetros = calcularDistancia(lat, lng, clienteCoords.lat, clienteCoords.lng);
-            
-            if (distanciaMetros > 500) {
-                alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. É necessário estar num raio máximo de 500 metros para realizar o Check-in.`);
-                btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
-                return; 
-            }
-        } else {
-            alert("Erro de Segurança: Não foi possível determinar as coordenadas geográficas desta loja para validar a proximidade. Impossível realizar o Check-in.");
+        // 3. Validação Separada: Erro de Cadastro vs Técnico Longe
+        if (!clienteCoords) {
+            // ERRO A: A loja não tem coordenadas válidas no sistema (falha de endereço/cadastro)
+            alert("Erro de Cadastro: As coordenadas desta loja não foram encontradas no mapa. O administrador precisa atualizar o endereço ou o CEP do cliente no painel.");
             btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
             return;
         }
 
+        // ERRO B: A loja tem coordenadas, mas o técnico está fisicamente longe
+        const distanciaMetros = calcularDistancia(lat, lng, clienteCoords.lat, clienteCoords.lng);
+        if (distanciaMetros > 500) {
+            alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. É necessário estar num raio máximo de 500 metros para realizar o Check-in.`);
+            btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
+            return; 
+        }
+
+        // 4. Se passou por todas as validações, procede com o Check-in
         btnIniciar.textContent = "A registar morada...";
         const enderecoFisico = await obterEnderecoPorCoords(lat, lng);
         const coordGps = `${lat}, ${lng}`; 
