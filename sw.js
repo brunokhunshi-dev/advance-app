@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-tintas-v1';
+const CACHE_NAME = 'advance-tintas-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,7 +6,9 @@ const APP_SHELL = [
   './pwa-mobile.css',
   './script.js',
   './firebase-config.js',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -20,14 +22,15 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(keys => Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-
   const requestURL = new URL(event.request.url);
   if (requestURL.origin !== self.location.origin) return;
 
