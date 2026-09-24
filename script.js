@@ -168,7 +168,6 @@ function mostrarApenasTela(idTelaAlvo) {
         if (el) el.style.display = (id === idTelaAlvo) ? 'block' : 'none';
     });
 
-    // Casos especiais de flexbox ou containers próprios
     if (idTelaAlvo === 'tela-relatorio') {
         document.getElementById('tela-relatorio').style.display = 'flex';
         document.getElementById('header-principal').style.display = 'none';
@@ -606,6 +605,7 @@ function configurarBotoesModal() {
     }
 }
 
+// LÓGICA MESTRA DE CHECK-IN: Geofencing Estrito de 500 Metros
 async function processarCheckin(lat, lng) {
     const btnIniciar = document.getElementById('btn-iniciar');
     btnIniciar.textContent = "A validar distância...";
@@ -625,13 +625,16 @@ async function processarCheckin(lat, lng) {
 
         if (clienteCoords) {
             const distanciaMetros = calcularDistancia(lat, lng, clienteCoords.lat, clienteCoords.lng);
-            if (distanciaMetros > 100) {
-                alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. Aproxime-se para um raio máximo de 100 metros para liberar o Check-in.`);
+            
+            if (distanciaMetros > 500) {
+                alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. É necessário estar num raio máximo de 500 metros para realizar o Check-in.`);
                 btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
                 return; 
             }
         } else {
-            alert("Aviso: Não foi possível validar a distância exata, mas a sua localização será registada para auditoria.");
+            alert("Erro de Segurança: Não foi possível determinar as coordenadas geográficas desta loja para validar a proximidade. Impossível realizar o Check-in.");
+            btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
+            return;
         }
 
         btnIniciar.textContent = "A registar morada...";
