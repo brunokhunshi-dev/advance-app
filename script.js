@@ -482,13 +482,20 @@ function configurarTelaCadastroCliente() {
     }
 
     if (iptNumero) {
-        iptNumero.addEventListener('blur', () => {
+        iptNumero.addEventListener('blur', async () => {
             const endereco = document.getElementById('cc-endereco').value; const num = iptNumero.value;
             const cidade = document.getElementById('cc-cidade').value; const uf = document.getElementById('cc-uf').value;
             if (endereco && num && cidade) {
                 const queryMap = `${endereco}, ${num} - ${cidade} - ${uf}`;
                 document.getElementById('mapa-iframe').src = `https://maps.google.com/maps?q=${encodeURIComponent(queryMap)}&output=embed`;
                 document.getElementById('mapa-container').style.display = 'block';
+
+                // PRÉ-BUSCA AS COORDENADAS AQUI MESMO PARA SALVAR NO BANCO
+                const coordsGeradas = await obterCoordsPorEndereco(queryMap);
+                if (coordsGeradas) {
+                    document.getElementById('cc-cep').dataset.lat = coordsGeradas.lat;
+                    document.getElementById('cc-cep').dataset.lng = coordsGeradas.lng;
+                }
             }
         });
     }
@@ -510,15 +517,30 @@ function configurarTelaCadastroCliente() {
             try {
                 const enderecoCompleto = `${document.getElementById('cc-endereco').value}, ${document.getElementById('cc-numero').value} - ${document.getElementById('cc-bairro').value} - ${cidade} - ${document.getElementById('cc-uf').value}`;
                 
-                const latCep = document.getElementById('cc-cep').dataset.lat || null;
-                const lngCep = document.getElementById('cc-cep').dataset.lng || null;
+                // Pega as coordenadas pré-carregadas ou tenta decifrar de última hora se estiverem vazias
+                let latFinal = document.getElementById('cc-cep').dataset.lat || null;
+                let lngFinal = document.getElementById('cc-cep').dataset.lng || null;
+
+                if (!latFinal || !lngFinal) {
+                    const coordsFallback = await obterCoordsPorEndereco(enderecoCompleto);
+                    if (coordsFallback) {
+                        latFinal = coordsFallback.lat;
+                        lngFinal = coordsFallback.lng;
+                    }
+                }
 
                 const novoClienteId = "cli_" + Date.now();
                 await setDoc(doc(db, "clientes", novoClienteId), {
-                    codigoCnpj: hashCnpjNovoCliente, nome: nome, cidade: cidade, uf: document.getElementById('cc-uf').value,
+                    codigoCnpj: hashCnpjNovoCliente, 
+                    nome: nome, 
+                    cidade: cidade, 
+                    uf: document.getElementById('cc-uf').value,
                     enderecoCompleto: enderecoCompleto, 
-                    lat: latCep, lng: lngCep, 
-                    status: "Ativo", criadoEm: new Date(), atualizadoEm: new Date()
+                    lat: latFinal ? parseFloat(latFinal) : null, 
+                    lng: lngFinal ? parseFloat(lngFinal) : null, 
+                    status: "Ativo", 
+                    criadoEm: new Date(), 
+                    atualizadoEm: new Date()
                 });
 
                 listaClientes.push({ id: novoClienteId, nome: nome }); nvClienteSelecionadoId = novoClienteId; document.getElementById('nv-cliente').value = nome;
@@ -531,9 +553,15 @@ function configurarTelaCadastroCliente() {
                 document.getElementById('cc-status-cnpj').textContent = ""; 
                 document.getElementById('cc-status-cep').textContent = "";
 
-                alert("Loja salva com sucesso!");
+                alert("Loja salva com sucesso com geolocalização registada!");
                 mostrarApenasTela('tela-nova-visita');
-            } catch (error) { alert("Falha ao salvar loja."); } finally { btn.disabled = false; btn.textContent = "Salvar Loja"; }
+            } catch (error) { 
+                console.error(error);
+                alert("Falha ao salvar loja."); 
+            } finally { 
+                btn.disabled = false; 
+                btn.textContent = "Salvar Loja"; 
+            }
         });
     }
 }
@@ -611,51 +639,28 @@ async function processarCheckin(lat, lng) {
     btnIniciar.textContent = "A validar distância...";
 
     try {
-        // 1. Busca os dados do Cliente
         const clienteSnap = await getDoc(doc(db, "clientes", clienteSelecionadoId));
         if(!clienteSnap.exists()) { throw new Error("Cliente não encontrado na base de dados."); }
         
-        let clienteCoords = null;
         const dadosCli = clienteSnap.data();
 
-        // 2. Obtém as coordenadas da loja (do banco ou convertendo o endereço)
-        if (dadosCli.lat && dadosCli.lng) {
-            clienteCoords = { lat: parseFloat(dadosCli.lat), lng: parseFloat(dadosCli.lng) };
-        } else if (dadosCli.enderecoCompleto) {
-            // Tenta traduzir o endereço completo em coordenadas geográficas
-            clienteCoords = await obterCoordsPorEndereco(dadosCli.enderecoCompleto);
-
-            // AUTO-SAVE INTELIGENTE: Se encontrou com sucesso, salva no Firestore para nunca mais falhar!
-            if (clienteCoords) {
-                try {
-                    await updateDoc(doc(db, "clientes", clienteSelecionadoId), {
-                        lat: clienteCoords.lat,
-                        lng: clienteCoords.lng,
-                        atualizadoEm: new Date()
-                    });
-                    console.log("Coordenadas da loja salvas com sucesso no banco de dados!");
-                } catch (err) {
-                    console.error("Erro ao salvar cache de coordenadas do cliente:", err);
-                }
-            }
-        }
-
-        // 3. Validação se as coordenadas foram obtidas com sucesso
-        if (!clienteCoords) {
-            alert("Erro de Cadastro: Não foi possível localizar este endereço no mapa para validar a proximidade. Verifique se o endereço ou o CEP estão corretos no cadastro do cliente.");
+        // Se por algum motivo antigo a loja não tiver lat/lng cadastrados, avisa o admin claramente
+        if (!dadosCli.lat || !dadosCli.lng) {
+            alert("Erro: Esta loja antiga não possui coordenadas geográficas cadastradas. Peça ao administrador para atualizar o cadastro da loja no painel.");
             btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
             return;
         }
 
-        // 4. Validação da Cerca Virtual (500 Metros)
-        const distanciaMetros = calcularDistancia(lat, lng, clienteCoords.lat, clienteCoords.lng);
+        // Validação Estrita da Cerca Virtual (500 Metros)
+        const distanciaMetros = calcularDistancia(lat, lng, dadosCli.lat, dadosCli.lng);
+        
         if (distanciaMetros > 500) {
             alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. É necessário estar num raio máximo de 500 metros para realizar o Check-in.`);
             btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
             return; 
         }
 
-        // 5. Se passou por tudo, procede com o Check-in normalmente
+        // Se passou pela distância correta, efetua o check-in
         btnIniciar.textContent = "A registar morada...";
         const enderecoFisico = await obterEnderecoPorCoords(lat, lng);
         const coordGps = `${lat}, ${lng}`; 
