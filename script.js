@@ -152,6 +152,15 @@ function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).t
 function escaparHtml(valor) {
     return String(valor ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+const GPS_ACCURACY_MAX_METERS = 150;
+
+async function obterLocalizacaoAtual() {
+    if (!navigator.geolocation) throw new Error("GPS não disponível neste dispositivo.");
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+    });
+}
+
 async function obterClienteCache(clienteId) {
     if (!clienteId) return null;
     if (cacheClientes.has(clienteId)) return cacheClientes.get(clienteId);
@@ -785,18 +794,18 @@ function configurarBotoesModal() {
             if (!atividadeSelecionadaId) return;
             btnIniciar.disabled = true; btnIniciar.textContent = "A obter localização...";
             
-            if (navigator.geolocation) { 
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => processarCheckin(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy), 
-                    (err) => { window.mostrarAlerta("Erro", "GPS Obrigatório para fazer Check-in!"); btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; }
-                ); 
-            } else { window.mostrarAlerta("Erro", "Navegador não suporta GPS."); btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; }
+            obterLocalizacaoAtual()
+                .then((pos) => processarCheckin(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy))
+                .catch(() => {
+                    window.mostrarAlerta("Erro", "GPS obrigatório para fazer Check-in.");
+                    btnIniciar.disabled = false;
+                    btnIniciar.textContent = "Iniciar";
+                });
         });
     }
 }
 
 async function processarCheckin(lat, lng, accuracy = null) {
-    const GPS_ACCURACY_MAX_METERS = 150;
     if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
         window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal de GPS melhor antes de iniciar a visita.");
         const btn = document.getElementById("btn-iniciar");
