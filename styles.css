@@ -16,13 +16,15 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .logo-placeholder span::before { content: ''; position: absolute; left: -50px; bottom: 2px; width: 45px; height: 3px; background-color: var(--color-red); border-radius: 50% 50% 0 0; }
 .logo-small { font-size: 1.2rem; }
 
-/* 4. CONTEÚDOS COMUNS */
+/* 4. CONTEÚDOS COMUNS & CORES DE FUNDO */
 .main-content { flex: 1; padding: 24px 20px; padding-bottom: 90px; }
+.tela-branca { background-color: var(--color-white); }
 .page-title { font-size: 1.7rem; font-weight: 800; color: var(--color-dark); margin-bottom: 25px; }
 .card-link { font-size: 0.85rem; font-weight: 500; color: var(--color-red); text-decoration: underline; cursor: pointer; }
-.btn-checkin { background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 12px 24px; font-size: 1rem; font-weight: 600; font-family: 'Outfit', sans-serif; cursor: pointer; transition: opacity 0.2s; width: 100%;}
-.btn-checkin:active { opacity: 0.8; }
-.btn-outline-red { background: transparent; color: var(--color-red); border: 1px solid #E5E5E5; border-radius: 30px; padding: 14px 24px; font-size: 1rem; font-weight: 500; font-family: 'Outfit', sans-serif; cursor: pointer; width: 100%; margin-top: 15px; }
+.btn-checkin, .btn-iniciar { background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 16px; font-size: 1.1rem; font-weight: 600; font-family: inherit; width: 100%; cursor: pointer; transition: opacity 0.2s; }
+.btn-checkin:active, .btn-iniciar:active { opacity: 0.8; }
+.btn-voltar { background-color: var(--color-white); color: var(--color-red); border: 1px solid #EAEAEA; border-radius: 30px; padding: 16px; font-size: 1.1rem; font-weight: 500; font-family: inherit; width: 100%; cursor: pointer; }
+.btn-outline-red { background: transparent; color: var(--color-red); border: 1px solid #E5E5E5; border-radius: 30px; padding: 14px 24px; font-size: 1rem; font-weight: 500; font-family: inherit; cursor: pointer; width: 100%; margin-top: 15px; }
 .char-count { text-align: right; font-size: 0.75rem; color: #888; margin-top: 4px; padding-right: 5px; }
 
 /* 5. TELA INICIAL E FORMS */
@@ -32,22 +34,32 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 0.95rem; font-weight: 500; color: var(--color-dark); margin-bottom: 8px; }
 .row-inputs { display: flex; gap: 12px; }
-.input-box { width: 100%; background-color: var(--color-bg); border: none; border-radius: 14px; padding: 14px 16px; font-family: inherit; font-size: 0.95rem; color: var(--color-dark); outline: none; }
+.input-box { width: 100%; background-color: var(--color-bg); border: none; border-radius: 25px; padding: 16px 20px; font-family: inherit; font-size: 0.95rem; color: var(--color-dark); outline: none; transition: background 0.2s; }
+.box-cinza { background-color: #F3F4F6; }
+.input-center { text-align: center; }
 .input-box:read-only { color: #555; }
-.textarea-box { resize: none; min-height: 90px; }
+.textarea-box { resize: none; min-height: 90px; border-radius: 20px; }
+
+/* 5.1 RADIO BUTTONS PERSONALIZADOS */
+.radio-group { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+.radio-label { display: flex; align-items: center; gap: 12px; font-size: 1rem; color: var(--color-dark); cursor: pointer; font-weight: 500; }
+.radio-label input[type="radio"] { display: none; }
+.radio-custom { width: 22px; height: 22px; border-radius: 50%; background-color: #EAEAEA; border: 2px solid #EAEAEA; position: relative; transition: all 0.2s; }
+.radio-label input[type="radio"]:checked + .radio-custom { background-color: var(--color-red); border-color: var(--color-red); }
 
 /* 6. TELA DE AGENDA & HISTÓRICO */
 #tela-agenda { padding-bottom: 130px; } 
 .section-subtitle { font-size: 1.1rem; font-weight: 800; color: var(--color-dark); margin: 25px 0 10px 0; }
-.card-agenda { background-color: var(--color-white); border-radius: 24px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 15px; }
+.card-agenda { background-color: var(--color-white); border-radius: 24px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 15px; position: relative; }
 .agenda-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .agenda-data { font-size: 1.6rem; font-weight: 400; color: var(--color-dark); }
-.agenda-data-icon { color: var(--color-red); }
-.agenda-data-icon svg { width: 26px; height: 26px; stroke: currentColor; stroke-width: 1.5; fill: none; }
-.agenda-cliente { font-size: 1.15rem; font-weight: 800; color: var(--color-dark); margin-bottom: 8px; }
+.agenda-btn-ficha { color: var(--color-red); cursor: pointer; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
+.agenda-btn-ficha:active { opacity: 0.6; }
+.agenda-btn-ficha svg { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.agenda-cliente { font-size: 1.15rem; font-weight: 800; color: var(--color-dark); margin-bottom: 8px; padding-right: 40px; }
 .agenda-info-row { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; color: #888; margin-bottom: 6px; line-height: 1.3;}
 .agenda-info-row svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; stroke-width: 2; fill: none; margin-top: 1px;}
-.agenda-motivo { font-size: 0.9rem; color: var(--color-dark); font-weight: 500; margin-top: 15px; margin-bottom: 20px; }
+.agenda-motivo { font-size: 0.9rem; color: var(--color-dark); font-weight: 600; margin-top: 15px; margin-bottom: 20px; }
 .btn-gps { width: 100%; padding: 14px; border-radius: 30px; border: 1px solid #EAEAEA; background: var(--color-white); color: var(--color-red); font-size: 1.05rem; font-weight: 500; font-family: inherit; cursor: pointer; }
 .fab-nova-visita { position: fixed; bottom: 85px; right: 20px; background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 16px 24px; font-size: 0.9rem; font-weight: 800; font-family: inherit; box-shadow: 0 6px 20px rgba(245, 30, 48, 0.35); cursor: pointer; z-index: 999; }
 .card-historico { background-color: var(--color-white); border-radius: 20px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02); margin-bottom: 12px; }
@@ -62,8 +74,8 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .autocomplete-item:last-child { border-bottom: none; }
 .autocomplete-item:active, .autocomplete-item:hover { background-color: var(--color-bg); }
 .autocomplete-item-novo { color: var(--color-red); font-weight: 700; background-color: #FFF5F5; }
-input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
-input[type="date"], input[type="time"] { -webkit-appearance: none; min-height: 48px; } 
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0; width: 100%; position: absolute; left: 0; top: 0; bottom: 0; cursor: pointer; }
+input[type="date"], input[type="time"] { position: relative; } 
 
 /* 8. MODAL DE CHECK-IN E TELAS FULL */
 .tela-fullscreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--color-white); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: flex-start; padding: 50px 20px 30px 20px; overflow-y: auto; }
@@ -73,9 +85,7 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; min-height: 4
 .perfil-label { font-size: 0.75rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
 .perfil-nome { font-size: 1.15rem; font-weight: 400; color: var(--color-dark); }
 .data-hora-bloco { margin-top: 10px; margin-bottom: 40px; text-align: center; }
-.botoes-acao { width: 100%; max-width: 350px; display: flex; flex-direction: column; gap: 15px; margin-top: auto; }
-.btn-iniciar { background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 40px; padding: 16px; font-size: 1.1rem; font-weight: 500; font-family: inherit; width: 100%; cursor: pointer; }
-.btn-voltar { background-color: var(--color-white); color: var(--color-red); border: 1px solid #E5E5E5; border-radius: 40px; padding: 16px; font-size: 1.1rem; font-weight: 500; font-family: inherit; width: 100%; cursor: pointer; }
+.botoes-acao { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-top: auto; }
 
 /* 9. TELA VISITA EM ANDAMENTO (Timeline) */
 .card-visita-atual { background-color: var(--color-white); border-radius: 28px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); }
@@ -93,6 +103,7 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; min-height: 4
 .timeline-header strong { font-size: 1.05rem; color: var(--color-dark); font-weight: 800; }
 .timeline-header span { font-size: 0.9rem; color: #A0A0A0; font-weight: 500; }
 .timeline-desc { font-size: 0.85rem; color: #666; line-height: 1.4; margin: 0; }
+.card-box { background: #FAFAFC; border: 1px solid #EFEFEF; border-radius: 16px; padding: 24px; }
 
 /* 10. TELA RELATÓRIO TÉCNICO */
 .tela-relatorio-container { display: none; flex-direction: column; min-height: 100vh; background-color: var(--color-white); width: 100%; }
@@ -111,5 +122,5 @@ input[type="date"], input[type="time"] { -webkit-appearance: none; min-height: 4
 /* 11. NAVBAR INFERIOR */
 .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--color-white); display: flex; justify-content: space-around; align-items: center; padding: 12px 0 20px 0; border-top: 1px solid #EEEEEE; z-index: 1000; }
 .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--color-dark); font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
-.nav-item.active { opacity: 1; font-weight: 700; }
+.nav-item.active { opacity: 1; font-weight: 700; color: var(--color-red); }
 .nav-item svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
