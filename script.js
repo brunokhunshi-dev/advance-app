@@ -602,7 +602,7 @@ async function carregarAtividadesPendentes() {
 
         const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
 
-        const nomeCliente = cliente?.exists() ? cliente.data().nome || 'Cliente sem nome' : 'Cliente não encontrado';
+        const nomeCliente = cliente?.nome || 'Cliente não encontrado';
 
         let relatorio = null;
 
