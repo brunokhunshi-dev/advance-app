@@ -47,6 +47,15 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .radio-custom { width: 22px; height: 22px; border-radius: 50%; background-color: #EAEAEA; border: 2px solid #EAEAEA; position: relative; transition: all 0.2s; }
 .radio-label input[type="radio"]:checked + .radio-custom { background-color: var(--color-red); border-color: var(--color-red); }
 
+/* 5.2 DETALHES DA VISITA (ICONES E MAPA) */
+.protocolo-id { font-size: 0.85rem; color: #888; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; opacity: 0.7; }
+.btn-icon-delete { background: transparent; border: 1px solid #EAEAEA; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--color-red); cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.btn-icon-delete:active { background: #FFEBEE; }
+.btn-icon-delete svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.input-icon-right { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--color-red); pointer-events: none; }
+input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px; }
+.map-placeholder { height: 160px; border-radius: 16px; background-color: #EFEFEF; overflow: hidden; margin-bottom: 25px; border: 1px solid #EAEAEA; }
+
 /* 6. TELA DE AGENDA & HISTÓRICO */
 #tela-agenda { padding-bottom: 130px; } 
 .section-subtitle { font-size: 1.1rem; font-weight: 800; color: var(--color-dark); margin: 25px 0 10px 0; }
@@ -87,7 +96,20 @@ input[type="date"], input[type="time"] { position: relative; }
 .data-hora-bloco { margin-top: 10px; margin-bottom: 40px; text-align: center; }
 .botoes-acao { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-top: auto; }
 
-/* 9. TELA VISITA EM ANDAMENTO (Timeline) */
+/* 9. MODAIS NATIVOS (POPOUTS) */
+.alert-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 20px; }
+.alert-box { background: white; border-radius: 14px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; }
+.alert-content { padding: 24px 20px; }
+.alert-box h3 { font-size: 1.1rem; color: var(--color-dark); font-weight: 800; margin-bottom: 10px; }
+.alert-box p { font-size: 0.95rem; color: #333; margin: 0; line-height: 1.35; }
+.alert-actions { display: flex; border-top: 1px solid #EBEBEB; }
+.alert-actions button { flex: 1; background: none; border: none; padding: 16px; font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.alert-actions button:active { background: #F5F5F5; }
+.alert-actions.split button:first-child { border-right: 1px solid #EBEBEB; }
+.alert-btn-red { color: var(--color-red); }
+.alert-btn-black { color: var(--color-dark); }
+
+/* 10. TELA VISITA EM ANDAMENTO (Timeline) */
 .card-visita-atual { background-color: var(--color-white); border-radius: 28px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); }
 .va-titulo { font-size: 1.2rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
 .va-status { font-size: 0.75rem; font-weight: 600; color: var(--color-red); text-transform: uppercase; margin-bottom: 20px; }
@@ -105,7 +127,7 @@ input[type="date"], input[type="time"] { position: relative; }
 .timeline-desc { font-size: 0.85rem; color: #666; line-height: 1.4; margin: 0; }
 .card-box { background: #FAFAFC; border: 1px solid #EFEFEF; border-radius: 16px; padding: 24px; }
 
-/* 10. TELA RELATÓRIO TÉCNICO */
+/* 11. TELA RELATÓRIO TÉCNICO */
 .tela-relatorio-container { display: none; flex-direction: column; min-height: 100vh; background-color: var(--color-white); width: 100%; }
 .relatorio-header-top { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background-color: var(--color-white); }
 .btn-back { background: var(--color-white); border: 1px solid #EAEAEA; border-radius: 12px; width: 44px; height: 44px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--color-red); }
@@ -119,7 +141,7 @@ input[type="date"], input[type="time"] { position: relative; }
 .textarea-box-full { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 1rem; color: var(--color-dark); outline: none; resize: none; min-height: 200px;}
 .relatorio-acoes { display: flex; gap: 15px; padding: 20px; background-color: var(--color-bg); padding-bottom: 40px; }
 
-/* 11. NAVBAR INFERIOR */
+/* 12. NAVBAR INFERIOR */
 .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--color-white); display: flex; justify-content: space-around; align-items: center; padding: 12px 0 20px 0; border-top: 1px solid #EEEEEE; z-index: 1000; }
 .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--color-dark); font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
 .nav-item.active { opacity: 1; font-weight: 700; color: var(--color-red); }

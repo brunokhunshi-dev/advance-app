@@ -95,7 +95,6 @@
             <div class="form-group">
                 <label>Escolha a data e horário</label>
                 <div class="row-inputs">
-                    <!-- Truque para mostrar o placeholder até o usuário focar no campo -->
                     <input type="text" id="nv-data" class="input-box box-cinza input-center" placeholder="--/--/----" onfocus="(this.type='date')" onblur="(this.value == '' ? this.type='text' : this.type='date')">
                     <input type="text" id="nv-hora" class="input-box box-cinza input-center" placeholder="--:--" onfocus="(this.type='time')" onblur="(this.value == '' ? this.type='text' : this.type='time')">
                 </div>
@@ -126,6 +125,73 @@
             <div class="botoes-acao" style="margin-top: 40px; max-width: 100%;">
                 <button class="btn-iniciar" id="btn-agendar-visita">Agendar</button>
                 <button class="btn-voltar" id="btn-cancelar-visita">Voltar</button>
+            </div>
+        </main>
+
+        <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->
+        <main class="main-content tela-branca" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
+            <div style="display: flex; justify-content: center; margin-bottom: 25px;">
+                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
+                <div>
+                    <h1 class="page-title" style="margin-bottom: 2px;">Visita agendada</h1>
+                    <p class="protocolo-id" id="det-protocolo">#...</p>
+                </div>
+                <button class="btn-icon-delete" id="btn-excluir-visita">
+                    <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path></svg>
+                </button>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label>Cliente</label>
+                <h3 id="det-nome-cliente" style="font-size: 1.15rem; color: var(--color-dark); font-weight: 800; text-transform: uppercase;">...</h3>
+            </div>
+
+            <div id="det-mapa-container" class="map-placeholder">
+                <iframe id="det-mapa-iframe" width="100%" height="100%" frameborder="0" style="border:0;" allowfullscreen="" aria-hidden="false" tabindex="0"></iframe>
+            </div>
+
+            <div class="form-group">
+                <div class="row-inputs">
+                    <div style="flex: 1; position: relative;">
+                        <label>Data</label>
+                        <input type="date" id="det-data" class="input-box box-cinza">
+                        <div class="input-icon-right"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+                    </div>
+                    <div style="flex: 1; position: relative;">
+                        <label>Hora</label>
+                        <input type="time" id="det-hora" class="input-box box-cinza">
+                        <div class="input-icon-right"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 25px;">
+                <label>Tipo da visita</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="detTipoVisita" value="Visita comercial">
+                        <span class="radio-custom"></span>
+                        Visita comercial
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="detTipoVisita" value="Treinamento">
+                        <span class="radio-custom"></span>
+                        Treinamento
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 25px;">
+                <label>Nota</label>
+                <textarea id="det-nota" class="input-box box-cinza textarea-box" maxlength="600"></textarea>
+            </div>
+
+            <div class="botoes-acao" style="margin-top: 40px; max-width: 100%;">
+                <button class="btn-iniciar" id="btn-salvar-detalhes">Salvar</button>
+                <button class="btn-voltar" id="btn-voltar-detalhes">Voltar</button>
             </div>
         </main>
 
@@ -265,7 +331,7 @@
             <h1 class="page-title">Meu Perfil</h1>
             <div class="card-box" style="text-align: center; margin-top: 20px;">
                 <p style="color: #777; margin-bottom: 20px;">Gerencie a sua conta e preferências aqui.</p>
-                <button class="btn-outline-red" onclick="alert('Tela de Perfil em construção!')">Configurações</button>
+                <button class="btn-outline-red" onclick="window.mostrarAlerta('Aviso', 'Tela de Perfil em construção!')">Configurações</button>
             </div>
         </main>
 
@@ -283,7 +349,6 @@
                 <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="2" ry="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="3" y1="12" x2="21" y2="12"></line></svg>
                 Visitas
             </button>
-            <!-- Substituído Mensagens por Perfil -->
             <button class="nav-item">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 Perfil
@@ -314,6 +379,45 @@
                 <button class="btn-voltar" id="btn-voltar">Voltar</button>
             </div>
         </div>
+
+        <!-- MODAIS DE ALERTA NATIVOS (POPOUTS) -->
+        <div id="modal-alerta-generico" class="modal-overlay alert-modal">
+            <div class="alert-box">
+                <div class="alert-content">
+                    <h3 id="alerta-titulo">Sucesso</h3>
+                    <p id="alerta-msg">Ação realizada.</p>
+                </div>
+                <div class="alert-actions">
+                    <button onclick="window.fecharAlerta()" class="alert-btn-red">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-aviso-andamento" class="modal-overlay alert-modal">
+            <div class="alert-box">
+                <div class="alert-content">
+                    <h3>Essa visita já está em andamento</h3>
+                    <p>Faça o check-out ou exclua a visita caso necessário.</p>
+                </div>
+                <div class="alert-actions">
+                    <button onclick="document.getElementById('modal-aviso-andamento').style.display='none'" class="alert-btn-red">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-confirmar-exclusao" class="modal-overlay alert-modal">
+            <div class="alert-box">
+                <div class="alert-content">
+                    <h3>Excluir visita?</h3>
+                    <p>Tem certeza que você quer excluir essa visita?</p>
+                </div>
+                <div class="alert-actions split">
+                    <button onclick="window.fecharConfirmacaoExclusao()" class="alert-btn-black">CANCELAR</button>
+                    <button onclick="window.confirmarExclusao()" class="alert-btn-red">DELETAR</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script type="module" src="script.js"></script>
