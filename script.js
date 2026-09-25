@@ -186,12 +186,117 @@ async function carregarAtividadesPendentes() {
                 if (clienteSnap.exists()) nomeCliente = clienteSnap.data().nome;
             }
 
-            // A MÁGICA ACONTECE AQUI:
             if (atividade.status === "Em andamento") {
-                // Se está em andamento, não desenha o card pequeno. 
-                // Abre a tela estendida com a linha do tempo, relatório e checkout automaticamente!
-                areaVisitas.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar a sua visita em andamento...</p>`;
-                window.retomarVisitaAndamento(atividade.id, nomeCliente, atividade.clienteId);
+                // Em vez de redirecionar para a tela "visita-atual", injetamos a timeline diretamente no ecrã "Início"
+                atividadeSelecionadaId = atividade.id;
+                clienteSelecionadoNome = nomeCliente;
+                clienteSelecionadoId = atividade.clienteId;
+                
+                objetoAtividadeGlobal = {
+                    status: atividade.status,
+                    checkinDataHora: atividade.checkinDataHora || new Date(),
+                    checkinGps: atividade.checkinGps,
+                    relatorioId: atividade.relatorioId,
+                    objetivo: atividade.objetivo || "Visita comercial"
+                };
+
+                // Verifica se já existe um relatório associado
+                if (atividade.relatorioId) {
+                    const snapRel = await getDoc(doc(db, "relatorios", atividade.relatorioId));
+                    if (snapRel.exists()) objetoRelatorioGlobal = snapRel.data();
+                } else {
+                    objetoRelatorioGlobal = null;
+                }
+
+                const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
+                
+                let htmlTimeline = `
+                <div class="card-visita-atual" style="margin-top: 10px;">
+                    <h2 class="va-titulo">${nomeCliente}</h2>
+                    <div class="va-status">EM ANDAMENTO</div>
+                    <hr class="va-divider" style="margin: 15px 0;">
+                    <div class="timeline-container">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot-gray"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <strong>Check-in</strong>
+                                    <span>${objData.hora}</span>
+                                </div>
+                                <p class="timeline-desc">${nomeUsuarioLogado || 'Técnico'} chegou a ${nomeCliente} às ${objData.hora}.</p>
+                            </div>
+                        </div>`;
+                
+                let htmlBotoes = '';
+
+                if (objetoRelatorioGlobal && objetoRelatorioGlobal.historico && objetoRelatorioGlobal.historico.length > 0) {
+                    const historico = objetoRelatorioGlobal.historico;
+                    historico.forEach((registro, index) => {
+                        const horaReg = formatarDataHoraPT(registro.salvoEm).hora; 
+                        const isLast = (index === historico.length - 1); 
+                        const dotClass = isLast ? 'timeline-dot-blue' : 'timeline-dot-gray';
+                        const titulo = (index === 0) ? 'Relatório adicionado' : 'Relatório atualizado'; 
+                        const acaoTxt = (index === 0) ? 'escreveu um relatório.' : 'atualizou o relatório.';
+                        
+                        htmlTimeline += `
+                        <div class="timeline-item">
+                            <div class="${dotClass}"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <strong>${titulo}</strong>
+                                    <span>${horaReg}</span>
+                                </div>
+                                <p class="timeline-desc" ${isLast ? 'style="margin-bottom: 12px;"' : ''}>${nomeUsuarioLogado || 'Técnico'} ${acaoTxt}</p>
+                                ${isLast ? '<button class="btn-outline-red" id="btn-ver-relatorio-inicio">Ver ou editar relatório</button>' : ''}
+                            </div>
+                        </div>`;
+                    });
+                    htmlBotoes = `<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>`;
+                } else { 
+                    htmlBotoes = `<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>`; 
+                }
+                
+                htmlTimeline += `</div>${htmlBotoes}</div>`;
+                areaVisitas.innerHTML = htmlTimeline;
+
+                // Reconfigurar eventos dos botões recém-injetados
+                const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio'); 
+                const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio'); 
+                const btnEncerrar = document.getElementById('btn-encerrar-visita-inicio');
+
+                const acaoAbrirRelatorio = () => {
+                    mostrarApenasTela('tela-relatorio');
+                    const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora || new Date()); let codigoRelatorio = "";
+                    if (objetoRelatorioGlobal && objetoRelatorioGlobal.codigo) { codigoRelatorio = objetoRelatorioGlobal.codigo; document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || ""; 
+                    } else { const dataPura = new Date(); codigoRelatorio = `#${dataPura.getFullYear()}${String(dataPura.getMonth() + 1).padStart(2, '0')}${String(dataPura.getDate()).padStart(2, '0')}${obterIniciais(nomeUsuarioLogado || 'TEC')}`; document.getElementById('rel-texto').value = ""; }
+                    
+                    document.getElementById('rel-titulo-cliente').textContent = `Relatório - ${clienteSelecionadoNome}`; document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
+                    document.getElementById('rel-data').value = formatoData.data; document.getElementById('rel-hora').value = formatoData.hora; document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; window.scrollTo(0, 0);
+                };
+
+                if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio); 
+                if (btnVerEditar) btnVerEditar.addEventListener('click', acaoAbrirRelatorio);
+                
+                if (btnEncerrar) { 
+                    btnEncerrar.addEventListener('click', async () => { 
+                        window.mostrarConfirmacaoExclusao(async () => {
+                            btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
+                            navigator.geolocation.getCurrentPosition(async (pos) => {
+                                btnEncerrar.textContent = "A gravar encerramento...";
+                                const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+                                const coordGpsCheckout = `${lat}, ${lng}`;
+                                const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
+
+                                await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
+                                window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
+                            }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
+                        });
+                        document.querySelector('#modal-confirmar-exclusao h3').textContent = "Encerrar visita?";
+                        document.querySelector('#modal-confirmar-exclusao p').textContent = "Tem certeza que deseja finalizar esta visita?";
+                    }); 
+                }
+
                 return;
             }
 
@@ -408,7 +513,7 @@ window.abrirDetalhesVisita = function(index) {
 function configurarTelaDetalhesVisita() {
     document.getElementById('btn-voltar-detalhes').addEventListener('click', () => { mostrarApenasTela('tela-agenda'); });
 
-document.getElementById('btn-excluir-visita').addEventListener('click', () => {
+    document.getElementById('btn-excluir-visita').addEventListener('click', () => {
         window.mostrarConfirmacaoExclusao(async () => {
             try {
                 // 1. Salva uma cópia exata na Lixeira (nova coleção)
@@ -706,31 +811,65 @@ async function processarCheckin(lat, lng) {
 }
 
 function atualizarInterfaceVisitaAtual() {
-    mostrarApenasTela('tela-visita-atual');
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
-    document.getElementById('va-nome-cliente').textContent = clienteSelecionadoNome; 
-    document.getElementById('va-data').value = objData.data; 
-    document.getElementById('va-hora').value = objData.hora;
-    document.getElementById('va-tipo').value = objetoAtividadeGlobal.objetivo || "Visita comercial";
     
-    const areaTimeline = document.getElementById('va-area-timeline'); const areaBotoes = document.getElementById('va-area-botoes');
-    let htmlTimeline = `<div class="timeline-container"><div class="timeline-line"></div><div class="timeline-item"><div class="timeline-dot-gray"></div><div class="timeline-content"><div class="timeline-header"><strong>Check-in</strong><span>${objData.hora}</span></div><p class="timeline-desc">${nomeUsuarioLogado || 'Técnico'} chegou a ${clienteSelecionadoNome} às ${objData.hora}.</p></div></div>`;
+    const areaVisitas = document.getElementById('area-visitas');
     
+    let htmlTimeline = `
+    <div class="card-visita-atual" style="margin-top: 10px;">
+        <h2 class="va-titulo">${clienteSelecionadoNome}</h2>
+        <div class="va-status">EM ANDAMENTO</div>
+        <hr class="va-divider" style="margin: 15px 0;">
+        <div class="timeline-container">
+            <div class="timeline-line"></div>
+            <div class="timeline-item">
+                <div class="timeline-dot-gray"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <strong>Check-in</strong>
+                        <span>${objData.hora}</span>
+                    </div>
+                    <p class="timeline-desc">${nomeUsuarioLogado || 'Técnico'} chegou a ${clienteSelecionadoNome} às ${objData.hora}.</p>
+                </div>
+            </div>`;
+    
+    let htmlBotoes = '';
+
     if (objetoRelatorioGlobal && objetoRelatorioGlobal.historico && objetoRelatorioGlobal.historico.length > 0) {
         const historico = objetoRelatorioGlobal.historico;
         historico.forEach((registro, index) => {
-            const horaReg = formatarDataHoraPT(registro.salvoEm).hora; const isLast = (index === historico.length - 1); const dotClass = isLast ? 'timeline-dot-blue' : 'timeline-dot-gray';
-            const titulo = (index === 0) ? 'Relatório adicionado' : 'Relatório atualizado'; const acaoTxt = (index === 0) ? 'escreveu um relatório.' : 'atualizou o relatório.';
-            htmlTimeline += `<div class="timeline-item"><div class="${dotClass}"></div><div class="timeline-content"><div class="timeline-header"><strong>${titulo}</strong><span>${horaReg}</span></div><p class="timeline-desc" ${isLast ? 'style="margin-bottom: 12px;"' : ''}>${nomeUsuarioLogado || 'Técnico'} ${acaoTxt}</p>${isLast ? '<button class="btn-outline-red" id="btn-ver-relatorio">Ver ou editar relatório</button>' : ''}</div></div>`;
+            const horaReg = formatarDataHoraPT(registro.salvoEm).hora; 
+            const isLast = (index === historico.length - 1); 
+            const dotClass = isLast ? 'timeline-dot-blue' : 'timeline-dot-gray';
+            const titulo = (index === 0) ? 'Relatório adicionado' : 'Relatório atualizado'; 
+            const acaoTxt = (index === 0) ? 'escreveu um relatório.' : 'atualizou o relatório.';
+            
+            htmlTimeline += `
+            <div class="timeline-item">
+                <div class="${dotClass}"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <strong>${titulo}</strong>
+                        <span>${horaReg}</span>
+                    </div>
+                    <p class="timeline-desc" ${isLast ? 'style="margin-bottom: 12px;"' : ''}>${nomeUsuarioLogado || 'Técnico'} ${acaoTxt}</p>
+                    ${isLast ? '<button class="btn-outline-red" id="btn-ver-relatorio-inicio">Ver ou editar relatório</button>' : ''}
+                </div>
+            </div>`;
         });
-        areaBotoes.innerHTML = `<button class="btn-checkin" id="btn-encerrar-visita">Encerrar visita</button>`;
-    } else { areaBotoes.innerHTML = `<button class="btn-checkin" id="btn-escrever-relatorio">Escrever relatório</button>`; }
+        htmlBotoes = `<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>`;
+    } else { 
+        htmlBotoes = `<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>`; 
+    }
     
-    htmlTimeline += `</div>`; areaTimeline.innerHTML = htmlTimeline; reconfigurarBotoesVisitaAtual();
-}
+    htmlTimeline += `</div>${htmlBotoes}</div>`;
+    areaVisitas.innerHTML = htmlTimeline;
 
-function reconfigurarBotoesVisitaAtual() {
-    const btnEscrever = document.getElementById('btn-escrever-relatorio'); const btnVerEditar = document.getElementById('btn-ver-relatorio'); const btnEncerrar = document.getElementById('btn-encerrar-visita');
+    // Reconfigurar eventos
+    const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio'); 
+    const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio'); 
+    const btnEncerrar = document.getElementById('btn-encerrar-visita-inicio');
+
     const acaoAbrirRelatorio = () => {
         mostrarApenasTela('tela-relatorio');
         const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora || new Date()); let codigoRelatorio = "";
@@ -741,7 +880,8 @@ function reconfigurarBotoesVisitaAtual() {
         document.getElementById('rel-data').value = formatoData.data; document.getElementById('rel-hora').value = formatoData.hora; document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; window.scrollTo(0, 0);
     };
 
-    if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio); if (btnVerEditar) btnVerEditar.addEventListener('click', acaoAbrirRelatorio);
+    if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio); 
+    if (btnVerEditar) btnVerEditar.addEventListener('click', acaoAbrirRelatorio);
     
     if (btnEncerrar) { 
         btnEncerrar.addEventListener('click', async () => { 
@@ -757,7 +897,6 @@ function reconfigurarBotoesVisitaAtual() {
                     window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
                 }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
             });
-            // Modifica o texto do Modal temporariamente para o Checkout
             document.querySelector('#modal-confirmar-exclusao h3').textContent = "Encerrar visita?";
             document.querySelector('#modal-confirmar-exclusao p').textContent = "Tem certeza que deseja finalizar esta visita?";
         }); 
@@ -766,7 +905,11 @@ function reconfigurarBotoesVisitaAtual() {
 
 function configurarEventosGlobais() {
     const btnVoltarRelatorio = document.getElementById('btn-voltar-relatorio');
-    if (btnVoltarRelatorio) { btnVoltarRelatorio.addEventListener('click', () => { mostrarApenasTela('tela-visita-atual'); }); }
+    if (btnVoltarRelatorio) {
+        btnVoltarRelatorio.addEventListener('click', () => { 
+            mostrarApenasTela('tela-inicio');
+        });
+    }
 
     const btnSalvarRelatorio = document.getElementById('btn-salvar-relatorio');
     if (btnSalvarRelatorio) {
@@ -774,54 +917,42 @@ function configurarEventosGlobais() {
             const textoRelatorio = document.getElementById('rel-texto').value.trim(); 
             if(!textoRelatorio) { window.mostrarAlerta("Atenção", "Escreva um resumo antes de salvar."); return; }
             
-            const btnSalvar = document.getElementById('btn-salvar-relatorio'); btnSalvar.disabled = true; btnSalvar.textContent = "A salvar...";
+            const btnSalvar = document.getElementById('btn-salvar-relatorio'); 
+            btnSalvar.disabled = true; btnSalvar.textContent = "A salvar...";
             
             try {
                 const dataAgora = new Date(); const codigoGerado = document.getElementById('rel-codigo-gerado').textContent;
+
                 if (!objetoRelatorioGlobal) {
                     const novoRelatorioId = "rel_" + Date.now();
-                    objetoRelatorioGlobal = { id: novoRelatorioId, atividadeId: atividadeSelecionadaId, clienteId: clienteSelecionadoId, ptvId: idUsuarioLogado, codigo: codigoGerado, textoAtual: textoRelatorio, historico: [{ texto: textoRelatorio, salvoEm: dataAgora }], criadoEm: dataAgora, atualizadoEm: dataAgora };
-                    await setDoc(doc(db, "relatorios", novoRelatorioId), objetoRelatorioGlobal); await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { relatorioId: novoRelatorioId, atualizadoEm: dataAgora }); objetoAtividadeGlobal.relatorioId = novoRelatorioId;
+                    objetoRelatorioGlobal = { 
+                        id: novoRelatorioId, atividadeId: atividadeSelecionadaId, clienteId: clienteSelecionadoId, 
+                        ptvId: idUsuarioLogado, codigo: codigoGerado, textoAtual: textoRelatorio, 
+                        historico: [{ texto: textoRelatorio, salvoEm: dataAgora }], 
+                        criadoEm: dataAgora, atualizadoEm: dataAgora 
+                    };
+                    await setDoc(doc(db, "relatorios", novoRelatorioId), objetoRelatorioGlobal); 
+                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { relatorioId: novoRelatorioId, atualizadoEm: dataAgora }); 
+                    objetoAtividadeGlobal.relatorioId = novoRelatorioId;
                 } else {
                     const novoRegistro = { texto: textoRelatorio, salvoEm: dataAgora };
-                    objetoRelatorioGlobal.historico.push(novoRegistro); objetoRelatorioGlobal.textoAtual = textoRelatorio; objetoRelatorioGlobal.atualizadoEm = dataAgora;
-                    await updateDoc(doc(db, "relatorios", objetoRelatorioGlobal.id), { textoAtual: textoRelatorio, historico: objetoRelatorioGlobal.historico, atualizadoEm: dataAgora });
+                    objetoRelatorioGlobal.historico.push(novoRegistro); 
+                    objetoRelatorioGlobal.textoAtual = textoRelatorio; 
+                    objetoRelatorioGlobal.atualizadoEm = dataAgora;
+                    await updateDoc(doc(db, "relatorios", objetoRelatorioGlobal.id), { 
+                        textoAtual: textoRelatorio, historico: objetoRelatorioGlobal.historico, atualizadoEm: dataAgora 
+                    });
                 }
-                mostrarApenasTela('tela-visita-atual'); atualizarInterfaceVisitaAtual();
-            } catch (error) { window.mostrarAlerta("Erro", "Erro ao salvar."); } finally { btnSalvar.disabled = false; btnSalvar.textContent = "Salvar relatório"; }
+
+                mostrarApenasTela('tela-inicio');
+                atualizarInterfaceVisitaAtual();
+            } catch (error) { 
+                console.error("Erro ao salvar relatório:", error);
+                window.mostrarAlerta("Erro", "Erro ao salvar."); 
+            } finally { 
+                btnSalvar.disabled = false; 
+                btnSalvar.textContent = "Salvar relatório"; 
+            }
         });
     }
 }
-
-// === RESTAURAR VISITA EM ANDAMENTO ===
-window.retomarVisitaAndamento = async function(atividadeId, clienteNome, clienteId) {
-    atividadeSelecionadaId = atividadeId;
-    clienteSelecionadoNome = clienteNome;
-    clienteSelecionadoId = clienteId;
-    
-    try {
-        const snapAtv = await getDoc(doc(db, "atividades", atividadeId));
-        if (snapAtv.exists()) {
-            const dados = snapAtv.data();
-            objetoAtividadeGlobal = {
-                status: dados.status,
-                checkinDataHora: dados.checkinDataHora || new Date(),
-                checkinGps: dados.checkinGps,
-                relatorioId: dados.relatorioId,
-                objetivo: dados.objetivo || "Visita comercial"
-            };
-            
-            // Tenta puxar o relatório se ele já tinha começado a escrever algo
-            if (dados.relatorioId) {
-                const snapRel = await getDoc(doc(db, "relatorios", dados.relatorioId));
-                if (snapRel.exists()) objetoRelatorioGlobal = snapRel.data();
-            } else {
-                objetoRelatorioGlobal = null;
-            }
-            atualizarInterfaceVisitaAtual();
-        }
-    } catch(e) {
-        console.error(e);
-        window.mostrarAlerta("Erro", "Falha ao restaurar a visita em andamento.");
-    }
-};
