@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, limit, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
@@ -20,6 +20,8 @@ let objetoAtividadeGlobal = null;
 let objetoRelatorioGlobal = null; 
 
 let listaClientes = [];
+let clientesAutocompleteCarregados = false;
+const cacheClientes = new Map();
 let listaAtividadesAgenda = []; // Nova lista para edição de visitas
 let nvClienteSelecionadoId = null;
 let hashCnpjNovoCliente = null;
@@ -147,6 +149,17 @@ function formatarDataAgenda(data) {
 }
 function obterIniciais(nome) { return nome.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 3); }
 function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
+function escaparHtml(valor) {
+    return String(valor ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+async function obterClienteCache(clienteId) {
+    if (!clienteId) return null;
+    if (cacheClientes.has(clienteId)) return cacheClientes.get(clienteId);
+    const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
+    const dados = clienteSnap.exists() ? { id: clienteSnap.id, ...clienteSnap.data() } : null;
+    cacheClientes.set(clienteId, dados);
+    return dados;
+}
 
 function mostrarApenasTela(idTelaAlvo) {
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita'];
@@ -182,8 +195,8 @@ async function carregarAtividadesPendentes() {
             let nomeCliente = "Cliente Desconhecido";
             
             if (atividade.clienteId) {
-                const clienteSnap = await getDoc(doc(db, "clientes", atividade.clienteId));
-                if (clienteSnap.exists()) nomeCliente = clienteSnap.data().nome;
+                const clienteSnapData = await obterClienteCache(atividade.clienteId);
+            if (clienteSnapData) nomeCliente = clienteSnapData.nome;
             }
 
             if (atividade.status === "Em andamento") {
@@ -329,10 +342,10 @@ async function carregarAgenda() {
         for (const documento of querySnapshot.docs) {
             let dados = documento.data(); dados.id = documento.id;
             if (dados.clienteId) {
-                const clienteSnap = await getDoc(doc(db, "clientes", dados.clienteId));
-                if (clienteSnap.exists()) {
-                    dados.nomeCliente = clienteSnap.data().nome;
-                    dados.enderecoCompleto = clienteSnap.data().enderecoCompleto || `Rua Principal, 100 - Centro - ${clienteSnap.data().cidade || 'Localidade'} - ${clienteSnap.data().uf || 'UF'}`;
+                const clienteAgenda = await obterClienteCache(dados.clienteId);
+                if (clienteAgenda) {
+                    dados.nomeCliente = clienteAgenda.nome;
+                    dados.enderecoCompleto = clienteAgenda.enderecoCompleto || ("Rua Principal, 100 - Centro - " + (clienteAgenda.cidade || "Localidade") + " - " + (clienteAgenda.uf || "UF"));
                 }
             } else { dados.nomeCliente = "Desconhecido"; dados.enderecoCompleto = "Não disponível"; }
             listaAtividadesAgenda.push(dados);
@@ -371,7 +384,7 @@ async function carregarHistoricoVisitas() {
     const areaHistorico = document.getElementById('area-historico-visitas');
     areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar histórico...</p>`;
     try {
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"), limit(10));
+        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"), orderBy("data", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) { areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita concluída.</p>`; return; }
@@ -380,8 +393,8 @@ async function carregarHistoricoVisitas() {
         for (const documento of querySnapshot.docs) {
             let dados = documento.data(); dados.id = documento.id;
             if (dados.clienteId) {
-                const clienteSnap = await getDoc(doc(db, "clientes", dados.clienteId));
-                dados.nomeCliente = clienteSnap.exists() ? clienteSnap.data().nome : "Cliente Desconhecido";
+                const clienteHistorico = await obterClienteCache(dados.clienteId);
+            dados.nomeCliente = clienteHistorico?.nome || "Cliente Desconhecido";
             }
             historicoArray.push(dados);
         }
@@ -562,10 +575,12 @@ function configurarTelaDetalhesVisita() {
 
 // === CADASTRO DE NOVO CLIENTE ===
 async function carregarDadosParaAutocomplete() {
+    if (clientesAutocompleteCarregados) return;
     try {
         const qCli = query(collection(db, "clientes"), where("status", "==", "Ativo"));
         const snapCli = await getDocs(qCli);
         listaClientes = []; snapCli.forEach(doc => listaClientes.push({ id: doc.id, nome: doc.data().nome }));
+        clientesAutocompleteCarregados = true;
     } catch(e) { console.error("Erro dicionários:", e); }
 }
 
@@ -757,7 +772,7 @@ function configurarBotoesModal() {
             
             if (navigator.geolocation) { 
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => processarCheckin(pos.coords.latitude, pos.coords.longitude), 
+                    (pos) => processarCheckin(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy), 
                     (err) => { window.mostrarAlerta("Erro", "GPS Obrigatório para fazer Check-in!"); btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; }
                 ); 
             } else { window.mostrarAlerta("Erro", "Navegador não suporta GPS."); btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; }
@@ -765,7 +780,14 @@ function configurarBotoesModal() {
     }
 }
 
-async function processarCheckin(lat, lng) {
+async function processarCheckin(lat, lng, accuracy = null) {
+    const GPS_ACCURACY_MAX_METERS = 150;
+    if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
+        window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal de GPS melhor antes de iniciar a visita.");
+        const btn = document.getElementById("btn-iniciar");
+        btn.disabled = false; btn.textContent = "Iniciar";
+        return;
+    }
     const btnIniciar = document.getElementById('btn-iniciar');
     btnIniciar.textContent = "A validar distância...";
 
@@ -799,7 +821,7 @@ async function processarCheckin(lat, lng) {
         objetoAtividadeGlobal = { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, relatorioId: null, objetivo: tipoAssistCadastrado }; 
         objetoRelatorioGlobal = null; 
 
-        await updateDoc(atividadeRef, { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, checkinEndereco: enderecoFisico, atualizadoEm: dataCheckinAtual });
+        await updateDoc(atividadeRef, { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, checkinGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null, checkinEndereco: enderecoFisico, atualizadoEm: dataCheckinAtual });
 
         document.getElementById('tela-confirmacao').style.display = 'none'; 
         btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
