@@ -553,14 +553,14 @@ function configurarTelaDetalhesVisita() {
         window.mostrarConfirmacaoExclusao(async () => {
             try {
                 // 1. Salva uma cópia exata na Lixeira (nova coleção)
-                await setDoc(doc(db, "atividades_excluidas", visitaEmEdicao.id), {
+                const batchExclusao = writeBatch(db);
+                batchExclusao.set(doc(db, "atividades_excluidas", visitaEmEdicao.id), {
                     ...visitaEmEdicao,
                     excluidoEm: new Date(),
                     excluidoPor: idUsuarioLogado
                 });
-                
-                // 2. Apaga definitivamente da coleção ativa
-                await deleteDoc(doc(db, "atividades", visitaEmEdicao.id));
+                batchExclusao.delete(doc(db, "atividades", visitaEmEdicao.id));
+                await batchExclusao.commit();
                 
                 window.mostrarAlerta("Sucesso", "Visita movida para a lixeira com sucesso.");
                 mostrarApenasTela('tela-agenda');
