@@ -20,9 +20,7 @@ let objetoAtividadeGlobal = null;
 let objetoRelatorioGlobal = null; 
 
 let listaClientes = [];
-let listaGestores = [];
 let nvClienteSelecionadoId = null;
-let nvGestorSelecionadoId = null;
 let hashCnpjNovoCliente = null;
 
 // === INICIALIZAÇÃO E AUTENTICAÇÃO ===
@@ -160,7 +158,8 @@ function mostrarApenasTela(idTelaAlvo) {
         'tela-nova-visita', 
         'tela-cadastro-cliente', 
         'tela-visita-atual', 
-        'tela-relatorio'
+        'tela-relatorio',
+        'tela-perfil'
     ];
     
     telas.forEach(id => {
@@ -244,11 +243,15 @@ async function carregarAgenda() {
             const fData = formatarDataAgenda(atividade.data);
             const tituloSecao = index === 0 ? "Próxima visita" : (index === 1 ? "Nesse mês" : "");
             if (tituloSecao) areaAgenda.innerHTML += `<h2 class="section-subtitle">${tituloSecao}</h2>`;
+            
             let botaoGpsHTML = index === 0 ? `<button class="btn-gps" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(atividade.enderecoCompleto)}', '_blank')">Abrir no GPS</button>` : '';
+            
+            // O novo ícone de Ficha de Cadastro conforme o design
+            const iconeFicha = `<button class="agenda-btn-ficha" onclick="alert('Funcionalidade de visualização, edição e exclusão da visita em breve!')" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
 
             areaAgenda.innerHTML += `
                 <div class="card-agenda">
-                    <div class="agenda-header"><span class="agenda-data">${fData.diaMes}</span><span class="agenda-data-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="14" x2="16" y2="14"></line><line x1="8" y1="18" x2="12" y2="18"></line></svg></span></div>
+                    <div class="agenda-header"><span class="agenda-data">${fData.diaMes}</span>${iconeFicha}</div>
                     <div class="agenda-cliente">${atividade.nomeCliente}</div>
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${fData.hora}</div>
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${atividade.enderecoCompleto}</div>
@@ -295,7 +298,7 @@ async function carregarHistoricoVisitas() {
     } catch (error) { console.error("Erro no histórico:", error); }
 }
 
-// === TELA NOVA VISITA (Autocomplete) ===
+// === TELA NOVA VISITA (Autocomplete & Custom Radio) ===
 function configurarTelaNovaVisita() {
     const inputNota = document.getElementById('nv-nota');
     const countNota = document.getElementById('nv-char-count');
@@ -332,34 +335,17 @@ function configurarTelaNovaVisita() {
         document.addEventListener('click', (e) => { if(!e.target.closest('#nv-cliente') && !e.target.closest('#nv-cliente-dropdown')) dropCliente.style.display = 'none'; });
     }
 
-    const inputGestor = document.getElementById('nv-gestor');
-    const dropGestor = document.getElementById('nv-gestor-dropdown');
-    if (inputGestor) {
-        inputGestor.addEventListener('input', (e) => {
-            dropGestor.innerHTML = ''; const txt = e.target.value.toLowerCase();
-            const filtrados = listaGestores.filter(item => item.nome.toLowerCase().includes(txt));
-            if (filtrados.length === 0) { dropGestor.innerHTML = '<div class="autocomplete-item" style="color:#999;">Nenhum resultado</div>'; } 
-            else {
-                filtrados.forEach(item => {
-                    const div = document.createElement('div'); div.className = 'autocomplete-item'; div.textContent = item.nome;
-                    div.addEventListener('click', () => { nvGestorSelecionadoId = item.id; inputGestor.value = item.nome; dropGestor.style.display = 'none'; });
-                    dropGestor.appendChild(div);
-                });
-            }
-            dropGestor.style.display = 'block';
-        });
-        inputGestor.addEventListener('focus', () => dropGestor.style.display = 'block');
-        document.addEventListener('click', (e) => { if(!e.target.closest('#nv-gestor') && !e.target.closest('#nv-gestor-dropdown')) dropGestor.style.display = 'none'; });
-    }
-
     const btnAgendar = document.getElementById('btn-agendar-visita');
     if (btnAgendar) {
         btnAgendar.addEventListener('click', async () => {
             if (!nvClienteSelecionadoId) { alert('Por favor, selecione um cliente válido da lista.'); return; }
-            const dataVal = document.getElementById('nv-data').value; const horaVal = document.getElementById('nv-hora').value;
-            if (!dataVal || !horaVal) { alert('Escolha a data e o horário da visita.'); return; }
             
-            const motivoVal = document.getElementById('nv-motivo').value || "Visita de rotina";
+            const dataVal = document.getElementById('nv-data').value; 
+            const horaVal = document.getElementById('nv-hora').value;
+            if (!dataVal || !horaVal || dataVal === "" || horaVal === "") { alert('Escolha a data e o horário da visita.'); return; }
+            
+            // Pega o valor do Radio Button Selecionado
+            const tipoVisitaSelecionado = document.querySelector('input[name="tipoVisita"]:checked').value;
             const notaVal = document.getElementById('nv-nota').value;
             const dataCompleta = new Date(`${dataVal}T${horaVal}:00`);
             
@@ -369,16 +355,18 @@ function configurarTelaNovaVisita() {
                 const novoId = "atv_" + Date.now();
                 await setDoc(doc(db, "atividades", novoId), {
                     tipo: "Visita", data: dataCompleta, ptvId: idUsuarioLogado, clienteId: nvClienteSelecionadoId,
-                    gestorEncarregadoId: nvGestorSelecionadoId || null, objetivo: motivoVal, nota: notaVal, status: "Pendente",
+                    objetivo: tipoVisitaSelecionado, nota: notaVal, status: "Pendente",
                     criadoEm: new Date(), atualizadoEm: new Date()
                 });
 
-                inputCliente.value = ""; nvClienteSelecionadoId = null; document.getElementById('nv-gestor').value = ""; nvGestorSelecionadoId = null;
-                document.getElementById('nv-data').value = ""; document.getElementById('nv-hora').value = "";
-                document.getElementById('nv-motivo').value = ""; document.getElementById('nv-nota').value = ""; countNota.textContent = "0/600";
+                inputCliente.value = ""; nvClienteSelecionadoId = null; 
+                document.getElementById('nv-data').value = ""; document.getElementById('nv-data').type = 'text';
+                document.getElementById('nv-hora').value = ""; document.getElementById('nv-hora').type = 'text';
+                document.getElementById('nv-nota').value = ""; countNota.textContent = "0/600";
+                document.querySelector('input[name="tipoVisita"][value="Visita comercial"]').checked = true;
 
                 alert("Visita agendada com sucesso!");
-                document.getElementById('btn-cancelar-visita').click();
+                mostrarApenasTela('tela-agenda');
                 carregarAgenda();
             } catch (error) { alert("Falha ao agendar visita."); } finally { btnAgendar.disabled = false; btnAgendar.textContent = "Agendar"; }
         });
@@ -390,15 +378,6 @@ async function carregarDadosParaAutocomplete() {
         const qCli = query(collection(db, "clientes"), where("status", "==", "Ativo"));
         const snapCli = await getDocs(qCli);
         listaClientes = []; snapCli.forEach(doc => listaClientes.push({ id: doc.id, nome: doc.data().nome }));
-
-        const qProm = query(collection(db, "promotores"));
-        const snapProm = await getDocs(qProm);
-        listaGestores = []; snapProm.forEach(doc => { listaGestores.push({ id: doc.id, nome: doc.data().nome }); });
-        
-        const qAst = query(collection(db, "assistencia"));
-        const snapAst = await getDocs(qAst);
-        snapAst.forEach(doc => { listaGestores.push({ id: doc.id, nome: doc.data().nome }); });
-
     } catch(e) { console.error("Erro dicionários:", e); }
 }
 
@@ -411,7 +390,6 @@ function configurarTelaCadastroCliente() {
         iptCnpj.addEventListener('blur', async () => {
             const cnpjPuro = iptCnpj.value.replace(/\D/g, '');
             const lblStatus = document.getElementById('cc-status-cnpj');
-            
             if (cnpjPuro.length === 14) {
                 lblStatus.style.color = "var(--color-blue)"; lblStatus.textContent = " (Procurando...)";
                 hashCnpjNovoCliente = ofuscarCNPJ(cnpjPuro);
@@ -456,7 +434,6 @@ function configurarTelaCadastroCliente() {
         iptCep.addEventListener('blur', async () => {
             const cepPuro = iptCep.value.replace(/\D/g, '');
             const lblStatus = document.getElementById('cc-status-cep');
-
             if (cepPuro.length === 8) {
                 lblStatus.style.color = "var(--color-blue)"; lblStatus.textContent = " (Procurando...)";
                 try {
@@ -490,7 +467,6 @@ function configurarTelaCadastroCliente() {
                 document.getElementById('mapa-iframe').src = `https://maps.google.com/maps?q=${encodeURIComponent(queryMap)}&output=embed`;
                 document.getElementById('mapa-container').style.display = 'block';
 
-                // PRÉ-BUSCA AS COORDENADAS AQUI MESMO PARA SALVAR NO BANCO
                 const coordsGeradas = await obterCoordsPorEndereco(queryMap);
                 if (coordsGeradas) {
                     document.getElementById('cc-cep').dataset.lat = coordsGeradas.lat;
@@ -502,9 +478,7 @@ function configurarTelaCadastroCliente() {
 
     const btnCancelarCliente = document.getElementById('btn-cancelar-cliente');
     if (btnCancelarCliente) {
-        btnCancelarCliente.addEventListener('click', () => {
-            mostrarApenasTela('tela-nova-visita');
-        });
+        btnCancelarCliente.addEventListener('click', () => { mostrarApenasTela('tela-nova-visita'); });
     }
 
     const btnSalvarCliente = document.getElementById('btn-salvar-cliente');
@@ -517,51 +491,32 @@ function configurarTelaCadastroCliente() {
             try {
                 const enderecoCompleto = `${document.getElementById('cc-endereco').value}, ${document.getElementById('cc-numero').value} - ${document.getElementById('cc-bairro').value} - ${cidade} - ${document.getElementById('cc-uf').value}`;
                 
-                // Pega as coordenadas pré-carregadas ou tenta decifrar de última hora se estiverem vazias
                 let latFinal = document.getElementById('cc-cep').dataset.lat || null;
                 let lngFinal = document.getElementById('cc-cep').dataset.lng || null;
 
                 if (!latFinal || !lngFinal) {
                     const coordsFallback = await obterCoordsPorEndereco(enderecoCompleto);
-                    if (coordsFallback) {
-                        latFinal = coordsFallback.lat;
-                        lngFinal = coordsFallback.lng;
-                    }
+                    if (coordsFallback) { latFinal = coordsFallback.lat; lngFinal = coordsFallback.lng; }
                 }
 
                 const novoClienteId = "cli_" + Date.now();
                 await setDoc(doc(db, "clientes", novoClienteId), {
-                    codigoCnpj: hashCnpjNovoCliente, 
-                    nome: nome, 
-                    cidade: cidade, 
-                    uf: document.getElementById('cc-uf').value,
-                    enderecoCompleto: enderecoCompleto, 
-                    lat: latFinal ? parseFloat(latFinal) : null, 
-                    lng: lngFinal ? parseFloat(lngFinal) : null, 
-                    status: "Ativo", 
-                    criadoEm: new Date(), 
-                    atualizadoEm: new Date()
+                    codigoCnpj: hashCnpjNovoCliente, nome: nome, cidade: cidade, uf: document.getElementById('cc-uf').value,
+                    enderecoCompleto: enderecoCompleto, lat: latFinal ? parseFloat(latFinal) : null, lng: lngFinal ? parseFloat(lngFinal) : null, 
+                    status: "Ativo", criadoEm: new Date(), atualizadoEm: new Date()
                 });
 
                 listaClientes.push({ id: novoClienteId, nome: nome }); nvClienteSelecionadoId = novoClienteId; document.getElementById('nv-cliente').value = nome;
 
                 ['cc-cnpj','cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if(el) el.value = "";
+                    const el = document.getElementById(id); if(el) el.value = "";
                 });
                 document.getElementById('mapa-container').style.display = 'none'; 
-                document.getElementById('cc-status-cnpj').textContent = ""; 
-                document.getElementById('cc-status-cep').textContent = "";
+                document.getElementById('cc-status-cnpj').textContent = ""; document.getElementById('cc-status-cep').textContent = "";
 
                 alert("Loja salva com sucesso com geolocalização registada!");
                 mostrarApenasTela('tela-nova-visita');
-            } catch (error) { 
-                console.error(error);
-                alert("Falha ao salvar loja."); 
-            } finally { 
-                btn.disabled = false; 
-                btn.textContent = "Salvar Loja"; 
-            }
+            } catch (error) { alert("Falha ao salvar loja."); } finally { btn.disabled = false; btn.textContent = "Salvar Loja"; }
         });
     }
 }
@@ -570,13 +525,13 @@ function configurarNavegacao() {
     const navItems = document.querySelectorAll('.nav-item');
     navItems.forEach((item, index) => {
         item.addEventListener('click', function() {
-            if (index === 3) { alert('Funcionalidade em desenvolvimento.'); return; }
             navItems.forEach(nav => nav.classList.remove('active')); 
             this.classList.add('active');
             
             if (index === 0) { mostrarApenasTela('tela-inicio'); carregarAtividadesPendentes(); } 
             else if (index === 1) { mostrarApenasTela('tela-agenda'); carregarAgenda(); } 
             else if (index === 2) { mostrarApenasTela('tela-historico'); carregarHistoricoVisitas(); }
+            else if (index === 3) { mostrarApenasTela('tela-perfil'); } // Aba Perfil
         });
     });
 
@@ -591,9 +546,7 @@ function configurarNavegacao() {
 
     const btnCancelarVisita = document.getElementById('btn-cancelar-visita');
     if (btnCancelarVisita) {
-        btnCancelarVisita.addEventListener('click', () => {
-            mostrarApenasTela('tela-agenda');
-        });
+        btnCancelarVisita.addEventListener('click', () => { mostrarApenasTela('tela-agenda'); });
     }
 }
 
@@ -612,9 +565,7 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
 function configurarBotoesModal() {
     const btnVoltar = document.getElementById('btn-voltar');
     if (btnVoltar) {
-        btnVoltar.addEventListener('click', () => { 
-            document.getElementById('tela-confirmacao').style.display = 'none'; 
-        });
+        btnVoltar.addEventListener('click', () => { document.getElementById('tela-confirmacao').style.display = 'none'; });
     }
     
     const btnIniciar = document.getElementById('btn-iniciar');
@@ -633,7 +584,6 @@ function configurarBotoesModal() {
     }
 }
 
-// LÓGICA MESTRA DE CHECK-IN: Geofencing Estrito de 500 Metros
 async function processarCheckin(lat, lng) {
     const btnIniciar = document.getElementById('btn-iniciar');
     btnIniciar.textContent = "A validar distância...";
@@ -644,23 +594,19 @@ async function processarCheckin(lat, lng) {
         
         const dadosCli = clienteSnap.data();
 
-        // Se por algum motivo antigo a loja não tiver lat/lng cadastrados, avisa o admin claramente
         if (!dadosCli.lat || !dadosCli.lng) {
             alert("Erro: Esta loja antiga não possui coordenadas geográficas cadastradas. Peça ao administrador para atualizar o cadastro da loja no painel.");
             btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
             return;
         }
 
-        // Validação Estrita da Cerca Virtual (500 Metros)
         const distanciaMetros = calcularDistancia(lat, lng, dadosCli.lat, dadosCli.lng);
-        
         if (distanciaMetros > 500) {
             alert(`Acesso Bloqueado: Você está a ${Math.round(distanciaMetros)} metros de distância da loja. É necessário estar num raio máximo de 500 metros para realizar o Check-in.`);
             btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
             return; 
         }
 
-        // Se passou pela distância correta, efetua o check-in
         btnIniciar.textContent = "A registar morada...";
         const enderecoFisico = await obterEnderecoPorCoords(lat, lng);
         const coordGps = `${lat}, ${lng}`; 
@@ -668,23 +614,25 @@ async function processarCheckin(lat, lng) {
         dataCheckinAtual = new Date(); 
         const atividadeRef = doc(db, "atividades", atividadeSelecionadaId);
         
-        objetoAtividadeGlobal = { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, relatorioId: null }; 
+        // Vamos ler a atividade para pegar o "objetivo" (que agora é o tipo da visita: Comercial ou Treinamento)
+        const snapAtv = await getDoc(atividadeRef);
+        let tipoAssistCadastrado = "Visita comercial";
+        if (snapAtv.exists()) {
+            tipoAssistCadastrado = snapAtv.data().objetivo || "Visita comercial";
+        }
+
+        objetoAtividadeGlobal = { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, relatorioId: null, objetivo: tipoAssistCadastrado }; 
         objetoRelatorioGlobal = null; 
 
         await updateDoc(atividadeRef, { 
-            status: "Em andamento", 
-            checkinDataHora: dataCheckinAtual, 
-            checkinGps: coordGps, 
-            checkinEndereco: enderecoFisico, 
-            atualizadoEm: dataCheckinAtual 
+            status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, checkinEndereco: enderecoFisico, atualizadoEm: dataCheckinAtual 
         });
 
         document.getElementById('tela-confirmacao').style.display = 'none'; 
         btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
         atualizarInterfaceVisitaAtual();
     } catch (error) { 
-        console.error("Erro no checkin:", error); 
-        alert("Falha ao processar o Check-in."); 
+        console.error("Erro no checkin:", error); alert("Falha ao processar o Check-in."); 
         btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; 
     }
 }
@@ -695,6 +643,9 @@ function atualizarInterfaceVisitaAtual() {
     document.getElementById('va-nome-cliente').textContent = clienteSelecionadoNome; 
     document.getElementById('va-data').value = objData.data; 
     document.getElementById('va-hora').value = objData.hora;
+    
+    // Atualiza o formulário de Visita com a escolha Comercial ou Treinamento
+    document.getElementById('va-tipo').value = objetoAtividadeGlobal.objetivo || "Visita técnica";
     
     const areaTimeline = document.getElementById('va-area-timeline'); 
     const areaBotoes = document.getElementById('va-area-botoes');
@@ -731,8 +682,7 @@ function reconfigurarBotoesVisitaAtual() {
         const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora || new Date()); 
         let codigoRelatorio = "";
         if (objetoRelatorioGlobal && objetoRelatorioGlobal.codigo) { 
-            codigoRelatorio = objetoRelatorioGlobal.codigo; 
-            document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || ""; 
+            codigoRelatorio = objetoRelatorioGlobal.codigo; document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || ""; 
         } else { 
             const dataPura = new Date(); 
             codigoRelatorio = `#${dataPura.getFullYear()}${String(dataPura.getMonth() + 1).padStart(2, '0')}${String(dataPura.getDate()).padStart(2, '0')}${obterIniciais(nomeUsuarioLogado || 'TEC')}`;
@@ -743,8 +693,7 @@ function reconfigurarBotoesVisitaAtual() {
         document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
         document.getElementById('rel-data').value = formatoData.data; 
         document.getElementById('rel-hora').value = formatoData.hora; 
-        document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; 
-        window.scrollTo(0, 0);
+        document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; window.scrollTo(0, 0);
     };
 
     if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio); 
@@ -753,30 +702,21 @@ function reconfigurarBotoesVisitaAtual() {
     if (btnEncerrar) { 
         btnEncerrar.addEventListener('click', async () => { 
             if(confirm("Deseja realmente encerrar esta visita?")) { 
-                btnEncerrar.disabled = true;
-                btnEncerrar.textContent = "A obter GPS de Saída...";
-
+                btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     btnEncerrar.textContent = "A gravar encerramento...";
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
+                    const lat = pos.coords.latitude; const lng = pos.coords.longitude;
                     const coordGpsCheckout = `${lat}, ${lng}`;
                     const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
 
                     await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { 
-                        status: "Concluída", 
-                        checkoutDataHora: new Date(),
-                        checkoutGps: coordGpsCheckout,
-                        checkoutEndereco: enderecoFisicoCheckout,
-                        atualizadoEm: new Date() 
+                        status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout,
+                        checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() 
                     }); 
-                    
-                    alert("Visita encerrada com sucesso!"); 
-                    window.location.reload(); 
+                    alert("Visita encerrada com sucesso!"); window.location.reload(); 
                 }, (err) => {
                     alert("É obrigatório permitir o GPS para realizar o Check-out e encerrar a visita.");
-                    btnEncerrar.disabled = false; 
-                    btnEncerrar.textContent = "Encerrar visita";
+                    btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita";
                 });
             } 
         }); 
@@ -785,11 +725,7 @@ function reconfigurarBotoesVisitaAtual() {
 
 function configurarEventosGlobais() {
     const btnVoltarRelatorio = document.getElementById('btn-voltar-relatorio');
-    if (btnVoltarRelatorio) {
-        btnVoltarRelatorio.addEventListener('click', () => { 
-            mostrarApenasTela('tela-visita-atual');
-        });
-    }
+    if (btnVoltarRelatorio) { btnVoltarRelatorio.addEventListener('click', () => { mostrarApenasTela('tela-visita-atual'); }); }
 
     const btnSalvarRelatorio = document.getElementById('btn-salvar-relatorio');
     if (btnSalvarRelatorio) {
@@ -798,13 +734,10 @@ function configurarEventosGlobais() {
             if(!textoRelatorio) { alert("Escreva algum resumo antes de salvar."); return; }
             
             const btnSalvar = document.getElementById('btn-salvar-relatorio'); 
-            btnSalvar.disabled = true; 
-            btnSalvar.textContent = "A salvar...";
+            btnSalvar.disabled = true; btnSalvar.textContent = "A salvar...";
             
             try {
-                const dataAgora = new Date(); 
-                const codigoGerado = document.getElementById('rel-codigo-gerado').textContent;
-
+                const dataAgora = new Date(); const codigoGerado = document.getElementById('rel-codigo-gerado').textContent;
                 if (!objetoRelatorioGlobal) {
                     const novoRelatorioId = "rel_" + Date.now();
                     objetoRelatorioGlobal = { 
@@ -818,23 +751,14 @@ function configurarEventosGlobais() {
                     objetoAtividadeGlobal.relatorioId = novoRelatorioId;
                 } else {
                     const novoRegistro = { texto: textoRelatorio, salvoEm: dataAgora };
-                    objetoRelatorioGlobal.historico.push(novoRegistro); 
-                    objetoRelatorioGlobal.textoAtual = textoRelatorio; 
-                    objetoRelatorioGlobal.atualizadoEm = dataAgora;
+                    objetoRelatorioGlobal.historico.push(novoRegistro); objetoRelatorioGlobal.textoAtual = textoRelatorio; objetoRelatorioGlobal.atualizadoEm = dataAgora;
                     await updateDoc(doc(db, "relatorios", objetoRelatorioGlobal.id), { 
                         textoAtual: textoRelatorio, historico: objetoRelatorioGlobal.historico, atualizadoEm: dataAgora 
                     });
                 }
-
-                mostrarApenasTela('tela-visita-atual');
-                atualizarInterfaceVisitaAtual();
-            } catch (error) { 
-                console.error("Erro ao salvar relatório:", error);
-                alert("Erro ao salvar."); 
-            } finally { 
-                btnSalvar.disabled = false; 
-                btnSalvar.textContent = "Salvar relatório"; 
-            }
+                mostrarApenasTela('tela-visita-atual'); atualizarInterfaceVisitaAtual();
+            } catch (error) { console.error("Erro ao salvar relatório:", error); alert("Erro ao salvar."); 
+            } finally { btnSalvar.disabled = false; btnSalvar.textContent = "Salvar relatório"; }
         });
     }
 }
