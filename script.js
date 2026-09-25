@@ -306,11 +306,17 @@ async function carregarAtividadesPendentes() {
                             btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
                             navigator.geolocation.getCurrentPosition(async (pos) => {
                                 btnEncerrar.textContent = "A gravar encerramento...";
-                                const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+                                const lat = pos.coords.latitude; const lng = pos.coords.longitude; const accuracy = pos.coords.accuracy;
+                                if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
+                                    window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal melhor antes do check-out.");
+                                    btnEncerrar.disabled = false;
+                                    btnEncerrar.textContent = "Encerrar visita";
+                                    return;
+                                }
                                 const coordGpsCheckout = `${lat}, ${lng}`;
                                 const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
 
-                                await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
+                                await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
                                 window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
                             }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
                         });
@@ -936,11 +942,17 @@ function atualizarInterfaceVisitaAtual() {
                 btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     btnEncerrar.textContent = "A gravar encerramento...";
-                    const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+                    const lat = pos.coords.latitude; const lng = pos.coords.longitude; const accuracy = pos.coords.accuracy;
+                                if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
+                                    window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal melhor antes do check-out.");
+                                    btnEncerrar.disabled = false;
+                                    btnEncerrar.textContent = "Encerrar visita";
+                                    return;
+                                }
                     const coordGpsCheckout = `${lat}, ${lng}`;
                     const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
 
-                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
+                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
                     window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
                 }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
             });
