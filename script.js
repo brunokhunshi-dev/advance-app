@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, limit, addDoc, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, limit, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
@@ -86,6 +86,9 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('app-container').style.display = 'none'; 
         document.getElementById('tela-login').style.display = 'flex';
         idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
+        listaClientes = [];
+        clientesAutocompleteCarregados = false;
+        cacheClientes.clear();
         const btnEntrar = document.getElementById('btn-entrar');
         if(btnEntrar) { btnEntrar.disabled = false; btnEntrar.textContent = "Entrar"; }
     }
@@ -303,22 +306,7 @@ async function carregarAtividadesPendentes() {
                 if (btnEncerrar) { 
                     btnEncerrar.addEventListener('click', async () => { 
                         window.mostrarConfirmacaoExclusao(async () => {
-                            btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
-                            navigator.geolocation.getCurrentPosition(async (pos) => {
-                                btnEncerrar.textContent = "A gravar encerramento...";
-                                const lat = pos.coords.latitude; const lng = pos.coords.longitude; const accuracy = pos.coords.accuracy;
-                                if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
-                                    window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal melhor antes do check-out.");
-                                    btnEncerrar.disabled = false;
-                                    btnEncerrar.textContent = "Encerrar visita";
-                                    return;
-                                }
-                                const coordGpsCheckout = `${lat}, ${lng}`;
-                                const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
-
-                                await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
-                                window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
-                            }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
+                            await processarCheckout(btnEncerrar);
                         });
                         document.querySelector('#modal-confirmar-exclusao h3').textContent = "Encerrar visita?";
                         document.querySelector('#modal-confirmar-exclusao p').textContent = "Tem certeza que deseja finalizar esta visita?";
@@ -492,7 +480,7 @@ function configurarTelaNovaVisita() {
             btnAgendar.disabled = true; btnAgendar.textContent = "A agendar...";
 
             try {
-                const atividadeRefNova = await addDoc(collection(db, "atividades"), {
+                await addDoc(collection(db, "atividades"), {
                     tipo: "Visita", data: dataCompleta, ptvId: idUsuarioLogado, clienteId: nvClienteSelecionadoId,
                     objetivo: tipoVisitaSelecionado, nota: notaVal, status: "Pendente",
                     criadoEm: new Date(), atualizadoEm: new Date()
@@ -863,6 +851,43 @@ async function processarCheckin(lat, lng, accuracy = null) {
     }
 }
 
+async function processarCheckout(btnEncerrar) {
+    btnEncerrar.disabled = true;
+    btnEncerrar.textContent = "A obter GPS de Saída...";
+
+    try {
+        const pos = await obterLocalizacaoAtual();
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+        if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
+            window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal melhor antes do check-out.");
+            return;
+        }
+
+        btnEncerrar.textContent = "A gravar encerramento...";
+        const coordGpsCheckout = `${lat}, ${lng}`;
+        const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
+
+        await updateDoc(doc(db, "atividades", atividadeSelecionadaId), {
+            status: "Concluída",
+            checkoutDataHora: new Date(),
+            checkoutGps: coordGpsCheckout,
+            checkoutGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null,
+            checkoutEndereco: enderecoFisicoCheckout,
+            atualizadoEm: new Date()
+        });
+
+        window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!");
+        setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+        console.error("Erro no check-out:", error);
+        window.mostrarAlerta("Erro", "Não foi possível concluir o check-out. Verifique o GPS e tente novamente.");
+    } finally {
+        btnEncerrar.disabled = false;
+        btnEncerrar.textContent = "Encerrar visita";
+    }
+}
+
 function atualizarInterfaceVisitaAtual() {
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
     
@@ -939,22 +964,7 @@ function atualizarInterfaceVisitaAtual() {
     if (btnEncerrar) { 
         btnEncerrar.addEventListener('click', async () => { 
             window.mostrarConfirmacaoExclusao(async () => {
-                btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                    btnEncerrar.textContent = "A gravar encerramento...";
-                    const lat = pos.coords.latitude; const lng = pos.coords.longitude; const accuracy = pos.coords.accuracy;
-                                if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
-                                    window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal melhor antes do check-out.");
-                                    btnEncerrar.disabled = false;
-                                    btnEncerrar.textContent = "Encerrar visita";
-                                    return;
-                                }
-                    const coordGpsCheckout = `${lat}, ${lng}`;
-                    const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
-
-                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
-                    window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
-                }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
+                await processarCheckout(btnEncerrar);
             });
             document.querySelector('#modal-confirmar-exclusao h3').textContent = "Encerrar visita?";
             document.querySelector('#modal-confirmar-exclusao p').textContent = "Tem certeza que deseja finalizar esta visita?";
