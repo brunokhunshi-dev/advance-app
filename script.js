@@ -166,12 +166,16 @@ async function carregarAtividadesPendentes() {
     if (!idUsuarioLogado) return;
     const areaVisitas = document.getElementById('area-visitas');
     try {
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Pendente"));
+        // Agora procura tanto Pendentes quanto Em andamento
+        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "in", ["Pendente", "Em andamento"]));
         const querySnapshot = await getDocs(q);
 
-        if (querySnapshot.empty) { areaVisitas.innerHTML = `<div style="text-align: center; margin-top: 40px;"><p style="color: #777;">Nenhuma visita pendente.</p></div>`; return; }
+        if (querySnapshot.empty) {
+            areaVisitas.innerHTML = `<div style="text-align: center; margin-top: 40px;"><p style="color: #777;">Nenhuma visita pendente.</p></div>`; return;
+        }
 
-        let atividadesArray = []; querySnapshot.forEach(doc => { let d = doc.data(); d.id = doc.id; atividadesArray.push(d); });
+        let atividadesArray = [];
+        querySnapshot.forEach(doc => { let d = doc.data(); d.id = doc.id; atividadesArray.push(d); });
         atividadesArray.sort((a, b) => (a.data.toDate ? a.data.toDate() : new Date(a.data)) - (b.data.toDate ? b.data.toDate() : new Date(b.data)));
 
         if (atividadesArray.length > 0) {
@@ -181,13 +185,21 @@ async function carregarAtividadesPendentes() {
                 if (clienteSnap.exists()) nomeCliente = clienteSnap.data().nome;
             }
 
+            // Lógica inteligente para o botão
+            const isEmAndamento = atividade.status === "Em andamento";
+            const textoBotao = isEmAndamento ? "Continuar visita" : "Check in";
+            const corBotao = isEmAndamento ? "background-color: var(--color-blue);" : "";
+            const acaoBotao = isEmAndamento 
+                ? `retomarVisitaAndamento('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')`
+                : `abrirConfirmacaoCheckin('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')`;
+
             areaVisitas.innerHTML = `
                 <div class="card-visita">
                     <div class="card-info">
                         <h3 class="card-titulo">${nomeCliente}</h3>
                         <a class="card-link" onclick="window.mostrarAlerta('Detalhes', 'Acesso aos dados da loja em breve.')">Ver informações</a>
                     </div>
-                    <button class="btn-checkin" style="width: auto;" onclick="abrirConfirmacaoCheckin('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')">Check in</button>
+                    <button class="btn-checkin" style="width: auto; ${corBotao}" onclick="${acaoBotao}">${textoBotao}</button>
                 </div>
             `;
         }
@@ -199,7 +211,8 @@ async function carregarAgenda() {
     const areaAgenda = document.getElementById('area-agenda');
     areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar agenda...</p>`;
     try {
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Pendente"));
+        // Inclui "Em andamento" na pesquisa
+        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "in", ["Pendente", "Em andamento"]));
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) { areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita agendada.</p>`; return; }
@@ -226,14 +239,15 @@ async function carregarAgenda() {
             if (tituloSecao) areaAgenda.innerHTML += `<h2 class="section-subtitle">${tituloSecao}</h2>`;
             
             let botaoGpsHTML = index === 0 ? `<button class="btn-gps" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(atividade.enderecoCompleto)}', '_blank')">Abrir no GPS</button>` : '';
-            
-            // Ícone da Ficha de Cadastro agora abre a tela de Visualizar/Editar
             const iconeFicha = `<button class="agenda-btn-ficha" onclick="window.abrirDetalhesVisita(${index})" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
+            
+            // Badge para mostrar que está em andamento
+            const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
 
             areaAgenda.innerHTML += `
                 <div class="card-agenda">
                     <div class="agenda-header"><span class="agenda-data">${fData.diaMes}</span>${iconeFicha}</div>
-                    <div class="agenda-cliente">${atividade.nomeCliente}</div>
+                    <div class="agenda-cliente">${atividade.nomeCliente} ${badgeAndamento}</div>
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${fData.hora}</div>
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${atividade.enderecoCompleto}</div>
                     <div class="agenda-motivo">${atividade.objetivo || "Visita comercial"}</div>
@@ -391,11 +405,20 @@ window.abrirDetalhesVisita = function(index) {
 function configurarTelaDetalhesVisita() {
     document.getElementById('btn-voltar-detalhes').addEventListener('click', () => { mostrarApenasTela('tela-agenda'); });
 
-    document.getElementById('btn-excluir-visita').addEventListener('click', () => {
+document.getElementById('btn-excluir-visita').addEventListener('click', () => {
         window.mostrarConfirmacaoExclusao(async () => {
             try {
+                // 1. Salva uma cópia exata na Lixeira (nova coleção)
+                await setDoc(doc(db, "atividades_excluidas", visitaEmEdicao.id), {
+                    ...visitaEmEdicao,
+                    excluidoEm: new Date(),
+                    excluidoPor: idUsuarioLogado
+                });
+                
+                // 2. Apaga definitivamente da coleção ativa
                 await deleteDoc(doc(db, "atividades", visitaEmEdicao.id));
-                window.mostrarAlerta("Sucesso", "Visita excluída com sucesso.");
+                
+                window.mostrarAlerta("Sucesso", "Visita movida para a lixeira com sucesso.");
                 mostrarApenasTela('tela-agenda');
                 carregarAgenda();
             } catch (err) { window.mostrarAlerta("Erro", "Falha ao excluir visita."); }
