@@ -3,29 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#040438">
+    <meta name="theme-color" content="#FFFFFF">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Advance Tintas - PWA</title>
 
-    <!-- O manifest precisa estar no HTML inicial para o Chrome detectar a instalação. -->
-    <!-- Ligação ao Manifest -->
-<link rel="manifest" href="manifest.json">
-
-<!-- Cor da barra superior do Android e iOS -->
-<meta name="theme-color" content="#F51E30">
-<link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="apple-touch-icon" href="./icons/icon-192.svg">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="pwa-mobile.css">
     <script>
-        // Registra o service worker sem depender do Firebase ou de imports externos.
-        // Isso é necessário para o navegador considerar o site instalável.
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js', { scope: './' })
@@ -88,38 +79,47 @@
             </div>
         </main>
 
-        <!-- TELA 4: NOVA VISITA -->
-        <main class="main-content" id="tela-nova-visita" style="display: none; padding-bottom: 40px;">
-            <h1 class="page-title">Nova visita</h1>
+        <!-- TELA 4: NOVA VISITA (Design Atualizado) -->
+        <main class="main-content tela-branca" id="tela-nova-visita" style="display: none; padding-bottom: 40px;">
+            <div style="display: flex; justify-content: center; margin-bottom: 30px;">
+                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+            </div>
+            <h1 class="page-title" style="margin-bottom: 30px;">Nova visita</h1>
 
             <div class="form-group autocomplete-wrapper">
                 <label>Qual o cliente que será visitado?</label>
-                <input type="text" id="nv-cliente" class="input-box" placeholder="Digite o nome da loja" autocomplete="off">
+                <input type="text" id="nv-cliente" class="input-box box-cinza" placeholder="Digite o nome da loja" autocomplete="off">
                 <div id="nv-cliente-dropdown" class="autocomplete-dropdown"></div>
             </div>
 
             <div class="form-group">
                 <label>Escolha a data e horário</label>
                 <div class="row-inputs">
-                    <input type="date" id="nv-data" class="input-box">
-                    <input type="time" id="nv-hora" class="input-box">
+                    <!-- Truque para mostrar o placeholder até o usuário focar no campo -->
+                    <input type="text" id="nv-data" class="input-box box-cinza input-center" placeholder="--/--/----" onfocus="(this.type='date')" onblur="(this.value == '' ? this.type='text' : this.type='date')">
+                    <input type="text" id="nv-hora" class="input-box box-cinza input-center" placeholder="--:--" onfocus="(this.type='time')" onblur="(this.value == '' ? this.type='text' : this.type='time')">
                 </div>
             </div>
 
-            <div class="form-group autocomplete-wrapper">
-                <label>Gestor encarregado</label>
-                <input type="text" id="nv-gestor" class="input-box" placeholder="Digite o nome do gestor" autocomplete="off">
-                <div id="nv-gestor-dropdown" class="autocomplete-dropdown"></div>
+            <div class="form-group" style="margin-top: 25px;">
+                <label>Tipo da visita</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="tipoVisita" value="Visita comercial" checked>
+                        <span class="radio-custom"></span>
+                        Visita comercial
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="tipoVisita" value="Treinamento">
+                        <span class="radio-custom"></span>
+                        Treinamento
+                    </label>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>Motivo da visita</label>
-                <input type="text" id="nv-motivo" class="input-box" placeholder="Ex: Suporte, Treinamento">
-            </div>
-
-            <div class="form-group">
+            <div class="form-group" style="margin-top: 25px;">
                 <label>Nota</label>
-                <textarea id="nv-nota" class="input-box textarea-box" placeholder="(Opcional)" maxlength="600" style="min-height: 120px;"></textarea>
+                <textarea id="nv-nota" class="input-box box-cinza textarea-box" placeholder="(Opcional)" maxlength="600"></textarea>
                 <div class="char-count" id="nv-char-count">0/600</div>
             </div>
 
@@ -204,12 +204,12 @@
 
                 <div class="form-group">
                     <label>Tipo de assistência</label>
-                    <input type="text" id="va-tipo" class="input-box">
+                    <input type="text" id="va-tipo" class="input-box" readonly>
                 </div>
 
                 <div class="form-group">
                     <label>Resumo do problema</label>
-                    <textarea id="va-resumo" class="input-box textarea-box"></textarea>
+                    <textarea id="va-resumo" class="input-box textarea-box" placeholder="Relato será preenchido no relatório..."></textarea>
                 </div>
 
                 <hr class="va-divider">
@@ -236,15 +236,15 @@
                 <div class="form-group">
                     <label>Chegada</label>
                     <div class="row-inputs">
-                        <input type="text" id="rel-data" class="input-box" readonly>
-                        <input type="text" id="rel-hora" class="input-box" readonly>
+                        <input type="text" id="rel-data" class="input-box box-cinza" readonly>
+                        <input type="text" id="rel-hora" class="input-box box-cinza" readonly>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Cliente</label>
                     <div class="select-wrapper">
-                        <select id="rel-cliente-select" class="input-box" disabled>
+                        <select id="rel-cliente-select" class="input-box box-cinza" disabled>
                             <option id="rel-opcao-cliente">...</option>
                         </select>
                     </div>
@@ -260,6 +260,15 @@
             </div>
         </div>
 
+        <!-- TELA 7: PERFIL (Nova aba) -->
+        <main class="main-content" id="tela-perfil" style="display: none; padding-bottom: 90px;">
+            <h1 class="page-title">Meu Perfil</h1>
+            <div class="card-box" style="text-align: center; margin-top: 20px;">
+                <p style="color: #777; margin-bottom: 20px;">Gerencie a sua conta e preferências aqui.</p>
+                <button class="btn-outline-red" onclick="alert('Tela de Perfil em construção!')">Configurações</button>
+            </div>
+        </main>
+
         <!-- BARRA DE NAVEGAÇÃO INFERIOR -->
         <nav class="bottom-nav">
             <button class="nav-item active">
@@ -274,9 +283,10 @@
                 <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="2" ry="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="3" y1="12" x2="21" y2="12"></line></svg>
                 Visitas
             </button>
+            <!-- Substituído Mensagens por Perfil -->
             <button class="nav-item">
-                <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 4.7-7.6 8.5 8.5 0 0 1 4.7 7.6z"></path></svg>
-                Mensagens
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Perfil
             </button>
         </nav>
 
@@ -288,15 +298,10 @@
                 <p class="perfil-label">Cliente</p>
                 <p class="perfil-nome" id="conf-nome-cliente">...</p>
             </div>
-            <div class="perfil-bloco">
-                <img src="https://ui-avatars.com/api/?name=Eric+Maxwell&background=e2e8f0&color=333" class="avatar-img" alt="Gestor">
-                <p class="perfil-label">Gestor responsável</p>
-                <p class="perfil-nome">Eric Maxwell Lima</p>
-            </div>
 
             <div class="perfil-bloco">
-                <img src="" id="conf-img-tecnico" class="avatar-img" alt="Assistente">
-                <p class="perfil-label">Assistente Técnico</p>
+                <img src="" id="conf-img-tecnico" class="avatar-img" alt="Técnico">
+                <p class="perfil-label">Profissional Responsável</p>
                 <p class="perfil-nome" id="conf-nome-tecnico">...</p>
             </div>
 
@@ -312,15 +317,5 @@
     </div>
 
     <script type="module" src="script.js"></script>
-    <!-- Registo do Service Worker -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('Service Worker registado com sucesso!', reg.scope))
-        .catch(err => console.error('Falha ao registar o Service Worker:', err));
-    });
-  }
-</script>
 </body>
 </html>
