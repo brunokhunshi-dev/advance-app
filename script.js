@@ -401,7 +401,7 @@ async function carregarHistoricoVisitas() {
     const areaHistorico = document.getElementById('area-historico-visitas');
     areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar histórico...</p>`;
     try {
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"), orderBy("data", "desc"), limit(10));
+        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"));
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) { areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita concluída.</p>`; return; }
