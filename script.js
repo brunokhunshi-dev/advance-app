@@ -166,7 +166,6 @@ async function carregarAtividadesPendentes() {
     if (!idUsuarioLogado) return;
     const areaVisitas = document.getElementById('area-visitas');
     try {
-        // Agora procura tanto Pendentes quanto Em andamento
         const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "in", ["Pendente", "Em andamento"]));
         const querySnapshot = await getDocs(q);
 
@@ -179,27 +178,31 @@ async function carregarAtividadesPendentes() {
         atividadesArray.sort((a, b) => (a.data.toDate ? a.data.toDate() : new Date(a.data)) - (b.data.toDate ? b.data.toDate() : new Date(b.data)));
 
         if (atividadesArray.length > 0) {
-            const atividade = atividadesArray[0]; let nomeCliente = "Cliente Desconhecido";
+            const atividade = atividadesArray[0]; 
+            let nomeCliente = "Cliente Desconhecido";
+            
             if (atividade.clienteId) {
                 const clienteSnap = await getDoc(doc(db, "clientes", atividade.clienteId));
                 if (clienteSnap.exists()) nomeCliente = clienteSnap.data().nome;
             }
 
-            // Lógica inteligente para o botão
-            const isEmAndamento = atividade.status === "Em andamento";
-            const textoBotao = isEmAndamento ? "Continuar visita" : "Check in";
-            const corBotao = isEmAndamento ? "background-color: var(--color-blue);" : "";
-            const acaoBotao = isEmAndamento 
-                ? `retomarVisitaAndamento('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')`
-                : `abrirConfirmacaoCheckin('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')`;
+            // A MÁGICA ACONTECE AQUI:
+            if (atividade.status === "Em andamento") {
+                // Se está em andamento, não desenha o card pequeno. 
+                // Abre a tela estendida com a linha do tempo, relatório e checkout automaticamente!
+                areaVisitas.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar a sua visita em andamento...</p>`;
+                window.retomarVisitaAndamento(atividade.id, nomeCliente, atividade.clienteId);
+                return;
+            }
 
+            // Se for apenas "Pendente", mostra o card normal para clicar em Check-in
             areaVisitas.innerHTML = `
                 <div class="card-visita">
                     <div class="card-info">
                         <h3 class="card-titulo">${nomeCliente}</h3>
                         <a class="card-link" onclick="window.mostrarAlerta('Detalhes', 'Acesso aos dados da loja em breve.')">Ver informações</a>
                     </div>
-                    <button class="btn-checkin" style="width: auto; ${corBotao}" onclick="${acaoBotao}">${textoBotao}</button>
+                    <button class="btn-checkin" style="width: auto;" onclick="abrirConfirmacaoCheckin('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')">Check in</button>
                 </div>
             `;
         }
@@ -789,3 +792,36 @@ function configurarEventosGlobais() {
         });
     }
 }
+
+// === RESTAURAR VISITA EM ANDAMENTO ===
+window.retomarVisitaAndamento = async function(atividadeId, clienteNome, clienteId) {
+    atividadeSelecionadaId = atividadeId;
+    clienteSelecionadoNome = clienteNome;
+    clienteSelecionadoId = clienteId;
+    
+    try {
+        const snapAtv = await getDoc(doc(db, "atividades", atividadeId));
+        if (snapAtv.exists()) {
+            const dados = snapAtv.data();
+            objetoAtividadeGlobal = {
+                status: dados.status,
+                checkinDataHora: dados.checkinDataHora || new Date(),
+                checkinGps: dados.checkinGps,
+                relatorioId: dados.relatorioId,
+                objetivo: dados.objetivo || "Visita comercial"
+            };
+            
+            // Tenta puxar o relatório se ele já tinha começado a escrever algo
+            if (dados.relatorioId) {
+                const snapRel = await getDoc(doc(db, "relatorios", dados.relatorioId));
+                if (snapRel.exists()) objetoRelatorioGlobal = snapRel.data();
+            } else {
+                objetoRelatorioGlobal = null;
+            }
+            atualizarInterfaceVisitaAtual();
+        }
+    } catch(e) {
+        console.error(e);
+        window.mostrarAlerta("Erro", "Falha ao restaurar a visita em andamento.");
+    }
+};
