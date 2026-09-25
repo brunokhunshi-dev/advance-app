@@ -44,7 +44,7 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .radio-group { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
 .radio-label { display: flex; align-items: center; gap: 12px; font-size: 1rem; color: var(--color-dark); cursor: pointer; font-weight: 500; }
 .radio-label input[type="radio"] { display: none; }
-.radio-custom { width: 22px; height: 22px; border-radius: 50%; background-color: #EAEAEA; border: 2px solid #EAEAEA; position: relative; transition: all 0.2s; }
+.radio-custom { width: 24px; height: 24px; border-radius: 50%; background-color: #EAEAEA; border: 2px solid #EAEAEA; position: relative; transition: all 0.2s; flex-shrink: 0; }
 .radio-label input[type="radio"]:checked + .radio-custom { background-color: var(--color-red); border-color: var(--color-red); }
 
 /* 5.2 DETALHES DA VISITA (ICONES E MAPA) */
