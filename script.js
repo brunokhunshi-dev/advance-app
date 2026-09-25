@@ -486,8 +486,7 @@ function configurarTelaNovaVisita() {
             btnAgendar.disabled = true; btnAgendar.textContent = "A agendar...";
 
             try {
-                const novoId = "atv_" + Date.now();
-                await setDoc(doc(db, "atividades", novoId), {
+                const atividadeRefNova = await addDoc(collection(db, "atividades"), {
                     tipo: "Visita", data: dataCompleta, ptvId: idUsuarioLogado, clienteId: nvClienteSelecionadoId,
                     objetivo: tipoVisitaSelecionado, nota: notaVal, status: "Pendente",
                     criadoEm: new Date(), atualizadoEm: new Date()
@@ -723,14 +722,16 @@ function configurarTelaCadastroCliente() {
                     if (coordsFallback) { latFinal = coordsFallback.lat; lngFinal = coordsFallback.lng; }
                 }
 
-                const novoClienteId = "cli_" + Date.now();
-                await setDoc(doc(db, "clientes", novoClienteId), {
+                const novoClienteRef = await addDoc(collection(db, "clientes"), {
                     codigoCnpj: hashCnpjNovoCliente, nome: nome, cidade: cidade, uf: document.getElementById('cc-uf').value,
                     enderecoCompleto: enderecoCompleto, lat: latFinal ? parseFloat(latFinal) : null, lng: lngFinal ? parseFloat(lngFinal) : null, 
                     status: "Ativo", criadoEm: new Date(), atualizadoEm: new Date()
                 });
 
-                listaClientes.push({ id: novoClienteId, nome: nome }); nvClienteSelecionadoId = novoClienteId; document.getElementById('nv-cliente').value = nome;
+                const novoClienteId = novoClienteRef.id;
+                listaClientes.push({ id: novoClienteId, nome: nome });
+                cacheClientes.set(novoClienteId, { id: novoClienteId, nome, cidade, uf: document.getElementById("cc-uf").value, enderecoCompleto });
+                nvClienteSelecionadoId = novoClienteId; document.getElementById('nv-cliente').value = nome;
 
                 ['cc-cnpj','cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; });
                 document.getElementById('mapa-container').style.display = 'none'; 
@@ -970,15 +971,17 @@ function configurarEventosGlobais() {
                 const dataAgora = new Date(); const codigoGerado = document.getElementById('rel-codigo-gerado').textContent;
 
                 if (!objetoRelatorioGlobal) {
-                    const novoRelatorioId = "rel_" + Date.now();
+                    const novoRelatorioId = "rel_" + crypto.randomUUID();
                     objetoRelatorioGlobal = { 
                         id: novoRelatorioId, atividadeId: atividadeSelecionadaId, clienteId: clienteSelecionadoId, 
                         ptvId: idUsuarioLogado, codigo: codigoGerado, textoAtual: textoRelatorio, 
                         historico: [{ texto: textoRelatorio, salvoEm: dataAgora }], 
                         criadoEm: dataAgora, atualizadoEm: dataAgora 
                     };
-                    await setDoc(doc(db, "relatorios", novoRelatorioId), objetoRelatorioGlobal); 
-                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { relatorioId: novoRelatorioId, atualizadoEm: dataAgora }); 
+                    const batchRelatorio = writeBatch(db);
+                    batchRelatorio.set(doc(db, "relatorios", novoRelatorioId), objetoRelatorioGlobal);
+                    batchRelatorio.update(doc(db, "atividades", atividadeSelecionadaId), { relatorioId: novoRelatorioId, atualizadoEm: dataAgora });
+                    await batchRelatorio.commit(); 
                     objetoAtividadeGlobal.relatorioId = novoRelatorioId;
                 } else {
                     const novoRegistro = { texto: textoRelatorio, salvoEm: dataAgora };
