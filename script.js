@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, limit, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
@@ -20,6 +20,8 @@ let objetoAtividadeGlobal = null;
 let objetoRelatorioGlobal = null; 
 
 let listaClientes = [];
+let clientesAutocompleteCarregados = false;
+const cacheClientes = new Map();
 let listaAtividadesAgenda = []; // Nova lista para edição de visitas
 let nvClienteSelecionadoId = null;
 let hashCnpjNovoCliente = null;
@@ -84,6 +86,9 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('app-container').style.display = 'none'; 
         document.getElementById('tela-login').style.display = 'flex';
         idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
+        listaClientes = [];
+        clientesAutocompleteCarregados = false;
+        cacheClientes.clear();
         const btnEntrar = document.getElementById('btn-entrar');
         if(btnEntrar) { btnEntrar.disabled = false; btnEntrar.textContent = "Entrar"; }
     }
@@ -147,6 +152,26 @@ function formatarDataAgenda(data) {
 }
 function obterIniciais(nome) { return nome.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 3); }
 function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
+function escaparHtml(valor) {
+    return String(valor ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+const GPS_ACCURACY_MAX_METERS = 150;
+
+async function obterLocalizacaoAtual() {
+    if (!navigator.geolocation) throw new Error("GPS não disponível neste dispositivo.");
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
+    });
+}
+
+async function obterClienteCache(clienteId) {
+    if (!clienteId) return null;
+    if (cacheClientes.has(clienteId)) return cacheClientes.get(clienteId);
+    const clienteSnap = await getDoc(doc(db, "clientes", clienteId));
+    const dados = clienteSnap.exists() ? { id: clienteSnap.id, ...clienteSnap.data() } : null;
+    cacheClientes.set(clienteId, dados);
+    return dados;
+}
 
 function mostrarApenasTela(idTelaAlvo) {
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita'];
@@ -182,8 +207,8 @@ async function carregarAtividadesPendentes() {
             let nomeCliente = "Cliente Desconhecido";
             
             if (atividade.clienteId) {
-                const clienteSnap = await getDoc(doc(db, "clientes", atividade.clienteId));
-                if (clienteSnap.exists()) nomeCliente = clienteSnap.data().nome;
+                const clienteSnapData = await obterClienteCache(atividade.clienteId);
+            if (clienteSnapData) nomeCliente = clienteSnapData.nome;
             }
 
             if (atividade.status === "Em andamento") {
@@ -281,16 +306,7 @@ async function carregarAtividadesPendentes() {
                 if (btnEncerrar) { 
                     btnEncerrar.addEventListener('click', async () => { 
                         window.mostrarConfirmacaoExclusao(async () => {
-                            btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
-                            navigator.geolocation.getCurrentPosition(async (pos) => {
-                                btnEncerrar.textContent = "A gravar encerramento...";
-                                const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-                                const coordGpsCheckout = `${lat}, ${lng}`;
-                                const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
-
-                                await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
-                                window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
-                            }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
+                            await processarCheckout(btnEncerrar);
                         });
                         document.querySelector('#modal-confirmar-exclusao h3').textContent = "Encerrar visita?";
                         document.querySelector('#modal-confirmar-exclusao p').textContent = "Tem certeza que deseja finalizar esta visita?";
@@ -304,12 +320,17 @@ async function carregarAtividadesPendentes() {
             areaVisitas.innerHTML = `
                 <div class="card-visita">
                     <div class="card-info">
-                        <h3 class="card-titulo">${nomeCliente}</h3>
-                        <a class="card-link" onclick="window.mostrarAlerta('Detalhes', 'Acesso aos dados da loja em breve.')">Ver informações</a>
+                        <h3 class="card-titulo">${escaparHtml(nomeCliente)}</h3>
+                        <a class="card-link js-ver-detalhes-cliente">Ver informações</a>
                     </div>
-                    <button class="btn-checkin" style="width: auto;" onclick="abrirConfirmacaoCheckin('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')">Check in</button>
+                    <button class="btn-checkin js-checkin" style="width: auto;" data-atividade-id="${escaparHtml(atividade.id)}" data-cliente-id="${escaparHtml(atividade.clienteId)}" data-cliente-nome="${encodeURIComponent(nomeCliente)}">Check in</button>
                 </div>
             `;
+            areaVisitas.querySelector(".js-ver-detalhes-cliente")?.addEventListener("click", () => window.mostrarAlerta("Detalhes", "Acesso aos dados da loja em breve."));
+            areaVisitas.querySelector(".js-checkin")?.addEventListener("click", (event) => {
+                const botao = event.currentTarget;
+                window.abrirConfirmacaoCheckin(botao.dataset.atividadeId, decodeURIComponent(botao.dataset.clienteNome || ""), botao.dataset.clienteId);
+            });
         }
     } catch (error) { console.error("Erro ao carregar pendentes:", error); }
 }
@@ -329,10 +350,10 @@ async function carregarAgenda() {
         for (const documento of querySnapshot.docs) {
             let dados = documento.data(); dados.id = documento.id;
             if (dados.clienteId) {
-                const clienteSnap = await getDoc(doc(db, "clientes", dados.clienteId));
-                if (clienteSnap.exists()) {
-                    dados.nomeCliente = clienteSnap.data().nome;
-                    dados.enderecoCompleto = clienteSnap.data().enderecoCompleto || `Rua Principal, 100 - Centro - ${clienteSnap.data().cidade || 'Localidade'} - ${clienteSnap.data().uf || 'UF'}`;
+                const clienteAgenda = await obterClienteCache(dados.clienteId);
+                if (clienteAgenda) {
+                    dados.nomeCliente = clienteAgenda.nome;
+                    dados.enderecoCompleto = clienteAgenda.enderecoCompleto || ("Rua Principal, 100 - Centro - " + (clienteAgenda.cidade || "Localidade") + " - " + (clienteAgenda.uf || "UF"));
                 }
             } else { dados.nomeCliente = "Desconhecido"; dados.enderecoCompleto = "Não disponível"; }
             listaAtividadesAgenda.push(dados);
@@ -346,8 +367,8 @@ async function carregarAgenda() {
             const tituloSecao = index === 0 ? "Próxima visita" : (index === 1 ? "Nesse mês" : "");
             if (tituloSecao) areaAgenda.innerHTML += `<h2 class="section-subtitle">${tituloSecao}</h2>`;
             
-            let botaoGpsHTML = index === 0 ? `<button class="btn-gps" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(atividade.enderecoCompleto)}', '_blank')">Abrir no GPS</button>` : '';
-            const iconeFicha = `<button class="agenda-btn-ficha" onclick="window.abrirDetalhesVisita(${index})" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
+            let botaoGpsHTML = index === 0 ? `<button class="btn-gps js-agenda-gps" data-endereco="${encodeURIComponent(atividade.enderecoCompleto)}">Abrir no GPS</button>` : "";
+            const iconeFicha = `<button class="agenda-btn-ficha js-agenda-detalhes" data-index="${index}" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
             
             // Badge para mostrar que está em andamento
             const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
@@ -355,13 +376,22 @@ async function carregarAgenda() {
             areaAgenda.innerHTML += `
                 <div class="card-agenda">
                     <div class="agenda-header"><span class="agenda-data">${fData.diaMes}</span>${iconeFicha}</div>
-                    <div class="agenda-cliente">${atividade.nomeCliente} ${badgeAndamento}</div>
+                    <div class="agenda-cliente">${escaparHtml(atividade.nomeCliente)} ${badgeAndamento}</div>
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${fData.hora}</div>
-                    <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${atividade.enderecoCompleto}</div>
-                    <div class="agenda-motivo">${atividade.objetivo || "Visita comercial"}</div>
+                    <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escaparHtml(atividade.enderecoCompleto)}</div>
+                    <div class="agenda-motivo">${escaparHtml(atividade.objetivo || "Visita comercial")}</div>
                     ${botaoGpsHTML}
                 </div>
             `;
+        });
+        areaAgenda.querySelectorAll(".js-agenda-gps").forEach((botao) => {
+            botao.addEventListener("click", () => {
+                const endereco = decodeURIComponent(botao.dataset.endereco || "");
+                window.open("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(endereco), "_blank");
+            });
+        });
+        areaAgenda.querySelectorAll(".js-agenda-detalhes").forEach((botao) => {
+            botao.addEventListener("click", () => window.abrirDetalhesVisita(Number(botao.dataset.index)));
         });
     } catch (error) { console.error("Erro na agenda:", error); }
 }
@@ -371,7 +401,7 @@ async function carregarHistoricoVisitas() {
     const areaHistorico = document.getElementById('area-historico-visitas');
     areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar histórico...</p>`;
     try {
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"), limit(10));
+        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"));
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) { areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita concluída.</p>`; return; }
@@ -380,20 +410,21 @@ async function carregarHistoricoVisitas() {
         for (const documento of querySnapshot.docs) {
             let dados = documento.data(); dados.id = documento.id;
             if (dados.clienteId) {
-                const clienteSnap = await getDoc(doc(db, "clientes", dados.clienteId));
-                dados.nomeCliente = clienteSnap.exists() ? clienteSnap.data().nome : "Cliente Desconhecido";
+                const clienteHistorico = await obterClienteCache(dados.clienteId);
+            dados.nomeCliente = clienteHistorico?.nome || "Cliente Desconhecido";
             }
             historicoArray.push(dados);
         }
 
         historicoArray.sort((a, b) => (b.data.toDate ? b.data.toDate() : new Date(b.data)) - (a.data.toDate ? a.data.toDate() : new Date(a.data)));
+        historicoArray = historicoArray.slice(0, 10);
         areaHistorico.innerHTML = '';
         
         historicoArray.forEach(visita => {
             const formato = formatarDataHoraPT(visita.data);
             areaHistorico.innerHTML += `
                 <div class="card-historico">
-                    <div><div class="hist-cliente">${visita.nomeCliente}</div><div class="hist-data">${formato.data} às ${formato.hora}</div></div>
+                    <div><div class="hist-cliente">${escaparHtml(visita.nomeCliente)}</div><div class="hist-data">${formato.data} às ${formato.hora}</div></div>
                     <div><span class="hist-status">Concluída</span></div>
                 </div>
             `;
@@ -449,8 +480,7 @@ function configurarTelaNovaVisita() {
             btnAgendar.disabled = true; btnAgendar.textContent = "A agendar...";
 
             try {
-                const novoId = "atv_" + Date.now();
-                await setDoc(doc(db, "atividades", novoId), {
+                await addDoc(collection(db, "atividades"), {
                     tipo: "Visita", data: dataCompleta, ptvId: idUsuarioLogado, clienteId: nvClienteSelecionadoId,
                     objetivo: tipoVisitaSelecionado, nota: notaVal, status: "Pendente",
                     criadoEm: new Date(), atualizadoEm: new Date()
@@ -517,14 +547,14 @@ function configurarTelaDetalhesVisita() {
         window.mostrarConfirmacaoExclusao(async () => {
             try {
                 // 1. Salva uma cópia exata na Lixeira (nova coleção)
-                await setDoc(doc(db, "atividades_excluidas", visitaEmEdicao.id), {
+                const batchExclusao = writeBatch(db);
+                batchExclusao.set(doc(db, "atividades_excluidas", visitaEmEdicao.id), {
                     ...visitaEmEdicao,
                     excluidoEm: new Date(),
                     excluidoPor: idUsuarioLogado
                 });
-                
-                // 2. Apaga definitivamente da coleção ativa
-                await deleteDoc(doc(db, "atividades", visitaEmEdicao.id));
+                batchExclusao.delete(doc(db, "atividades", visitaEmEdicao.id));
+                await batchExclusao.commit();
                 
                 window.mostrarAlerta("Sucesso", "Visita movida para a lixeira com sucesso.");
                 mostrarApenasTela('tela-agenda');
@@ -562,10 +592,12 @@ function configurarTelaDetalhesVisita() {
 
 // === CADASTRO DE NOVO CLIENTE ===
 async function carregarDadosParaAutocomplete() {
+    if (clientesAutocompleteCarregados) return;
     try {
         const qCli = query(collection(db, "clientes"), where("status", "==", "Ativo"));
         const snapCli = await getDocs(qCli);
         listaClientes = []; snapCli.forEach(doc => listaClientes.push({ id: doc.id, nome: doc.data().nome }));
+        clientesAutocompleteCarregados = true;
     } catch(e) { console.error("Erro dicionários:", e); }
 }
 
@@ -684,14 +716,16 @@ function configurarTelaCadastroCliente() {
                     if (coordsFallback) { latFinal = coordsFallback.lat; lngFinal = coordsFallback.lng; }
                 }
 
-                const novoClienteId = "cli_" + Date.now();
-                await setDoc(doc(db, "clientes", novoClienteId), {
+                const novoClienteRef = await addDoc(collection(db, "clientes"), {
                     codigoCnpj: hashCnpjNovoCliente, nome: nome, cidade: cidade, uf: document.getElementById('cc-uf').value,
                     enderecoCompleto: enderecoCompleto, lat: latFinal ? parseFloat(latFinal) : null, lng: lngFinal ? parseFloat(lngFinal) : null, 
                     status: "Ativo", criadoEm: new Date(), atualizadoEm: new Date()
                 });
 
-                listaClientes.push({ id: novoClienteId, nome: nome }); nvClienteSelecionadoId = novoClienteId; document.getElementById('nv-cliente').value = nome;
+                const novoClienteId = novoClienteRef.id;
+                listaClientes.push({ id: novoClienteId, nome: nome });
+                cacheClientes.set(novoClienteId, { id: novoClienteId, nome, cidade, uf: document.getElementById("cc-uf").value, enderecoCompleto });
+                nvClienteSelecionadoId = novoClienteId; document.getElementById('nv-cliente').value = nome;
 
                 ['cc-cnpj','cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; });
                 document.getElementById('mapa-container').style.display = 'none'; 
@@ -755,17 +789,24 @@ function configurarBotoesModal() {
             if (!atividadeSelecionadaId) return;
             btnIniciar.disabled = true; btnIniciar.textContent = "A obter localização...";
             
-            if (navigator.geolocation) { 
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => processarCheckin(pos.coords.latitude, pos.coords.longitude), 
-                    (err) => { window.mostrarAlerta("Erro", "GPS Obrigatório para fazer Check-in!"); btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; }
-                ); 
-            } else { window.mostrarAlerta("Erro", "Navegador não suporta GPS."); btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; }
+            obterLocalizacaoAtual()
+                .then((pos) => processarCheckin(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy))
+                .catch(() => {
+                    window.mostrarAlerta("Erro", "GPS obrigatório para fazer Check-in.");
+                    btnIniciar.disabled = false;
+                    btnIniciar.textContent = "Iniciar";
+                });
         });
     }
 }
 
-async function processarCheckin(lat, lng) {
+async function processarCheckin(lat, lng, accuracy = null) {
+    if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
+        window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal de GPS melhor antes de iniciar a visita.");
+        const btn = document.getElementById("btn-iniciar");
+        btn.disabled = false; btn.textContent = "Iniciar";
+        return;
+    }
     const btnIniciar = document.getElementById('btn-iniciar');
     btnIniciar.textContent = "A validar distância...";
 
@@ -799,7 +840,7 @@ async function processarCheckin(lat, lng) {
         objetoAtividadeGlobal = { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, relatorioId: null, objetivo: tipoAssistCadastrado }; 
         objetoRelatorioGlobal = null; 
 
-        await updateDoc(atividadeRef, { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, checkinEndereco: enderecoFisico, atualizadoEm: dataCheckinAtual });
+        await updateDoc(atividadeRef, { status: "Em andamento", checkinDataHora: dataCheckinAtual, checkinGps: coordGps, checkinGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null, checkinEndereco: enderecoFisico, atualizadoEm: dataCheckinAtual });
 
         document.getElementById('tela-confirmacao').style.display = 'none'; 
         btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar";
@@ -807,6 +848,43 @@ async function processarCheckin(lat, lng) {
     } catch (error) { 
         console.error("Erro no checkin:", error); window.mostrarAlerta("Erro", "Falha ao processar o Check-in."); 
         btnIniciar.disabled = false; btnIniciar.textContent = "Iniciar"; 
+    }
+}
+
+async function processarCheckout(btnEncerrar) {
+    btnEncerrar.disabled = true;
+    btnEncerrar.textContent = "A obter GPS de Saída...";
+
+    try {
+        const pos = await obterLocalizacaoAtual();
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+
+        if (Number.isFinite(accuracy) && accuracy > GPS_ACCURACY_MAX_METERS) {
+            window.mostrarAlerta("GPS impreciso", "A precisão atual é de aproximadamente " + Math.round(accuracy) + "m. Tente obter sinal melhor antes do check-out.");
+            return;
+        }
+
+        btnEncerrar.textContent = "A gravar encerramento...";
+        const coordGpsCheckout = `${lat}, ${lng}`;
+        const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
+
+        await updateDoc(doc(db, "atividades", atividadeSelecionadaId), {
+            status: "Concluída",
+            checkoutDataHora: new Date(),
+            checkoutGps: coordGpsCheckout,
+            checkoutGpsAccuracy: Number.isFinite(accuracy) ? accuracy : null,
+            checkoutEndereco: enderecoFisicoCheckout,
+            atualizadoEm: new Date()
+        });
+
+        window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!");
+        setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+        console.error("Erro no check-out:", error);
+        window.mostrarAlerta("Erro", "Não foi possível concluir o check-out. Verifique o GPS e tente novamente.");
+    } finally {
+        btnEncerrar.disabled = false;
+        btnEncerrar.textContent = "Encerrar visita";
     }
 }
 
@@ -886,16 +964,7 @@ function atualizarInterfaceVisitaAtual() {
     if (btnEncerrar) { 
         btnEncerrar.addEventListener('click', async () => { 
             window.mostrarConfirmacaoExclusao(async () => {
-                btnEncerrar.disabled = true; btnEncerrar.textContent = "A obter GPS de Saída...";
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                    btnEncerrar.textContent = "A gravar encerramento...";
-                    const lat = pos.coords.latitude; const lng = pos.coords.longitude;
-                    const coordGpsCheckout = `${lat}, ${lng}`;
-                    const enderecoFisicoCheckout = await obterEnderecoPorCoords(lat, lng);
-
-                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { status: "Concluída", checkoutDataHora: new Date(), checkoutGps: coordGpsCheckout, checkoutEndereco: enderecoFisicoCheckout, atualizadoEm: new Date() }); 
-                    window.mostrarAlerta("Sucesso", "Visita encerrada com sucesso!"); setTimeout(() => window.location.reload(), 1500);
-                }, (err) => { window.mostrarAlerta("Erro", "GPS necessário para check-out."); btnEncerrar.disabled = false; btnEncerrar.textContent = "Encerrar visita"; });
+                await processarCheckout(btnEncerrar);
             });
             document.querySelector('#modal-confirmar-exclusao h3').textContent = "Encerrar visita?";
             document.querySelector('#modal-confirmar-exclusao p').textContent = "Tem certeza que deseja finalizar esta visita?";
@@ -924,15 +993,17 @@ function configurarEventosGlobais() {
                 const dataAgora = new Date(); const codigoGerado = document.getElementById('rel-codigo-gerado').textContent;
 
                 if (!objetoRelatorioGlobal) {
-                    const novoRelatorioId = "rel_" + Date.now();
+                    const novoRelatorioId = "rel_" + crypto.randomUUID();
                     objetoRelatorioGlobal = { 
                         id: novoRelatorioId, atividadeId: atividadeSelecionadaId, clienteId: clienteSelecionadoId, 
                         ptvId: idUsuarioLogado, codigo: codigoGerado, textoAtual: textoRelatorio, 
                         historico: [{ texto: textoRelatorio, salvoEm: dataAgora }], 
                         criadoEm: dataAgora, atualizadoEm: dataAgora 
                     };
-                    await setDoc(doc(db, "relatorios", novoRelatorioId), objetoRelatorioGlobal); 
-                    await updateDoc(doc(db, "atividades", atividadeSelecionadaId), { relatorioId: novoRelatorioId, atualizadoEm: dataAgora }); 
+                    const batchRelatorio = writeBatch(db);
+                    batchRelatorio.set(doc(db, "relatorios", novoRelatorioId), objetoRelatorioGlobal);
+                    batchRelatorio.update(doc(db, "atividades", atividadeSelecionadaId), { relatorioId: novoRelatorioId, atualizadoEm: dataAgora });
+                    await batchRelatorio.commit(); 
                     objetoAtividadeGlobal.relatorioId = novoRelatorioId;
                 } else {
                     const novoRegistro = { texto: textoRelatorio, salvoEm: dataAgora };
