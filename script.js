@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, limit, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc, deleteDoc, limit, addDoc, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
@@ -317,12 +317,17 @@ async function carregarAtividadesPendentes() {
             areaVisitas.innerHTML = `
                 <div class="card-visita">
                     <div class="card-info">
-                        <h3 class="card-titulo">${nomeCliente}</h3>
-                        <a class="card-link" onclick="window.mostrarAlerta('Detalhes', 'Acesso aos dados da loja em breve.')">Ver informações</a>
+                        <h3 class="card-titulo">${escaparHtml(nomeCliente)}</h3>
+                        <a class="card-link js-ver-detalhes-cliente">Ver informações</a>
                     </div>
-                    <button class="btn-checkin" style="width: auto;" onclick="abrirConfirmacaoCheckin('${atividade.id}', '${nomeCliente}', '${atividade.clienteId}')">Check in</button>
+                    <button class="btn-checkin js-checkin" style="width: auto;" data-atividade-id="${escaparHtml(atividade.id)}" data-cliente-id="${escaparHtml(atividade.clienteId)}" data-cliente-nome="${encodeURIComponent(nomeCliente)}">Check in</button>
                 </div>
             `;
+            areaVisitas.querySelector(".js-ver-detalhes-cliente")?.addEventListener("click", () => window.mostrarAlerta("Detalhes", "Acesso aos dados da loja em breve."));
+            areaVisitas.querySelector(".js-checkin")?.addEventListener("click", (event) => {
+                const botao = event.currentTarget;
+                window.abrirConfirmacaoCheckin(botao.dataset.atividadeId, decodeURIComponent(botao.dataset.clienteNome || ""), botao.dataset.clienteId);
+            });
         }
     } catch (error) { console.error("Erro ao carregar pendentes:", error); }
 }
@@ -359,8 +364,8 @@ async function carregarAgenda() {
             const tituloSecao = index === 0 ? "Próxima visita" : (index === 1 ? "Nesse mês" : "");
             if (tituloSecao) areaAgenda.innerHTML += `<h2 class="section-subtitle">${tituloSecao}</h2>`;
             
-            let botaoGpsHTML = index === 0 ? `<button class="btn-gps" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(atividade.enderecoCompleto)}', '_blank')">Abrir no GPS</button>` : '';
-            const iconeFicha = `<button class="agenda-btn-ficha" onclick="window.abrirDetalhesVisita(${index})" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
+            let botaoGpsHTML = index === 0 ? `<button class="btn-gps js-agenda-gps" data-endereco="${encodeURIComponent(atividade.enderecoCompleto)}">Abrir no GPS</button>` : "";
+            const iconeFicha = `<button class="agenda-btn-ficha js-agenda-detalhes" data-index="${index}" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
             
             // Badge para mostrar que está em andamento
             const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
@@ -368,13 +373,22 @@ async function carregarAgenda() {
             areaAgenda.innerHTML += `
                 <div class="card-agenda">
                     <div class="agenda-header"><span class="agenda-data">${fData.diaMes}</span>${iconeFicha}</div>
-                    <div class="agenda-cliente">${atividade.nomeCliente} ${badgeAndamento}</div>
+                    <div class="agenda-cliente">${escaparHtml(atividade.nomeCliente)} ${badgeAndamento}</div>
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${fData.hora}</div>
-                    <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${atividade.enderecoCompleto}</div>
-                    <div class="agenda-motivo">${atividade.objetivo || "Visita comercial"}</div>
+                    <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escaparHtml(atividade.enderecoCompleto)}</div>
+                    <div class="agenda-motivo">${escaparHtml(atividade.objetivo || "Visita comercial")}</div>
                     ${botaoGpsHTML}
                 </div>
             `;
+        });
+        areaAgenda.querySelectorAll(".js-agenda-gps").forEach((botao) => {
+            botao.addEventListener("click", () => {
+                const endereco = decodeURIComponent(botao.dataset.endereco || "");
+                window.open("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(endereco), "_blank");
+            });
+        });
+        areaAgenda.querySelectorAll(".js-agenda-detalhes").forEach((botao) => {
+            botao.addEventListener("click", () => window.abrirDetalhesVisita(Number(botao.dataset.index)));
         });
     } catch (error) { console.error("Erro na agenda:", error); }
 }
@@ -400,13 +414,14 @@ async function carregarHistoricoVisitas() {
         }
 
         historicoArray.sort((a, b) => (b.data.toDate ? b.data.toDate() : new Date(b.data)) - (a.data.toDate ? a.data.toDate() : new Date(a.data)));
+        historicoArray = historicoArray.slice(0, 10);
         areaHistorico.innerHTML = '';
         
         historicoArray.forEach(visita => {
             const formato = formatarDataHoraPT(visita.data);
             areaHistorico.innerHTML += `
                 <div class="card-historico">
-                    <div><div class="hist-cliente">${visita.nomeCliente}</div><div class="hist-data">${formato.data} às ${formato.hora}</div></div>
+                    <div><div class="hist-cliente">${escaparHtml(visita.nomeCliente)}</div><div class="hist-data">${formato.data} às ${formato.hora}</div></div>
                     <div><span class="hist-status">Concluída</span></div>
                 </div>
             `;
