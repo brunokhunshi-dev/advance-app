@@ -146,3 +146,32 @@ input[type="date"], input[type="time"] { position: relative; }
 .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--color-dark); font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
 .nav-item.active { opacity: 1; font-weight: 700; color: var(--color-red); }
 .nav-item svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* === HISTÓRICO DE VISITAS === */
+.tela-historico-visitas { position: relative; }
+.historico-topo { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.historico-topo .page-title { margin-bottom:0; }
+.historico-filtro-btn { width:50px; min-width:50px; height:50px; min-height:50px; border:0; border-radius:16px; background:var(--color-white); color:var(--color-red); display:grid; place-items:center; box-shadow:0 4px 16px rgba(4,4,56,.05); }
+.historico-filtro-btn svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+.historico-filtro[hidden] { display:none; }
+.historico-filtro { background:var(--color-white); border-radius:20px; padding:16px; margin:0 0 22px; box-shadow:0 8px 24px rgba(4,4,56,.06); }
+.historico-filtro-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.historico-filtro label { display:flex; flex-direction:column; gap:7px; color:var(--color-dark); font-size:.78rem; font-weight:700; }
+.historico-filtro .input-box { min-height:46px; padding:10px 12px; }
+.historico-filtro-limpar { margin-top:12px; border:0; background:transparent; color:var(--color-red); padding:4px 0; min-height:32px; font-weight:700; font-size:.82rem; }
+.historico-periodo { margin:0 0 24px; }
+.historico-periodo-titulo { font-size:1rem; font-weight:800; color:var(--color-dark); margin:0 0 11px; }
+.historico-dia { margin:0 0 18px; }
+.historico-dia-titulo { font-size:1.55rem; line-height:1; font-weight:500; color:var(--color-dark); margin:0 0 11px; letter-spacing:-.02em; }
+.historico-card { background:var(--color-white); border-radius:24px; padding:23px 22px; margin-bottom:12px; box-shadow:0 5px 18px rgba(4,4,56,.035); }
+.historico-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.hist-cliente { font-size:1.05rem; font-weight:800; color:var(--color-dark); line-height:1.15; }
+.hist-status { font-size:.72rem; line-height:1; font-weight:800; white-space:nowrap; padding-top:4px; }
+.hist-status-resolvido { color:#22a928; }
+.hist-status-nao-resolvido { color:#f51e30; }
+.hist-status-cancelada { color:#999; }
+.hist-status-concluida { color:#777; }
+.hist-info { display:flex; align-items:center; gap:7px; color:#9a9ab5; font-size:.76rem; font-weight:500; margin-top:9px; }
+.hist-info svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
+.hist-vazio { color:#777; text-align:center; padding:28px 10px; font-size:.9rem; }
+@media (max-width:420px) { .historico-filtro-grid { grid-template-columns:1fr; } .historico-card { padding:22px 20px; } }
