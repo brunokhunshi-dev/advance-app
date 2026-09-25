@@ -74,6 +74,7 @@ let sequenciaPendentes = 0;
 let sequenciaAgenda = 0;
 
 let sequenciaHistorico = 0;
+let filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
 
 
 
@@ -292,7 +293,7 @@ function inicializarAplicativo() {
 
     });
 
-    configurarNavegacao(); configurarBotoesModal(); configurarEventosGlobais();
+    configurarNavegacao(); configurarBotoesModal(); configurarEventosGlobais(); configurarFiltroHistorico();
 
     configurarTelaNovaVisita(); configurarTelaCadastroCliente(); configurarTelaDetalhesVisita();
 
@@ -769,79 +770,274 @@ async function carregarAgenda() {
 
 
 
-async function carregarHistoricoVisitas() {
+function obterResultadoHistorico(visita) {
+    const valor = String(visita.resultado || '').trim().toLowerCase();
+    if (valor === 'resolvido') return 'Resolvido';
+    if (valor === 'não resolvido' || valor === 'nao resolvido') return 'Não resolvido';
+    if (valor === 'cancelada' || visita.status === 'Cancelada') return 'Cancelada';
+    return 'Concluída';
+}
 
+function obterClasseResultadoHistorico(resultado) {
+    if (resultado === 'Resolvido') return 'hist-status-resolvido';
+    if (resultado === 'Não resolvido') return 'hist-status-nao-resolvido';
+    if (resultado === 'Cancelada') return 'hist-status-cancelada';
+    return 'hist-status-concluida';
+}
+
+function obterDataHistorico(visita) {
+    return obterData(visita.checkinDataHora) || obterData(visita.data);
+}
+
+function formatarDiaHistorico(data) {
+    return `${String(data.getDate()).padStart(2, '0')} - ${data.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}`;
+}
+
+function formatarHoraHistorico(valor) {
+    const data = obterData(valor);
+    if (!data) return '';
+    return `${String(data.getHours()).padStart(2, '0')}h${String(data.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatarHorarioVisitaHistorico(visita) {
+    const inicio = formatarHoraHistorico(visita.checkinDataHora);
+    const fim = formatarHoraHistorico(visita.checkoutDataHora);
+    if (inicio && fim) return `${inicio} - ${fim}`;
+    return inicio || formatarHoraHistorico(visita.data) || 'Horário não informado';
+}
+
+function inicioDaSemanaHistorico(data) {
+    const inicio = new Date(data);
+    const dia = inicio.getDay();
+    const deslocamento = dia === 0 ? 6 : dia - 1;
+    inicio.setHours(0, 0, 0, 0);
+    inicio.setDate(inicio.getDate() - deslocamento);
+    return inicio;
+}
+
+function periodoHistorico(visita) {
+    const data = obterDataHistorico(visita);
+    if (!data) return 'Outras datas';
+
+    const agora = new Date();
+    const inicioSemana = inicioDaSemanaHistorico(agora);
+    const inicioProximaSemana = new Date(inicioSemana);
+    inicioProximaSemana.setDate(inicioProximaSemana.getDate() + 7);
+
+    if (data >= inicioSemana && data < inicioProximaSemana) return 'Nessa semana';
+    if (data.getMonth() === agora.getMonth() && data.getFullYear() === agora.getFullYear()) return 'Nesse mês';
+
+    return data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+        .replace(/^./, c => c.toUpperCase());
+}
+
+function aplicarFiltrosHistorico(visitas) {
+    const agora = new Date();
+    const inicioSemana = inicioDaSemanaHistorico(agora);
+    const inicioProximaSemana = new Date(inicioSemana);
+    inicioProximaSemana.setDate(inicioProximaSemana.getDate() + 7);
+
+    return visitas.filter(visita => {
+        const resultado = obterResultadoHistorico(visita);
+        const data = obterDataHistorico(visita);
+
+        if (filtrosHistorico.resultado !== 'todos' && resultado !== filtrosHistorico.resultado) return false;
+
+        if (filtrosHistorico.periodo === 'semana') {
+            if (!data || data < inicioSemana || data >= inicioProximaSemana) return false;
+        } else if (filtrosHistorico.periodo === 'mes') {
+            if (!data || data.getMonth() !== agora.getMonth() || data.getFullYear() !== agora.getFullYear()) return false;
+        } else if (filtrosHistorico.periodo === 'anteriores') {
+            if (!data || data.getMonth() === agora.getMonth() && data.getFullYear() === agora.getFullYear()) return false;
+        }
+
+        return true;
+    });
+}
+
+function renderizarHistoricoVisitas(visitas) {
+    const area = document.getElementById('area-historico-visitas');
+    const gruposPeriodo = new Map();
+
+    visitas.forEach(visita => {
+        const data = obterDataHistorico(visita);
+        if (!data) return;
+
+        const periodo = periodoHistorico(visita);
+        const chaveDia = `${periodo}|${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`;
+
+        if (!gruposPeriodo.has(periodo)) gruposPeriodo.set(periodo, new Map());
+        const dias = gruposPeriodo.get(periodo);
+
+        if (!dias.has(chaveDia)) dias.set(chaveDia, { data, visitas: [] });
+        dias.get(chaveDia).visitas.push(visita);
+    });
+
+    area.innerHTML = '';
+
+    if (!visitas.length || !gruposPeriodo.size) {
+        area.innerHTML = '<p class="hist-vazio">Nenhuma visita encontrada para os filtros selecionados.</p>';
+        return;
+    }
+
+    const ordemPeriodos = [...gruposPeriodo.entries()].sort((a, b) => {
+        const da = [...a[1].values()][0]?.data?.getTime() || 0;
+        const db = [...b[1].values()][0]?.data?.getTime() || 0;
+        return db - da;
+    });
+
+    ordemPeriodos.forEach(([periodo, dias]) => {
+        const blocoPeriodo = document.createElement('section');
+        blocoPeriodo.className = 'historico-periodo';
+
+        const tituloPeriodo = document.createElement('h2');
+        tituloPeriodo.className = 'historico-periodo-titulo';
+        tituloPeriodo.textContent = periodo;
+        blocoPeriodo.appendChild(tituloPeriodo);
+
+        [...dias.values()]
+            .sort((a, b) => b.data.getTime() - a.data.getTime())
+            .forEach(grupo => {
+                const blocoDia = document.createElement('div');
+                blocoDia.className = 'historico-dia';
+
+                const tituloDia = document.createElement('h3');
+                tituloDia.className = 'historico-dia-titulo';
+                tituloDia.textContent = formatarDiaHistorico(grupo.data);
+                blocoDia.appendChild(tituloDia);
+
+                grupo.visitas
+                    .sort((a, b) => (obterDataHistorico(b)?.getTime() || 0) - (obterDataHistorico(a)?.getTime() || 0))
+                    .forEach(visita => {
+                        const card = document.createElement('article');
+                        card.className = 'historico-card';
+
+                        const topo = document.createElement('div');
+                        topo.className = 'historico-card-top';
+
+                        const nome = document.createElement('div');
+                        nome.className = 'hist-cliente';
+                        nome.textContent = visita.nomeCliente || 'Cliente não encontrado';
+
+                        const resultado = obterResultadoHistorico(visita);
+                        const status = document.createElement('span');
+                        status.className = `hist-status ${obterClasseResultadoHistorico(resultado)}`;
+                        status.textContent = resultado;
+
+                        topo.append(nome, status);
+
+                        const horario = document.createElement('div');
+                        horario.className = 'hist-info';
+                        horario.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg>';
+                        horario.append(document.createTextNode(formatarHorarioVisitaHistorico(visita)));
+
+                        const endereco = document.createElement('div');
+                        endereco.className = 'hist-info';
+                        endereco.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6.5-8 12-8 12s-8-5.5-8-12a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>';
+                        endereco.append(document.createTextNode(visita.enderecoCompleto || 'Endereço não informado'));
+
+                        card.append(topo, horario, endereco);
+                        blocoDia.appendChild(card);
+                    });
+
+                blocoPeriodo.appendChild(blocoDia);
+            });
+
+        area.appendChild(blocoPeriodo);
+    });
+}
+
+async function carregarHistoricoVisitas() {
     if (!idUsuarioLogado) return;
 
     const sessao = sessaoAtual(), pedido = ++sequenciaHistorico;
-
     const areaHistorico = document.getElementById('area-historico-visitas');
 
-    areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar histórico...</p>`;
+    areaHistorico.innerHTML = '<p class="hist-vazio">Carregando histórico...</p>';
 
     try {
-
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "==", "Concluída"), orderBy("data", "desc"), limit(10));
+        const q = query(
+            collection(db, "atividades"),
+            where("ptvId", "==", idUsuarioLogado),
+            where("status", "in", ["Concluída", "Cancelada"]),
+            orderBy("data", "desc"),
+            limit(50)
+        );
 
         let querySnapshot;
 
-        try { querySnapshot = await getDocs(q); }
-
-        catch (erro) {
-
+        try {
+            querySnapshot = await getDocs(q);
+        } catch (erro) {
             if (erro.code !== 'failed-precondition') throw erro;
-
-            // Compatibilidade até a criação do índice composto no Firestore.
-
-            querySnapshot = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', '==', 'Concluída')));
-
+            querySnapshot = await getDocs(
+                query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', 'in', ['Concluída', 'Cancelada']))
+            );
         }
 
         if (!sessaoValida(sessao) || pedido !== sequenciaHistorico) return;
 
-
-
-        if (querySnapshot.empty) { areaHistorico.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita concluída.</p>`; return; }
-
-
+        if (querySnapshot.empty) {
+            areaHistorico.innerHTML = '<p class="hist-vazio">Nenhuma visita encontrada.</p>';
+            return;
+        }
 
         const historicoArray = await Promise.all(querySnapshot.docs.map(async documento => {
-
-            const dados = documento.data(); dados.id = documento.id; dados.nomeCliente = "Cliente não encontrado";
+            const dados = { ...documento.data(), id: documento.id, nomeCliente: "Cliente não encontrado", enderecoCompleto: "" };
             const cliente = dados.clienteId ? await obterCliente(dados.clienteId) : null;
-            dados.nomeCliente = cliente?.nome || (dados.clienteId ? "Cliente Desconhecido" : "Desconhecido");
+
+            if (cliente) {
+                dados.nomeCliente = cliente.nome || "Cliente sem nome";
+                dados.enderecoCompleto = cliente.enderecoCompleto || "";
+            }
+
             return dados;
-
         }));
-
-
 
         if (!sessaoValida(sessao) || pedido !== sequenciaHistorico) return;
 
-        historicoArray.sort((a, b) => tempoData(b.data) - tempoData(a.data));
+        historicoArray.sort((a, b) => (obterDataHistorico(b)?.getTime() || 0) - (obterDataHistorico(a)?.getTime() || 0));
 
-        areaHistorico.innerHTML = '';
+        renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoArray));
+    } catch (error) {
+        if (sessaoValida(sessao) && pedido === sequenciaHistorico) {
+            areaHistorico.textContent = "Não foi possível carregar o histórico.";
+            informarErro("Erro no histórico", error);
+        }
+    }
+}
 
-        historicoArray.slice(0, 10).forEach(visita => {
+function configurarFiltroHistorico() {
+    const botao = document.getElementById('btn-filtro-historico');
+    const painel = document.getElementById('historico-filtro');
+    const periodo = document.getElementById('filtro-historico-periodo');
+    const resultado = document.getElementById('filtro-historico-resultado');
+    const limpar = document.getElementById('btn-limpar-filtro-historico');
 
-            const formato = formatarDataHoraPT(visita.data);
+    if (!botao || !painel) return;
 
-            areaHistorico.innerHTML += `
+    botao.addEventListener('click', () => {
+        const aberto = !painel.hidden;
+        painel.hidden = aberto;
+        botao.setAttribute('aria-expanded', String(!aberto));
+    });
 
-                <div class="card-historico">
+    periodo?.addEventListener('change', () => {
+        filtrosHistorico.periodo = periodo.value;
+        carregarHistoricoVisitas();
+    });
 
-                    <div><div class="hist-cliente">${escaparHtml(visita.nomeCliente)}</div><div class="hist-data">${formato.data} às ${formato.hora}</div></div>
+    resultado?.addEventListener('change', () => {
+        filtrosHistorico.resultado = resultado.value;
+        carregarHistoricoVisitas();
+    });
 
-                    <div><span class="hist-status">Concluída</span></div>
-
-                </div>
-
-            `;
-
-        });
-
-    } catch (error) { if (sessaoValida(sessao) && pedido === sequenciaHistorico) { areaHistorico.textContent = "Não foi possível carregar o histórico."; informarErro("Erro no histórico", error); } }
-
+    limpar?.addEventListener('click', () => {
+        filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
+        if (periodo) periodo.value = 'todos';
+        if (resultado) resultado.value = 'todos';
+        carregarHistoricoVisitas();
+    });
 }
 
 
