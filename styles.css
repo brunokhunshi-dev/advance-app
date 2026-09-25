@@ -28,7 +28,7 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .char-count { text-align: right; font-size: 0.75rem; color: #888; margin-top: 4px; padding-right: 5px; }
 
 /* 5. TELA INICIAL E FORMS */
-.card-visita { background-color: var(--color-white); border-radius: 24px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 15px;}
+.card-visita { background-color: var(--color-white); border-radius: 24px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; margin-bottom: 15px;}
 .card-info { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; margin-right: 15px; }
 .card-titulo { font-size: 1.05rem; font-weight: 700; color: var(--color-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .form-group { margin-bottom: 16px; }
@@ -59,7 +59,7 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 /* 6. TELA DE AGENDA & HISTÓRICO */
 #tela-agenda { padding-bottom: 130px; } 
 .section-subtitle { font-size: 1.1rem; font-weight: 800; color: var(--color-dark); margin: 25px 0 10px 0; }
-.card-agenda { background-color: var(--color-white); border-radius: 24px; padding: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); margin-bottom: 15px; position: relative; }
+.card-agenda { background-color: var(--color-white); border-radius: 24px; padding: 20px; box-shadow: none; margin-bottom: 15px; position: relative; }
 .agenda-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .agenda-data { font-size: 1.6rem; font-weight: 400; color: var(--color-dark); }
 .agenda-btn-ficha { color: var(--color-red); cursor: pointer; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
@@ -70,15 +70,15 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 .agenda-info-row svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; stroke-width: 2; fill: none; margin-top: 1px;}
 .agenda-motivo { font-size: 0.9rem; color: var(--color-dark); font-weight: 600; margin-top: 15px; margin-bottom: 20px; }
 .btn-gps { width: 100%; padding: 14px; border-radius: 30px; border: 1px solid #EAEAEA; background: var(--color-white); color: var(--color-red); font-size: 1.05rem; font-weight: 500; font-family: inherit; cursor: pointer; }
-.fab-nova-visita { position: fixed; bottom: 85px; right: 20px; background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 16px 24px; font-size: 0.9rem; font-weight: 800; font-family: inherit; box-shadow: 0 6px 20px rgba(245, 30, 48, 0.35); cursor: pointer; z-index: 999; }
-.card-historico { background-color: var(--color-white); border-radius: 20px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02); margin-bottom: 12px; }
+.fab-nova-visita { position: fixed; bottom: 85px; right: 20px; background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 16px 24px; font-size: 0.9rem; font-weight: 800; font-family: inherit; box-shadow: none; cursor: pointer; z-index: 999; }
+.card-historico { background-color: var(--color-white); border-radius: 20px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; margin-bottom: 12px; }
 .hist-cliente { font-size: 1.05rem; font-weight: 700; color: var(--color-dark); }
 .hist-data { font-size: 0.85rem; color: #888; font-weight: 500; margin-top: 4px; }
 .hist-status { font-size: 0.75rem; font-weight: 700; color: #28a745; background-color: #e8f5e9; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
 
 /* 7. AUTOCOMPLETE */
 .autocomplete-wrapper { position: relative; }
-.autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--color-white); border: 1px solid #EAEAEA; border-radius: 12px; margin-top: 5px; z-index: 1000; max-height: 220px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.08); display: none; }
+.autocomplete-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--color-white); border: 1px solid #EAEAEA; border-radius: 12px; margin-top: 5px; z-index: 1000; max-height: 220px; overflow-y: auto; box-shadow: none; display: none; }
 .autocomplete-item { padding: 14px 16px; border-bottom: 1px solid #F4F4F6; font-size: 0.95rem; cursor: pointer; color: var(--color-dark); }
 .autocomplete-item:last-child { border-bottom: none; }
 .autocomplete-item:active, .autocomplete-item:hover { background-color: var(--color-bg); }
@@ -98,7 +98,7 @@ input[type="date"], input[type="time"] { position: relative; }
 
 /* 9. MODAIS NATIVOS (POPOUTS) */
 .alert-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 20px; }
-.alert-box { background: white; border-radius: 14px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; }
+.alert-box { background: white; border-radius: 14px; width: 85%; max-width: 320px; text-align: center; box-shadow: none; overflow: hidden; display: flex; flex-direction: column; }
 .alert-content { padding: 24px 20px; }
 .alert-box h3 { font-size: 1.1rem; color: var(--color-dark); font-weight: 800; margin-bottom: 10px; }
 .alert-box p { font-size: 0.95rem; color: #333; margin: 0; line-height: 1.35; }
@@ -110,7 +110,7 @@ input[type="date"], input[type="time"] { position: relative; }
 .alert-btn-black { color: var(--color-dark); }
 
 /* 10. TELA VISITA EM ANDAMENTO (Timeline) */
-.card-visita-atual { background-color: var(--color-white); border-radius: 28px; padding: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02); }
+.card-visita-atual { background-color: var(--color-white); border-radius: 28px; padding: 24px; box-shadow: none; }
 .va-titulo { font-size: 1.2rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
 .va-status { font-size: 0.75rem; font-weight: 600; color: var(--color-red); text-transform: uppercase; margin-bottom: 20px; }
 .va-divider { border: 0; border-top: 1px solid #EAEAEA; margin: 24px 0; }
@@ -146,3 +146,32 @@ input[type="date"], input[type="time"] { position: relative; }
 .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--color-dark); font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
 .nav-item.active { opacity: 1; font-weight: 700; color: var(--color-red); }
 .nav-item svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* === HISTÓRICO DE VISITAS === */
+.tela-historico-visitas { position: relative; }
+.historico-topo { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.historico-topo .page-title { margin-bottom:0; }
+.historico-filtro-btn { width:50px; min-width:50px; height:50px; min-height:50px; border:0; border-radius:16px; background:var(--color-white); color:var(--color-red); display:grid; place-items:center; box-shadow: none; }
+.historico-filtro-btn svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+.historico-filtro[hidden] { display:none; }
+.historico-filtro { background:var(--color-white); border-radius:20px; padding:16px; margin:0 0 22px; box-shadow: none; }
+.historico-filtro-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.historico-filtro label { display:flex; flex-direction:column; gap:7px; color:var(--color-dark); font-size:.78rem; font-weight:700; }
+.historico-filtro .input-box { min-height:46px; padding:10px 12px; }
+.historico-filtro-limpar { margin-top:12px; border:0; background:transparent; color:var(--color-red); padding:4px 0; min-height:32px; font-weight:700; font-size:.82rem; }
+.historico-periodo { margin:0 0 24px; }
+.historico-periodo-titulo { font-size:1rem; font-weight:800; color:var(--color-dark); margin:0 0 11px; }
+.historico-dia { margin:0 0 18px; }
+.historico-dia-titulo { font-size:1.55rem; line-height:1; font-weight:500; color:var(--color-dark); margin:0 0 11px; letter-spacing:-.02em; }
+.historico-card { background:var(--color-white); border-radius:24px; padding:23px 22px; margin-bottom:12px; box-shadow: none; }
+.historico-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.hist-cliente { font-size:1.05rem; font-weight:800; color:var(--color-dark); line-height:1.15; }
+.hist-status { font-size:.72rem; line-height:1; font-weight:800; white-space:nowrap; padding-top:4px; }
+.hist-status-resolvido { color:#22a928; }
+.hist-status-nao-resolvido { color:#f51e30; }
+.hist-status-cancelada { color:#999; }
+.hist-status-concluida { color:#777; }
+.hist-info { display:flex; align-items:center; gap:7px; color:#9a9ab5; font-size:.76rem; font-weight:500; margin-top:9px; }
+.hist-info svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
+.hist-vazio { color:#777; text-align:center; padding:28px 10px; font-size:.9rem; }
+@media (max-width:420px) { .historico-filtro-grid { grid-template-columns:1fr; } .historico-card { padding:22px 20px; } }
