@@ -44,7 +44,7 @@ if (typeof document !== 'undefined') {
             position: 'fixed', right: '16px', bottom: '16px', zIndex: '9999',
             padding: '13px 18px', border: '0', borderRadius: '999px',
             background: '#F51E30', color: '#fff', fontWeight: '700',
-            boxShadow: '0 6px 18px rgba(0,0,0,.25)', cursor: 'pointer'
+            boxShadow: 'none', cursor: 'pointer'
         });
         button.addEventListener('click', async () => {
             if (!deferredInstallPrompt) return;
