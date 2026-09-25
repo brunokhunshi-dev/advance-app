@@ -331,7 +331,7 @@
             <h1 class="page-title">Meu Perfil</h1>
             <div class="card-box" style="text-align: center; margin-top: 20px;">
                 <p style="color: #777; margin-bottom: 20px;">Gerencie a sua conta e preferências aqui.</p>
-                <button class="btn-outline-red" onclick="window.mostrarAlerta('Aviso', 'Tela de Perfil em construção!')">Configurações</button>
+                <button class="btn-outline-red" id="btn-configuracoes">Configurações</button>
             </div>
         </main>
 
@@ -388,7 +388,7 @@
                     <p id="alerta-msg">Ação realizada.</p>
                 </div>
                 <div class="alert-actions">
-                    <button onclick="window.fecharAlerta()" class="alert-btn-red">OK</button>
+                    <button id="btn-fechar-alerta" class="alert-btn-red">OK</button>
                 </div>
             </div>
         </div>
@@ -400,7 +400,7 @@
                     <p>Faça o check-out ou exclua a visita caso necessário.</p>
                 </div>
                 <div class="alert-actions">
-                    <button onclick="document.getElementById('modal-aviso-andamento').style.display='none'" class="alert-btn-red">OK</button>
+                    <button id="btn-fechar-aviso-andamento" class="alert-btn-red">OK</button>
                 </div>
             </div>
         </div>
@@ -412,8 +412,8 @@
                     <p>Tem certeza que você quer excluir essa visita?</p>
                 </div>
                 <div class="alert-actions split">
-                    <button onclick="window.fecharConfirmacaoExclusao()" class="alert-btn-black">CANCELAR</button>
-                    <button onclick="window.confirmarExclusao()" class="alert-btn-red">DELETAR</button>
+                    <button id="btn-cancelar-exclusao" class="alert-btn-black">CANCELAR</button>
+                    <button id="btn-confirmar-exclusao" class="alert-btn-red">DELETAR</button>
                 </div>
             </div>
         </div>

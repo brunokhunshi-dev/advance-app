@@ -1,60 +1,61 @@
-const CACHE_NAME = 'advance-pwa-v2';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/script.js',
-  '/firebase-config.js',
-  '/pwa-mobile.css',
-  '/manifest.json',
-  '/manifest.webmanifest',
-  '/icon-192.png',
-  '/icon-512.png'
+const CACHE_NAME = 'advance-pwa-v3';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './styles.css',
+  './script.js',
+  './firebase-config.js',
+  './pwa-mobile.css',
+  './manifest.json',
+  './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg'
 ];
 
-// Instala o Service Worker e guarda os ficheiros no Cache
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS_TO_CACHE))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
-// Limpa caches antigos caso a gente atualize o app (v2, v3...)
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      );
-    })
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
   );
   self.clients.claim();
 });
 
-// Interceta os pedidos (Tenta buscar na rede; se estiver sem internet, puxa do Cache)
+async function responderComRede(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return caches.match(request);
+  }
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  const requestUrl = new URL(event.request.url);
-  const isSameOrigin = requestUrl.origin === self.location.origin;
-  const isExternalDataRequest =
-    event.request.url.includes('firestore') ||
-    event.request.url.includes('brasilapi') ||
-    event.request.url.includes('identitytoolkit');
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
 
-  if (!isSameOrigin || isExternalDataRequest) return;
+  if (url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('firebaseio.com') ||
+      url.hostname.includes('brasilapi.com.br') ||
+      url.hostname.includes('nominatim.openstreetmap.org') ||
+      url.pathname.includes('/firestore')) return;
 
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response && response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+    event.request.mode === 'navigate'
+      ? responderComRede(event.request).then(response => response || caches.match('./index.html'))
+      : responderComRede(event.request)
   );
 });
