@@ -1459,7 +1459,7 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     preencherCampoVisualizador('visu-checkin-gps', formatarGpsVisualizador(atividade.checkinGps, atividade.checkinGpsAccuracy));
     preencherCampoVisualizador('visu-checkout-gps', formatarGpsVisualizador(atividade.checkoutGps, atividade.checkoutGpsAccuracy));
 
-    document.getElementById('btn-fechar-visualizador').focus({ preventScroll: true });
+    document.getElementById('btn-fechar-visualizador')?.blur();
 }
 
 window.abrirVisualizadorVisita = async function(atividadeId) {
@@ -2458,11 +2458,6 @@ async function enviarFechamentoManual() {
 }
 function configurarEventosGlobais() {
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => {
-        if (operacaoEmCurso) return;
-        mostrarApenasTela('tela-historico');
-    });
-
-    document.getElementById('btn-voltar-visualizador')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
         mostrarApenasTela('tela-historico');
     });
