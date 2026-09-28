@@ -2297,6 +2297,9 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
+    document.getElementById('btn-exportar-visualizador')?.addEventListener('click', () => window.print());
+
+
     document.getElementById('btn-fechamento-manual-nao')?.addEventListener('click', fecharModalFechamentoManual);
     document.getElementById('btn-fechamento-manual-sim')?.addEventListener('click', () => {
         document.getElementById('fechamento-manual-pergunta').style.display = 'none';
