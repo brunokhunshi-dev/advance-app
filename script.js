@@ -610,7 +610,7 @@ function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).t
 
 function mostrarApenasTela(idTelaAlvo) {
 
-    const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita'];
+    const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout'];
 
     telas.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (id === idTelaAlvo) ? 'block' : 'none'; });
 
@@ -618,7 +618,7 @@ function mostrarApenasTela(idTelaAlvo) {
 
     document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', i === indice));
 
-    if (idTelaAlvo === 'tela-relatorio') {
+    if (idTelaAlvo === 'tela-relatorio' || idTelaAlvo === 'tela-checkout') {
 
         document.getElementById('tela-relatorio').style.display = 'flex';
 
@@ -1022,11 +1022,10 @@ async function carregarHistoricoVisitas() {
 
     try {
         const q = query(
-            collection(db, "atividades"),
-            where("ptvId", "==", idUsuarioLogado),
-            where("status", "in", ["Concluída", "Cancelada"]),
-            orderBy("data", "desc"),
-            limit(50)
+            collection(db, 'atividades'),
+            where('ptvId', '==', sessao.id),
+            orderBy('data', 'desc'),
+            limit(100)
         );
 
         let querySnapshot;
@@ -1035,11 +1034,16 @@ async function carregarHistoricoVisitas() {
             querySnapshot = await getDocs(q);
         } catch (erro) {
             if (erro.code !== 'failed-precondition') throw erro;
-            querySnapshot = await getDocs(
-                query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', 'in', ['Concluída', 'Cancelada']))
-            );
+            querySnapshot = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));
         }
 
+        querySnapshot = {
+            ...querySnapshot,
+            docs: querySnapshot.docs.filter(documento => {
+                const status = documento.data()?.status;
+                return status === 'Concluída' || status === 'Cancelada';
+            })
+        };
         if (!sessaoValida(sessao) || pedido !== sequenciaHistorico) return;
 
         if (querySnapshot.empty) {
