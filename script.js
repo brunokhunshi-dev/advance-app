@@ -90,6 +90,72 @@ function escaparHtml(valor) {
 
 }
 
+// === PADRÃO DE IDs DO FIRESTORE ===
+// IDs novos são gerados em um único lugar para manter o padrão consistente.
+// Registros antigos não são renomeados, preservando todas as referências existentes.
+
+const PARTICULAS_NOME = new Set(['da', 'das', 'de', 'do', 'dos', 'e']);
+
+function obterIniciais(nome) {
+    const partes = String(nome || '')
+        .normalize('NFD')
+        .replace(/[\\u0300-\\u036f]/g, '')
+        .replace(/[^a-zA-Z\\s]/g, ' ')
+        .trim()
+        .split(/\\s+/)
+        .filter(Boolean);
+
+    if (!partes.length) return 'XX';
+
+    const uteis = partes.filter((parte, indice) =>
+        indice === 0 || indice === partes.length - 1 || !PARTICULAS_NOME.has(parte.toLowerCase())
+    );
+
+    if (uteis.length === 1) return uteis[0].slice(0, 2).toUpperCase();
+
+    return (uteis[0][0] + uteis[uteis.length - 1][0]).toUpperCase();
+}
+
+function formatarDataId(data) {
+    const d = obterData(data);
+    if (!d) throw new Error('Não foi possível gerar o ID: data inválida.');
+
+    return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+        String(d.getHours()).padStart(2, '0'),
+        String(d.getMinutes()).padStart(2, '0')
+    ].join('');
+}
+
+function gerarSufixoId() {
+    if (globalThis.crypto?.getRandomValues) {
+        const bytes = new Uint8Array(4);
+        crypto.getRandomValues(bytes);
+        return Array.from(bytes, byte => byte.toString(36).padStart(2, '0')).join('').slice(0, 6).toUpperCase();
+    }
+
+    return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function gerarIdAtividade(tipoVisita, data, nomeTecnico) {
+    const prefixo = tipoVisita === 'Treinamento' ? 'TR' : 'VT';
+    return prefixo + '-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
+}
+
+function gerarIdRelatorio(data, nomeTecnico) {
+    return 'REL-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
+}
+
+function gerarIdClienteCnpj(codigoCnpj) {
+    return 'CLI-CNPJ-' + String(codigoCnpj);
+}
+
+function gerarIdClienteProvisorio(dataCriacao, nomeResponsavel) {
+    return 'CLI-PROV-' + formatarDataId(dataCriacao) + '-' + obterIniciais(nomeResponsavel) + '-' + gerarSufixoId();
+}
+
 function sessaoAtual() {
 
     if (!auth.currentUser || !idUsuarioLogado) throw new Error('Entre novamente para continuar.');
@@ -1236,8 +1302,9 @@ function configurarTelaNovaVisita() {
                 if (!cliente || !['Ativo', 'Provisorio'].includes(cliente.status)) throw new Error('O cliente não está disponível para agendamento. Atualize a lista.');
 
                 const agora = new Date();
+                const atividadeId = gerarIdAtividade(tipoVisita, data, nomeUsuarioLogado);
 
-                await setDoc(doc(collection(db, 'atividades')), {
+                await setDoc(doc(db, 'atividades', atividadeId), {
 
                     tipo: 'Visita', data, ptvId: sessao.id, clienteId, tipoVisita, nota,
 
@@ -1845,7 +1912,7 @@ function configurarTelaCadastroCliente() {
 
                     if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
 
-                    clienteId = 'cli_' + codigo;
+                    clienteId = gerarIdClienteCnpj(codigo);
                     const ref = doc(db,'clientes',clienteId);
 
                     const resultado = await runTransaction(db, async tx => {
@@ -1867,8 +1934,9 @@ function configurarTelaCadastroCliente() {
                 exigirSessao(sessao);
                 if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
 
-                const ref = doc(collection(db,'clientes'));
                 const agora = new Date();
+                const clienteProvisorioId = gerarIdClienteProvisorio(agora, nomeUsuarioLogado);
+                const ref = doc(db, 'clientes', clienteProvisorioId);
                 await runTransaction(db, async tx => {
                     tx.set(ref, { nome, cidade, uf, enderecoCompleto,
                         lat: Number(coords.lat), lng: Number(coords.lng), status: 'Provisorio',
@@ -2547,7 +2615,8 @@ function configurarEventosGlobais() {
 
             const textoBase = objetoRelatorioGlobal?.textoAtual ?? null;
 
-            const novoRef = doc(collection(db,'relatorios'));
+            const novoIdRelatorio = gerarIdRelatorio(new Date(), nomeUsuarioLogado);
+            const novoRef = doc(db, 'relatorios', novoIdRelatorio);
 
             operacaoEmCurso = true; btn.disabled = true; btn.textContent = 'Salvando...';
 
