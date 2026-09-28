@@ -811,3 +811,71 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     .visualizador-logo { margin-bottom: 24px; }
     .visualizador-titulo { font-size: 1.55rem; }
 }
+
+
+/* === RADIO BUTTONS — CORREÇÃO VISUAL === */
+.radio-label,
+.checkout-radio-label {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start;
+    gap: 12px !important;
+    min-height: 28px;
+    line-height: 1.25;
+}
+
+.radio-label input[type="radio"],
+.checkout-radio-label input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.radio-custom,
+.checkout-radio-custom {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 24px !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 1.5px solid #BFC1C7 !important;
+    background: #FFFFFF !important;
+    overflow: hidden;
+}
+
+.radio-label input[type="radio"]:checked + .radio-custom,
+.checkout-radio-label input[type="radio"]:checked + .checkout-radio-custom {
+    border-color: #F51E30 !important;
+    background: #F51E30 !important;
+}
+
+.radio-label input[type="radio"]:checked + .radio-custom::after,
+.checkout-radio-label input[type="radio"]:checked + .checkout-radio-custom::after {
+    content: "";
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    min-height: 8px;
+    max-width: 8px;
+    max-height: 8px;
+    border-radius: 50%;
+    background: #FFFFFF;
+}
+
+.checkout-radio-label {
+    color: var(--color-dark);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
