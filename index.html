@@ -278,6 +278,109 @@
 
             <button id="btn-exportar-visualizador" class="btn-checkin visualizador-exportar" type="button">Exportar para PDF</button>
             <button id="btn-voltar-visualizador" class="btn-voltar visualizador-voltar" type="button">Voltar</button>
+            <div id="visu-print-excel" class="visu-print-excel">
+                <div class="pdf-sheet-header">
+                    <div>
+                        <div class="pdf-brand">ADVANCE TINTAS</div>
+                        <div class="pdf-doc-title">RELATÓRIO DE VISITA</div>
+                    </div>
+                    <div id="pdf-status" class="pdf-status">---</div>
+                </div>
+
+                <table class="pdf-sheet-table pdf-meta-table">
+                    <tbody>
+                        <tr>
+                            <th>Cliente</th><td id="pdf-cliente">—</td>
+                            <th>Protocolo</th><td id="pdf-protocolo">—</td>
+                        </tr>
+                        <tr>
+                            <th>Tipo de visita</th><td id="pdf-tipo">—</td>
+                            <th>Técnico</th><td id="pdf-tecnico">—</td>
+                        </tr>
+                        <tr>
+                            <th>Endereço</th><td id="pdf-endereco" colspan="3">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <table class="pdf-sheet-table">
+                    <thead><tr><th colspan="4">HORÁRIOS DA VISITA</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <th>Chegada - Data</th><td id="pdf-chegada-data">—</td>
+                            <th>Chegada - Hora</th><td id="pdf-chegada-hora">—</td>
+                        </tr>
+                        <tr>
+                            <th>Saída - Data</th><td id="pdf-saida-data">—</td>
+                            <th>Saída - Hora</th><td id="pdf-saida-hora">—</td>
+                        </tr>
+                        <tr>
+                            <th>Duração</th><td id="pdf-duracao" colspan="3">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <table class="pdf-sheet-table" id="pdf-tecnica-table">
+                    <thead><tr><th colspan="4">VISITA TÉCNICA</th></tr></thead>
+                    <tbody>
+                        <tr><th>Objetivo da visita</th><td id="pdf-objetivo" colspan="3">—</td></tr>
+                        <tr><th>Oportunidade identificada</th><td id="pdf-oportunidade" colspan="3">—</td></tr>
+                    </tbody>
+                </table>
+
+                <table class="pdf-sheet-table" id="pdf-treinamento-table" style="display:none;">
+                    <thead><tr><th colspan="4">TREINAMENTO</th></tr></thead>
+                    <tbody>
+                        <tr><th>Categoria</th><td id="pdf-categoria" colspan="3">—</td></tr>
+                        <tr><th>Quantidade de participantes</th><td id="pdf-participantes" colspan="3">—</td></tr>
+                        <tr><th>Público atendido</th><td id="pdf-publico" colspan="3">—</td></tr>
+                    </tbody>
+                </table>
+
+                <table class="pdf-sheet-table pdf-long-table">
+                    <thead><tr><th>NOTA DA VISITA</th></tr></thead>
+                    <tbody><tr><td id="pdf-nota">—</td></tr></tbody>
+                </table>
+
+                <table class="pdf-sheet-table pdf-long-table">
+                    <thead><tr><th>RELATÓRIO FINAL</th></tr></thead>
+                    <tbody><tr><td id="pdf-relatorio">—</td></tr></tbody>
+                </table>
+
+                <table class="pdf-sheet-table pdf-manual-table" id="pdf-manual-table" style="display:none;">
+                    <thead><tr><th colspan="4">FECHAMENTO MANUAL</th></tr></thead>
+                    <tbody>
+                        <tr><th>Status</th><td id="pdf-manual-status" colspan="3">Pendente de análise</td></tr>
+                        <tr><th>Motivo</th><td id="pdf-manual-motivo" colspan="3">—</td></tr>
+                        <tr><th>Solicitado em</th><td id="pdf-manual-data" colspan="3">—</td></tr>
+                    </tbody>
+                </table>
+
+                <table class="pdf-sheet-table pdf-location-table">
+                    <thead><tr><th colspan="4">REGISTRO DE LOCALIZAÇÃO</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <th>Check-in - Endereço</th><td id="pdf-checkin-endereco">—</td>
+                            <th>Precisão</th><td id="pdf-checkin-precisao">—</td>
+                        </tr>
+                        <tr>
+                            <th>Check-out - Endereço</th><td id="pdf-checkout-endereco">—</td>
+                            <th>Precisão</th><td id="pdf-checkout-precisao">—</td>
+                        </tr>
+                        <tr>
+                            <th>Check-in - GPS</th><td id="pdf-checkin-gps" colspan="3">—</td>
+                        </tr>
+                        <tr>
+                            <th>Check-out - GPS</th><td id="pdf-checkout-gps" colspan="3">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="pdf-footer">
+                    Documento gerado pelo aplicativo Advance • <span id="pdf-gerado-em">—</span>
+                </div>
+            </div>
+
         </main>
 
         <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->

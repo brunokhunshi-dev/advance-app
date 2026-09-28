@@ -1289,7 +1289,61 @@ function formatarGpsVisualizador(gps, accuracy) {
     return texto + precisao;
 }
 
+function preencherCelulaPdf(id, valor) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = valor == null || String(valor).trim() === '' ? '—' : String(valor);
+}
+
+function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
+    const resultado = obterResultadoHistorico(atividade);
+    const tipo = normalizarTipoVisita(atividade);
+
+    preencherCelulaPdf('pdf-status', resultado.toUpperCase());
+    preencherCelulaPdf('pdf-cliente', cliente?.nome);
+    preencherCelulaPdf('pdf-protocolo', formatarProtocoloVisualizador(relatorio?.codigo, atividade.id));
+    preencherCelulaPdf('pdf-tipo', tipo);
+    preencherCelulaPdf('pdf-tecnico', nomeUsuarioLogado);
+    preencherCelulaPdf('pdf-endereco', cliente?.enderecoCompleto);
+
+    preencherCelulaPdf('pdf-chegada-data', formatarDataCheckout(atividade.checkinDataHora));
+    preencherCelulaPdf('pdf-chegada-hora', formatarHoraCheckout(atividade.checkinDataHora));
+    preencherCelulaPdf('pdf-saida-data', formatarDataCheckout(atividade.checkoutDataHora));
+    preencherCelulaPdf('pdf-saida-hora', formatarHoraCheckout(atividade.checkoutDataHora));
+    preencherCelulaPdf('pdf-duracao', formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora));
+
+    const tecnica = document.getElementById('pdf-tecnica-table');
+    const treinamento = document.getElementById('pdf-treinamento-table');
+
+    tecnica.style.display = tipo === 'Treinamento' ? 'none' : 'table';
+    treinamento.style.display = tipo === 'Treinamento' ? 'table' : 'none';
+
+    preencherCelulaPdf('pdf-objetivo', atividade.objetivo);
+    preencherCelulaPdf('pdf-oportunidade', atividade.oportunidadeIdentificada);
+    preencherCelulaPdf('pdf-categoria', atividade.categoriaTreinamento);
+    preencherCelulaPdf('pdf-participantes', atividade.quantidadeParticipantes);
+    preencherCelulaPdf('pdf-publico', atividade.publicoAtendido);
+
+    preencherCelulaPdf('pdf-nota', atividade.nota);
+    preencherCelulaPdf('pdf-relatorio', relatorio?.textoAtual);
+
+    const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
+    const manualTable = document.getElementById('pdf-manual-table');
+    manualTable.style.display = manual ? 'table' : 'none';
+    preencherCelulaPdf('pdf-manual-status', atividade.fechamentoAnaliseStatus);
+    preencherCelulaPdf('pdf-manual-motivo', atividade.motivoFechamentoManual);
+    preencherCelulaPdf('pdf-manual-data', atividade.fechamentoSolicitadoEm ? formatarDataHoraPT(atividade.fechamentoSolicitadoEm).completo : null);
+
+    preencherCelulaPdf('pdf-checkin-endereco', atividade.checkinEndereco);
+    preencherCelulaPdf('pdf-checkin-precisao', Number.isFinite(Number(atividade.checkinGpsAccuracy)) ? Math.round(Number(atividade.checkinGpsAccuracy)) + ' m' : null);
+    preencherCelulaPdf('pdf-checkout-endereco', atividade.checkoutEndereco);
+    preencherCelulaPdf('pdf-checkout-precisao', Number.isFinite(Number(atividade.checkoutGpsAccuracy)) ? Math.round(Number(atividade.checkoutGpsAccuracy)) + ' m' : null);
+    preencherCelulaPdf('pdf-checkin-gps', atividade.checkinGps);
+    preencherCelulaPdf('pdf-checkout-gps', atividade.checkoutGps);
+    preencherCelulaPdf('pdf-gerado-em', formatarDataHoraPT(new Date()).completo);
+}
+
 function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
+    window._clienteVisualizadorAtual = cliente || null;
     const resultado = obterResultadoHistorico(atividade);
     const resultadoEl = document.getElementById('visu-resultado');
     resultadoEl.textContent = resultado;
@@ -2297,7 +2351,22 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
-    document.getElementById('btn-exportar-visualizador')?.addEventListener('click', () => window.print());
+    document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => {
+        if (operacaoEmCurso) return;
+        mostrarApenasTela('tela-historico');
+    });
+
+    document.getElementById('btn-voltar-visualizador')?.addEventListener('click', () => {
+        if (operacaoEmCurso) return;
+        mostrarApenasTela('tela-historico');
+    });
+
+
+    document.getElementById('btn-exportar-visualizador')?.addEventListener('click', () => {
+        if (!objetoAtividadeGlobal) return;
+        prepararImpressaoVisualizador(objetoAtividadeGlobal, window._clienteVisualizadorAtual, objetoRelatorioGlobal);
+        setTimeout(() => window.print(), 50);
+    });
 
 
     document.getElementById('btn-fechamento-manual-nao')?.addEventListener('click', fecharModalFechamentoManual);
