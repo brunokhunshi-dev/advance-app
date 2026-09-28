@@ -2381,74 +2381,237 @@ function configurarEventosGlobais() {
     });
 
 
+    function obterDadosVisitaParaCompartilhar() {
+        const atividade = objetoAtividadeGlobal;
+        const cliente = window._clienteVisualizadorAtual;
+        const relatorio = objetoRelatorioGlobal;
+        if (!atividade) return null;
+
+        const tipo = normalizarTipoVisita(atividade);
+        const protocolo = formatarProtocoloVisualizador(relatorio?.codigo, atividade.id);
+        const resultado = obterResultadoHistorico(atividade);
+
+        return {
+            atividade, cliente, relatorio, tipo, protocolo, resultado,
+            titulo: `Visita técnica — ${cliente?.nome || 'Advance Tintas'}`
+        };
+    }
+
+    function desenharTextoQuebrado(ctx, texto, x, y, largura, alturaLinha = 28, fonte = '22px Arial', maxLinhas = 0) {
+        ctx.font = fonte;
+        const palavras = String(texto ?? '').split(/\\s+/);
+        let linha = '';
+        let linhas = [];
+
+        palavras.forEach(palavra => {
+            const teste = linha ? linha + ' ' + palavra : palavra;
+            if (ctx.measureText(teste).width > largura && linha) {
+                linhas.push(linha);
+                linha = palavra;
+            } else linha = teste;
+        });
+        if (linha) linhas.push(linha);
+        if (maxLinhas && linhas.length > maxLinhas) {
+            linhas = linhas.slice(0, maxLinhas);
+            linhas[maxLinhas - 1] = linhas[maxLinhas - 1].replace(/\\s+$/, '') + '...';
+        }
+        linhas.forEach(l => {
+            ctx.fillText(l, x, y);
+            y += alturaLinha;
+        });
+        return y;
+    }
+
+    async function gerarImagemVisitaCompartilhamento(dados) {
+        const largura = 1400;
+        const margem = 70;
+        const larguraConteudo = largura - margem * 2;
+        const linhasRelatorio = String(dados.relatorio?.textoAtual || '').split(/\\r?\\n/).filter(Boolean);
+
+        let altura = 430;
+        const blocos = [
+            ['Cliente', dados.cliente?.nome || 'Não informado'],
+            ['Protocolo', dados.protocolo || 'Não informado'],
+            ['Tipo de visita', dados.tipo],
+            ['Resultado', dados.resultado],
+            ['Técnico', nomeUsuarioLogado || 'Não informado'],
+            ['Endereço', dados.cliente?.enderecoCompleto || 'Não informado'],
+            ['Chegada', `${formatarDataCheckout(dados.atividade.checkinDataHora)} às ${formatarHoraCheckout(dados.atividade.checkinDataHora)}`],
+            ['Saída', `${formatarDataCheckout(dados.atividade.checkoutDataHora)} às ${formatarHoraCheckout(dados.atividade.checkoutDataHora)}`],
+            ['Duração', formatarDuracaoVisita(dados.atividade.checkinDataHora, dados.atividade.checkoutDataHora)]
+        ];
+        blocos.forEach(([,v]) => { altura += 72 + Math.min(3, Math.ceil(String(v).length / 72)) * 28; });
+        altura += 100;
+        if (dados.tipo === 'Treinamento') altura += 100;
+        else altura += 100;
+        if (dados.atividade.oportunidadeIdentificada) altura += 100;
+        if (dados.atividade.nota) altura += 100;
+        if (linhasRelatorio.length) altura += Math.min(18, linhasRelatorio.length + 2) * 30 + 90;
+        altura += 80;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = largura;
+        canvas.height = altura;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, largura, altura);
+
+        ctx.fillStyle = '#172b4d';
+        ctx.fillRect(0, 0, largura, 150);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 38px Arial';
+        ctx.fillText('ADVANCE TINTAS', margem, 62);
+        ctx.font = 'bold 27px Arial';
+        ctx.fillText('RELATÓRIO DE VISITA', margem, 108);
+
+        let y = 195;
+        ctx.fillStyle = '#222222';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText('Dados da visita', margem, y);
+        y += 35;
+
+        blocos.forEach(([rotulo, valor], index) => {
+            const x = margem;
+            const col = index % 2;
+            const row = Math.floor(index / 2);
+            if (col === 0) y += row === 0 ? 0 : 0;
+            const xCol = col === 0 ? margem : margem + larguraConteudo / 2 + 20;
+            const wCol = larguraConteudo / 2 - 30;
+            const currentRow = Math.floor(index / 2);
+            if (col === 0) {
+                ctx.fillStyle = '#f3f5f7';
+                ctx.fillRect(margem, y, larguraConteudo, 68);
+            }
+            ctx.fillStyle = '#666666';
+            ctx.font = 'bold 17px Arial';
+            ctx.fillText(rotulo.toUpperCase(), xCol + 18, y + 24);
+            ctx.fillStyle = '#222222';
+            y = desenharTextoQuebrado(ctx, valor, xCol + 18, y + 50, wCol - 36, 24, '21px Arial', 2);
+            if (col === 1) y += 18;
+        });
+
+        y += 10;
+        const campos = [];
+        if (dados.tipo === 'Treinamento') {
+            campos.push(['Participantes', dados.atividade.quantidadeParticipantes || 'Não informado']);
+            campos.push(['Categoria', dados.atividade.categoriaTreinamento || 'Não informado']);
+            campos.push(['Público atendido', dados.atividade.publicoAtendido || 'Não informado']);
+        } else {
+            campos.push(['Objetivo', dados.atividade.objetivo || 'Não informado']);
+        }
+        if (dados.atividade.oportunidadeIdentificada) campos.push(['Oportunidade identificada', dados.atividade.oportunidadeIdentificada]);
+        if (dados.atividade.nota) campos.push(['Observações', dados.atividade.nota]);
+
+        campos.forEach(([rotulo, valor]) => {
+            ctx.fillStyle = '#172b4d';
+            ctx.font = 'bold 23px Arial';
+            ctx.fillText(rotulo, margem, y);
+            y += 34;
+            ctx.fillStyle = '#222222';
+            y = desenharTextoQuebrado(ctx, valor, margem, y, larguraConteudo, 28, '21px Arial');
+            y += 22;
+        });
+
+        if (linhasRelatorio.length) {
+            ctx.fillStyle = '#172b4d';
+            ctx.font = 'bold 23px Arial';
+            ctx.fillText('Relatório final', margem, y);
+            y += 35;
+            ctx.fillStyle = '#222222';
+            linhasRelatorio.slice(0, 18).forEach(linha => {
+                y = desenharTextoQuebrado(ctx, linha, margem, y, larguraConteudo, 28, '20px Arial');
+            });
+        }
+
+        ctx.fillStyle = '#999999';
+        ctx.font = '16px Arial';
+        ctx.fillText('Documento gerado pelo app Advance Tintas', margem, altura - 28);
+
+        return await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
+    }
+
+    function abrirMenuCompartilhamentoVisita(dados) {
+        const modal = document.getElementById('modal-compartilhar-visita');
+        if (!modal) return;
+        modal.dataset.pronto = '1';
+        modal.style.display = 'flex';
+        modal._dados = dados;
+    }
+
     document.addEventListener('click', async (event) => {
         const botao = event.target.closest('#btn-compartilhar-visualizador');
         if (!botao) return;
 
-        if (!objetoAtividadeGlobal) {
+        const dados = obterDadosVisitaParaCompartilhar();
+        if (!dados) {
             window.mostrarAlerta('Compartilhar visita', 'Não foi possível carregar os dados desta visita. Feche e abra a visita novamente.');
             return;
         }
-
-        const atividade = objetoAtividadeGlobal;
-        const cliente = window._clienteVisualizadorAtual;
-        const relatorio = objetoRelatorioGlobal;
-        const resultado = obterResultadoHistorico(atividade);
-        const tipo = normalizarTipoVisita(atividade);
-        const protocolo = formatarProtocoloVisualizador(relatorio?.codigo, atividade.id);
-
-        const texto = [
-            'ADVANCE TINTAS',
-            'RELATÓRIO DE VISITA',
-            '',
-            `Cliente: ${cliente?.nome || 'Não informado'}`,
-            `Protocolo: ${protocolo || 'Não informado'}`,
-            `Tipo de visita: ${tipo}`,
-            `Resultado: ${resultado}`,
-            `Técnico: ${nomeUsuarioLogado || 'Não informado'}`,
-            cliente?.enderecoCompleto ? `Endereço: ${cliente.enderecoCompleto}` : null,
-            '',
-            `Chegada: ${formatarDataCheckout(atividade.checkinDataHora)} às ${formatarHoraCheckout(atividade.checkinDataHora)}`,
-            `Saída: ${formatarDataCheckout(atividade.checkoutDataHora)} às ${formatarHoraCheckout(atividade.checkoutDataHora)}`,
-            `Duração: ${formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora)}`,
-            tipo === 'Treinamento'
-                ? `Participantes: ${atividade.quantidadeParticipantes || 'Não informado'}`
-                : `Objetivo: ${atividade.objetivo || 'Não informado'}`,
-            atividade.oportunidadeIdentificada ? `Oportunidade identificada: ${atividade.oportunidadeIdentificada}` : null,
-            atividade.nota ? `Observações: ${atividade.nota}` : null,
-            relatorio?.textoAtual ? `Relatório: ${relatorio.textoAtual}` : null
-        ].filter(Boolean).join('\\n');
-
-        const dadosCompartilhamento = {
-            title: `Visita técnica — ${cliente?.nome || 'Advance Tintas'}`,
-            text: texto
-        };
-
-        try {
-            if (typeof navigator.share === 'function') {
-                await navigator.share(dadosCompartilhamento);
-                return;
-            }
-
-            const whatsapp = 'https://wa.me/?text=' + encodeURIComponent(texto);
-            const abriuWhatsApp = window.open(whatsapp, '_blank', 'noopener,noreferrer');
-
-            if (!abriuWhatsApp) {
-                await navigator.clipboard?.writeText(texto);
-                window.mostrarAlerta('Compartilhar visita', 'O relatório foi copiado. Cole-o no WhatsApp ou em outro aplicativo.');
-            }
-        } catch (erro) {
-            if (erro?.name === 'AbortError') return;
-
-            try {
-                if (navigator.clipboard) await navigator.clipboard.writeText(texto);
-                window.mostrarAlerta('Compartilhar visita', 'O compartilhamento não pôde ser aberto. O relatório foi copiado para a área de transferência.');
-            } catch {
-                window.mostrarAlerta('Compartilhar visita', 'Não foi possível compartilhar esta visita. Tente novamente.');
-            }
-        }
+        abrirMenuCompartilhamentoVisita(dados);
     });
 
+    document.getElementById('btn-fechar-compartilhar-visita')?.addEventListener('click', () => {
+        const modal = document.getElementById('modal-compartilhar-visita');
+        if (modal) modal.style.display = 'none';
+    });
+
+    document.getElementById('btn-compartilhar-visita-email')?.addEventListener('click', async () => {
+        const modal = document.getElementById('modal-compartilhar-visita');
+        const dados = modal?._dados;
+        if (!dados) return;
+        const blob = await gerarImagemVisitaCompartilhamento(dados);
+        const assunto = encodeURIComponent(dados.titulo);
+        const corpo = encodeURIComponent('Segue o relatório da visita técnica em formato de imagem.');
+        window.location.href = `mailto:?subject=${assunto}&body=${corpo}`;
+        if (modal) modal.style.display = 'none';
+        window.mostrarAlerta('E-mail', 'A imagem foi preparada. Anexe o arquivo gerado ao e-mail.');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `relatorio-visita-${dados.atividade.id}.png`; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    document.getElementById('btn-compartilhar-visita-whatsapp')?.addEventListener('click', async () => {
+        const modal = document.getElementById('modal-compartilhar-visita');
+        const dados = modal?._dados;
+        if (!dados) return;
+        const blob = await gerarImagemVisitaCompartilhamento(dados);
+        const arquivo = new File([blob], `relatorio-visita-${dados.atividade.id}.png`, { type: 'image/png' });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+            await navigator.share({ title: dados.titulo, files: [arquivo] });
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = arquivo.name; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            window.open('https://wa.me/', '_blank', 'noopener,noreferrer');
+            window.mostrarAlerta('WhatsApp', 'A imagem foi baixada. Anexe-a na conversa do WhatsApp.');
+        }
+        if (modal) modal.style.display = 'none';
+    });
+
+    document.getElementById('btn-compartilhar-visita-outros')?.addEventListener('click', async () => {
+        const modal = document.getElementById('modal-compartilhar-visita');
+        const dados = modal?._dados;
+        if (!dados) return;
+        const blob = await gerarImagemVisitaCompartilhamento(dados);
+        const arquivo = new File([blob], `relatorio-visita-${dados.atividade.id}.png`, { type: 'image/png' });
+        if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [arquivo] }))) {
+            try {
+                await navigator.share({ title: dados.titulo, text: 'Relatório de visita técnica', files: [arquivo] });
+            } catch (erro) {
+                if (erro?.name !== 'AbortError') window.mostrarAlerta('Compartilhar', 'Não foi possível abrir os aplicativos de compartilhamento.');
+            }
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = arquivo.name; a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            window.mostrarAlerta('Compartilhar', 'A imagem foi baixada. No celular, use o botão de compartilhamento do arquivo para enviá-la a outros aplicativos.');
+        }
+        if (modal) modal.style.display = 'none';
+    });
 
     document.getElementById('btn-fechamento-manual-nao')?.addEventListener('click', fecharModalFechamentoManual);
     document.getElementById('btn-fechamento-manual-sim')?.addEventListener('click', () => {
