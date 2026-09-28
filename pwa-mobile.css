@@ -51,3 +51,18 @@ button:disabled { opacity: .6; cursor: wait; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+/* === AJUSTES MOBILE DO DESIGN SYSTEM === */
+.app-logo { height: 32px; max-width: 175px; }
+.app-logo-small { height: 29px; max-width: 155px; }
+.app-logo-button { min-height: 32px; }
+.btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps, .visualizador-exportar {
+  min-height: 52px;
+  font-weight: 400;
+  padding: 15px 20px;
+}
+.fab-nova-visita { min-height: 52px; font-weight: 400; padding: 15px 22px; }
+.input-date, .input-time, select.input-box { padding-right: 54px !important; }
+.input-date, .input-time { background-position: right 16px center; }
+.row-inputs > .input-date, .row-inputs > .input-time { min-width: 0; }
+.radio-label, .checkout-radio-label { min-height: 30px; }
