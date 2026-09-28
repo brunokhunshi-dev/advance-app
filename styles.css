@@ -511,3 +511,138 @@ button:focus-visible {
 }
 .input-box::placeholder { color: #8A8A96; opacity: 1; }
 select.input-box { color: var(--color-dark); }
+
+
+/* === AJUSTES SOLICITADOS === */
+.btn-voltar, .btn-outline-red, .btn-gps {
+    background-color: var(--color-white);
+    color: var(--color-red);
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+}
+.radio-label { min-width: 0; }
+.radio-custom {
+    box-sizing: border-box;
+    display: block;
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    flex: 0 0 24px !important;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+}
+.checkout-radio-custom {
+    box-sizing: border-box;
+    display: block;
+    width: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
+    flex: 0 0 34px !important;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+}
+.screen-form-sheet { padding-bottom: 120px !important; }
+.screen-form-sheet .page-title { padding-right: 58px; }
+.screen-close {
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    right: 16px;
+    z-index: 1150;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 50%;
+    background: var(--color-white);
+    color: var(--color-dark);
+    font-family: Arial, sans-serif;
+    font-size: 30px;
+    font-weight: 300;
+    line-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: none;
+}
+.screen-action-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1100;
+    width: 100%;
+    margin: 0 !important;
+    max-width: none !important;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    background: var(--color-white);
+    border-top: 1px solid rgba(0, 0, 0, 0.10);
+}
+.screen-action-dock .btn-iniciar,
+.screen-action-dock .btn-checkin {
+    width: 100%;
+    margin: 0;
+}
+body.screen-form-mode #header-principal { background-color: var(--color-white); }
+body.screen-form-mode .bottom-nav { display: none !important; }
+body.screen-form-mode #tela-nova-visita,
+body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-white); }
+
+.timeline-container {
+    position: relative;
+    padding-left: 34px;
+}
+.timeline-line {
+    left: 12px;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: #EFEFEF;
+    overflow: hidden;
+}
+.timeline-line::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: var(--timeline-progress-height, 0px);
+    background: var(--color-dark);
+    border-radius: inherit;
+}
+.timeline-dot-gray,
+.timeline-dot-blue {
+    box-sizing: border-box;
+    width: 16px !important;
+    min-width: 16px !important;
+    max-width: 16px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+    max-height: 16px !important;
+    flex: 0 0 16px !important;
+    aspect-ratio: 1 / 1;
+    left: 4px;
+    margin-top: 4px;
+}
+.timeline-content { margin-left: 0; }
+.timeline-item { min-width: 0; }
+
+.rel-cliente-readonly {
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    cursor: default;
+}
+#rel-texto:focus,
+#rel-texto:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
