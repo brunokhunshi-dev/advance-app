@@ -168,6 +168,118 @@
             </div>
         </main>
 
+        <!-- TELA: VISUALIZADOR DE VISITA -->
+        <main class="main-content tela-branca tela-visualizador-visita" id="tela-visualizador-visita" style="display: none; padding-bottom: 40px;">
+            <div class="visualizador-logo">
+                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+            </div>
+
+            <div class="visualizador-header">
+                <div>
+                    <h1 class="page-title visualizador-titulo">Sua visita</h1>
+                    <div id="visu-resultado" class="visualizador-resultado">...</div>
+                </div>
+                <button id="btn-fechar-visualizador" class="visualizador-fechar" type="button" aria-label="Fechar visualização">×</button>
+            </div>
+
+            <section class="visualizador-section visualizador-cliente-section">
+                <label>Cliente</label>
+                <div id="visu-cliente" class="visualizador-cliente">...</div>
+                <div id="visu-protocolo" class="visualizador-protocolo">#...</div>
+                <div id="visu-endereco-cliente" class="visualizador-endereco-cliente">Endereço não informado</div>
+            </section>
+
+            <section class="visualizador-section">
+                <div class="visualizador-campo-titulo">Chegada</div>
+                <div class="visualizador-pill-row">
+                    <div class="visualizador-pill" id="visu-chegada-data">--/--/----</div>
+                    <div class="visualizador-pill" id="visu-chegada-hora">--h--</div>
+                </div>
+
+                <div class="visualizador-campo-titulo visu-saida-titulo">Saída</div>
+                <div class="visualizador-pill-row">
+                    <div class="visualizador-pill" id="visu-saida-data">--/--/----</div>
+                    <div class="visualizador-pill" id="visu-saida-hora">--h--</div>
+                </div>
+
+                <div class="visualizador-duracao" id="visu-duracao">Tempo de visita: --.</div>
+            </section>
+
+            <section class="visualizador-tipo-section" id="visu-tecnica">
+                <h2>Visita técnica</h2>
+
+                <div class="visualizador-info">
+                    <label>Objetivo da visita</label>
+                    <div class="visualizador-value" id="visu-objetivo">Não informado</div>
+                </div>
+
+                <div class="visualizador-info">
+                    <label>Oportunidade identificada?</label>
+                    <div class="visualizador-value" id="visu-oportunidade">Não informado</div>
+                </div>
+            </section>
+
+            <section class="visualizador-tipo-section" id="visu-treinamento" style="display: none;">
+                <h2>Treinamento</h2>
+
+                <div class="visualizador-info">
+                    <label>Categoria do treinamento</label>
+                    <div class="visualizador-value" id="visu-categoria">Não informado</div>
+                </div>
+
+                <div class="visualizador-info">
+                    <label>Quantidade de participantes</label>
+                    <div class="visualizador-value" id="visu-participantes">Não informado</div>
+                </div>
+
+                <div class="visualizador-info">
+                    <label>Público atendido</label>
+                    <div class="visualizador-value" id="visu-publico">Não informado</div>
+                </div>
+            </section>
+
+            <section class="visualizador-section">
+                <label>Nota da visita</label>
+                <div id="visu-nota" class="visualizador-texto-box">Nenhuma nota registrada.</div>
+            </section>
+
+            <section class="visualizador-section">
+                <label>Relatório final</label>
+                <div id="visu-relatorio" class="visualizador-texto-box visualizador-relatorio-box">Nenhum relatório registrado.</div>
+            </section>
+
+            <section class="visualizador-manual" id="visu-manual" style="display: none;">
+                <div class="visualizador-manual-status">Pendente de análise</div>
+                <div class="visualizador-info">
+                    <label>Motivo do fechamento manual</label>
+                    <div id="visu-motivo-manual" class="visualizador-value">Não informado</div>
+                </div>
+                <div class="visualizador-info">
+                    <label>Solicitado em</label>
+                    <div id="visu-manual-data" class="visualizador-value">Não informado</div>
+                </div>
+            </section>
+
+            <details class="visualizador-detalhes">
+                <summary>Detalhes de localização</summary>
+                <div class="visualizador-local-grid">
+                    <div class="visualizador-info">
+                        <label>Check-in</label>
+                        <div id="visu-checkin-endereco" class="visualizador-value">Não informado</div>
+                        <small id="visu-checkin-gps">GPS não informado</small>
+                    </div>
+                    <div class="visualizador-info">
+                        <label>Check-out</label>
+                        <div id="visu-checkout-endereco" class="visualizador-value">Não informado</div>
+                        <small id="visu-checkout-gps">GPS não informado</small>
+                    </div>
+                </div>
+            </details>
+
+            <button id="btn-exportar-visualizador" class="btn-checkin visualizador-exportar" type="button">Exportar para PDF</button>
+            <button id="btn-voltar-visualizador" class="btn-voltar visualizador-voltar" type="button">Voltar</button>
+        </main>
+
         <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->
         <main class="main-content tela-branca" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
             <div style="display: flex; justify-content: center; margin-bottom: 25px;">
