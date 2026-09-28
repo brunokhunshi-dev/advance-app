@@ -1233,7 +1233,7 @@ function configurarTelaNovaVisita() {
 
                 exigirSessao(sessao);
 
-                if (!cliente || cliente.status !== 'Ativo') throw new Error('O cliente não está ativo. Atualize a lista.');
+                if (!cliente || !['Ativo', 'Provisorio'].includes(cliente.status)) throw new Error('O cliente não está disponível para agendamento. Atualize a lista.');
 
                 const agora = new Date();
 
