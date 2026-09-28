@@ -31,7 +31,7 @@
     <!-- TELA 0: LOGIN -->
     <main id="tela-login" class="tela-login-container">
         <div class="login-logo">
-            <div class="logo-placeholder">ADVANCE<span>TINTAS</span></div>
+            <img class="app-logo" src="midia/logo-advancecheck.svg" alt="Advance Check">
         </div>
         <form id="form-login" class="login-form">
             <div class="form-group">
@@ -51,7 +51,7 @@
     <div id="app-container" style="display: none; flex-direction: column; min-height: 100vh; width: 100%;">
 
         <header class="app-header" id="header-principal">
-            <div class="logo-placeholder" id="btn-logout" title="Clique para sair">ADVANCE<span>TINTAS</span></div>
+            <div id="btn-logout" class="app-logo-button" title="Clique para sair"><img class="app-logo" src="midia/logo-advancecheck.svg" alt="Advance Check"></div>
         </header>
 
         <!-- TELA 1: INÍCIO -->
@@ -121,10 +121,7 @@
 
         <!-- TELA 4: NOVA VISITA (Design Atualizado) -->
         <main class="main-content tela-branca" id="tela-nova-visita" style="display: none; padding-bottom: 40px;">
-            <div style="display: flex; justify-content: center; margin-bottom: 30px;">
-                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
-            </div>
-            <h1 class="page-title" style="margin-bottom: 30px;">Nova visita</h1>
+<h1 class="page-title" style="margin-bottom: 30px;">Nova visita</h1>
 
             <div class="form-group autocomplete-wrapper">
                 <label>Qual o cliente que será visitado?</label>
@@ -135,8 +132,8 @@
             <div class="form-group">
                 <label>Escolha a data e horário</label>
                 <div class="row-inputs">
-                    <input type="text" id="nv-data" class="input-box box-cinza input-center" placeholder="--/--/----" onfocus="(this.type='date')" onblur="(this.value == '' ? this.type='text' : this.type='date')">
-                    <input type="text" id="nv-hora" class="input-box box-cinza input-center" placeholder="--:--" onfocus="(this.type='time')" onblur="(this.value == '' ? this.type='text' : this.type='time')">
+                    <input type="text" id="nv-data" class="input-box box-cinza input-center input-date" placeholder="--/--/----" onfocus="(this.type='date')" onblur="(this.value == '' ? this.type='text' : this.type='date')">
+                    <input type="text" id="nv-hora" class="input-box box-cinza input-center input-time" placeholder="--:--" onfocus="(this.type='time')" onblur="(this.value == '' ? this.type='text' : this.type='time')">
                 </div>
             </div>
 
@@ -171,7 +168,7 @@
         <!-- TELA: VISUALIZADOR DE VISITA -->
         <main class="main-content tela-branca tela-visualizador-visita" id="tela-visualizador-visita" style="display: none; padding-bottom: 40px;">
             <div class="visualizador-logo">
-                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+                <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
             </div>
 
             <div class="visualizador-header">
@@ -385,11 +382,7 @@
 
         <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->
         <main class="main-content tela-branca" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
-            <div style="display: flex; justify-content: center; margin-bottom: 25px;">
-                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
                 <div>
                     <h1 class="page-title" style="margin-bottom: 2px;">Visita agendada</h1>
                     <p class="protocolo-id" id="det-protocolo">#...</p>
@@ -412,12 +405,12 @@
                 <div class="row-inputs">
                     <div style="flex: 1; position: relative;">
                         <label>Data</label>
-                        <input type="date" id="det-data" class="input-box box-cinza">
+                        <input type="date" id="det-data" class="input-box box-cinza input-date">
                         <div class="input-icon-right"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
                     </div>
                     <div style="flex: 1; position: relative;">
                         <label>Hora</label>
-                        <input type="time" id="det-hora" class="input-box box-cinza">
+                        <input type="time" id="det-hora" class="input-box box-cinza input-time">
                         <div class="input-icon-right"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
                     </div>
                 </div>
@@ -518,8 +511,8 @@
                 <div class="form-group">
                     <label>Chegada</label>
                     <div class="row-inputs">
-                        <input type="text" id="va-data" class="input-box" readonly>
-                        <input type="text" id="va-hora" class="input-box" readonly>
+                        <input type="text" id="va-data" class="input-box input-date" readonly>
+                        <input type="text" id="va-hora" class="input-box input-time" readonly>
                     </div>
                 </div>
 
@@ -546,7 +539,7 @@
                 <button class="btn-back" id="btn-voltar-relatorio">
                     <svg viewBox="0 0 24 24"><path d="M9 14l-4-4 4-4"></path><path d="M5 10h11a4 4 0 1 1 0 8h-1"></path></svg>
                 </button>
-                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+                <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
                 <div style="width: 44px;"></div>
             </header>
 
@@ -557,8 +550,8 @@
                 <div class="form-group">
                     <label>Chegada</label>
                     <div class="row-inputs">
-                        <input type="text" id="rel-data" class="input-box box-cinza" readonly>
-                        <input type="text" id="rel-hora" class="input-box box-cinza" readonly>
+                        <input type="text" id="rel-data" class="input-box box-cinza input-date" readonly>
+                        <input type="text" id="rel-hora" class="input-box box-cinza input-time" readonly>
                     </div>
                 </div>
 
@@ -638,7 +631,7 @@
         <!-- TELA 6.5: CHECK-OUT / CONCLUSÃO DA VISITA -->
         <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none; padding-bottom: 40px;">
             <div class="checkout-logo">
-                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+                <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
             </div>
 
             <h1 class="checkout-titulo">Check-out</h1>
