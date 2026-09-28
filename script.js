@@ -668,8 +668,6 @@ function formatarDataAgenda(data) {
 
 }
 
-function obterIniciais(nome) { return String(nome || 'TEC').trim().split(/\s+/).map(n => n[0] || '').join('').toUpperCase().substring(0, 3); }
-
 function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
 
 
