@@ -879,3 +879,163 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     font-size: 0.95rem;
     font-weight: 500;
 }
+
+
+/* === TIMELINE RECONSTRUÍDA — EIXO E CONECTORES === */
+.timeline-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
+    padding: 0 !important;
+}
+.timeline-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    column-gap: 14px;
+    min-width: 0;
+    padding: 0 0 30px;
+    margin: 0;
+}
+.timeline-step:last-child {
+    padding-bottom: 0;
+}
+.timeline-marker {
+    position: relative;
+    width: 24px;
+    min-width: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 1px;
+}
+.timeline-marker::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 21px;
+    bottom: -30px;
+    left: 10px;
+    width: 4px;
+    border-radius: 999px;
+    background: #E7E7EA;
+}
+.timeline-step:last-child .timeline-marker::after {
+    display: none;
+}
+.timeline-step.timeline-link-complete .timeline-marker::after {
+    background: #040438;
+}
+.timeline-dot {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+    flex: 0 0 20px !important;
+    aspect-ratio: 1 / 1;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid #C9C9CC;
+    background: #FFFFFF;
+}
+.timeline-step-complete .timeline-dot {
+    border-color: #040438;
+    background: #040438;
+}
+.timeline-content {
+    min-width: 0;
+    margin: 0 !important;
+    padding: 0;
+}
+.timeline-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.timeline-header strong {
+    font-size: 1rem;
+    line-height: 1.25;
+    font-weight: 800;
+}
+.timeline-header span {
+    flex: 0 0 auto;
+    font-size: .82rem;
+    line-height: 1.25;
+    color: #A0A0A0;
+}
+.timeline-desc {
+    margin: 0;
+    font-size: .84rem;
+    line-height: 1.4;
+}
+
+/* === X DO TOPO — 48 / #F9F9FA / 24 / VERMELHO / SEM BORDA === */
+.screen-close,
+.visualizador-fechar {
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top));
+    right: 16px;
+    z-index: 2200;
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-radius: 50% !important;
+    background: #F9F9FA !important;
+    color: #F51E30 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none !important;
+}
+.screen-close svg,
+.visualizador-fechar svg {
+    display: block;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* === ESTADOS === */
+.hist-status {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    text-transform: none !important;
+    font-size: .72rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+}
+.hist-status-concluida,
+.visualizador-concluida { color: #22A928 !important; }
+.hist-status-pendente,
+.visualizador-pendente { color: #C28A00 !important; }
+.hist-status-cancelada,
+.visualizador-cancelada { color: #555555 !important; }
+.hist-status-andamento,
+.visualizador-andamento { color: #040438 !important; }
