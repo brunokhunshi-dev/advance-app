@@ -221,3 +221,12 @@ input[type="date"], input[type="time"] { position: relative; }
     .checkout-pill { min-height:68px; font-size:1rem; }
     .checkout-relatorio-box { border-radius:36px; padding:32px 28px; }
 }
+
+/* === FECHAMENTO MANUAL === */
+.fechamento-manual-box { width:85%; max-width:360px; }
+.fechamento-manual-conteudo { width:100%; }
+.fechamento-manual-pergunta-texto { margin:0; color:var(--color-dark); font-size:.92rem; line-height:1.45; }
+.fechamento-manual-label { display:block; text-align:left; color:var(--color-dark); font-size:.84rem; font-weight:700; margin:14px 0 8px; }
+.fechamento-manual-textarea { width:100%; min-height:110px; resize:vertical; box-sizing:border-box; }
+.fechamento-manual-contador { text-align:right; color:#999; font-size:.72rem; margin-top:4px; }
+.hist-status-pendente-analise { color:#9b7a00; }
