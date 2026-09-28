@@ -2297,6 +2297,17 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
+    document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => {
+        if (operacaoEmCurso) return;
+        mostrarApenasTela('tela-historico');
+    });
+
+    document.getElementById('btn-voltar-visualizador')?.addEventListener('click', () => {
+        if (operacaoEmCurso) return;
+        mostrarApenasTela('tela-historico');
+    });
+
+
     document.getElementById('btn-exportar-visualizador')?.addEventListener('click', () => window.print());
 
 
