@@ -36,7 +36,8 @@ let dataCheckinAtual = null;
 
 let objetoAtividadeGlobal = null; 
 
-let objetoRelatorioGlobal = null; 
+let objetoRelatorioGlobal = null;
+let checkoutPendenteGlobal = null; 
 
 
 
@@ -210,6 +211,65 @@ function obterCliente(clienteId) {
     });
 }
 
+function normalizarTipoVisita(atividade) {
+    if (atividade?.tipoVisita === 'Treinamento') return 'Treinamento';
+    if (atividade?.tipoVisita === 'Visita técnica') return 'Visita técnica';
+    if (atividade?.objetivo === 'Treinamento') return 'Treinamento';
+    return 'Visita técnica';
+}
+
+function formatarDataCheckout(valor) {
+    const data = obterData(valor);
+    if (!data) return '--/--/----';
+    return String(data.getDate()).padStart(2, '0') + '/' + String(data.getMonth() + 1).padStart(2, '0') + '/' + data.getFullYear();
+}
+
+function formatarHoraCheckout(valor) {
+    const data = obterData(valor);
+    if (!data) return '--h--';
+    return String(data.getHours()).padStart(2, '0') + 'h' + String(data.getMinutes()).padStart(2, '0');
+}
+
+function formatarDuracaoVisita(inicio, fim) {
+    const a = obterData(inicio), b = obterData(fim);
+    if (!a || !b || b < a) return 'Tempo de visita: --.';
+    const minutos = Math.round((b.getTime() - a.getTime()) / 60000);
+    const horas = Math.floor(minutos / 60);
+    const mins = minutos % 60;
+    if (!horas) return 'Tempo de visita: ' + mins + ' minuto' + (mins === 1 ? '' : 's') + '.';
+    if (!mins) return 'Tempo de visita: ' + horas + ' hora' + (horas === 1 ? '' : 's') + '.';
+    return 'Tempo de visita: ' + horas + ' hora' + (horas === 1 ? '' : 's') + ' e ' + mins + ' minuto' + (mins === 1 ? '' : 's') + '.';
+}
+
+function limparFormularioCheckout() {
+    ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['checkout-cliente','checkout-chegada-data','checkout-chegada-hora','checkout-saida-data','checkout-saida-hora','checkout-duracao','checkout-relatorio-final'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+    document.querySelectorAll('input[name="checkoutOportunidade"]').forEach(radio => { radio.checked = false; });
+}
+
+function preencherCheckout(atividade, relatorio, saida) {
+    checkoutPendenteGlobal = { atividadeId: atividade.id, posicao: saida };
+    limparFormularioCheckout();
+    document.getElementById('checkout-cliente').textContent = clienteSelecionadoNome || 'Cliente não encontrado';
+    document.getElementById('checkout-chegada-data').textContent = formatarDataCheckout(atividade.checkinDataHora);
+    document.getElementById('checkout-chegada-hora').textContent = formatarHoraCheckout(atividade.checkinDataHora);
+    document.getElementById('checkout-saida-data').textContent = formatarDataCheckout(saida.dataHora);
+    document.getElementById('checkout-saida-hora').textContent = formatarHoraCheckout(saida.dataHora);
+    document.getElementById('checkout-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, saida.dataHora);
+    const tipo = normalizarTipoVisita(atividade);
+    document.getElementById('checkout-tecnico-section').style.display = tipo === 'Treinamento' ? 'none' : 'block';
+    document.getElementById('checkout-treinamento-section').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+    document.getElementById('checkout-tipo-titulo').textContent = tipo;
+    document.getElementById('checkout-objetivo').value = atividade.objetivo || '';
+    const oportunidade = atividade.oportunidadeIdentificada;
+    if (oportunidade === 'Sim' || oportunidade === 'Não') { const radio = document.querySelector('input[name="checkoutOportunidade"][value="' + oportunidade + '"]'); if (radio) radio.checked = true; }
+    document.getElementById('checkout-categoria').value = atividade.categoriaTreinamento || '';
+    document.getElementById('checkout-participantes').value = atividade.quantidadeParticipantes ?? '';
+    document.getElementById('checkout-publico').value = atividade.publicoAtendido || '';
+    document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
+    mostrarApenasTela('tela-checkout');
+    window.scrollTo(0, 0);
+}
 function validarPrecisaoGps(pos) {
     const accuracy = Number(pos?.coords?.accuracy);
     if (!Number.isFinite(accuracy) || accuracy < 0) throw new Error('O GPS não retornou uma precisão válida.');
@@ -221,7 +281,7 @@ function limparEstadoVisita() {
 
     atividadeSelecionadaId = null; clienteSelecionadoId = null; clienteSelecionadoNome = '';
 
-    dataCheckinAtual = null; objetoAtividadeGlobal = null; objetoRelatorioGlobal = null; visitaEmEdicao = null;
+    dataCheckinAtual = null; objetoAtividadeGlobal = null; objetoRelatorioGlobal = null; visitaEmEdicao = null; checkoutPendenteGlobal = null;
 
 }
 
@@ -742,7 +802,7 @@ async function carregarAgenda() {
 
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escaparHtml(atividade.enderecoCompleto)}</div>
 
-                    <div class="agenda-motivo">${escaparHtml(atividade.objetivo || "Visita comercial")}</div>
+                    <div class="agenda-motivo">${escaparHtml(atividade.tipoVisita || (atividade.objetivo === "Treinamento" ? "Treinamento" : "Visita técnica"))}</div>
 
                     ${botaoGpsHTML}
 
@@ -1122,9 +1182,9 @@ function configurarTelaNovaVisita() {
 
                 const data = lerDataHora(document.getElementById('nv-data').value, document.getElementById('nv-hora').value);
 
-                const objetivo = document.querySelector('input[name="tipoVisita"]:checked')?.value;
+                const tipoVisita = document.querySelector('input[name="tipoVisita"]:checked')?.value;
 
-                if (!objetivo) throw new Error('Selecione o tipo de visita.');
+                if (!tipoVisita) throw new Error('Selecione o tipo de visita.');
 
                 const nota = document.getElementById('nv-nota').value.trim();
 
@@ -1142,7 +1202,7 @@ function configurarTelaNovaVisita() {
 
                 await setDoc(doc(collection(db, 'atividades')), {
 
-                    tipo: 'Visita', data, ptvId: sessao.id, clienteId, objetivo, nota,
+                    tipo: 'Visita', data, ptvId: sessao.id, clienteId, tipoVisita, nota,
 
                     status: 'Pendente', criadoEm: agora, atualizadoEm: agora
 
@@ -1156,7 +1216,7 @@ function configurarTelaNovaVisita() {
 
                 countNota.textContent = '0/600';
 
-                document.querySelector('input[name="tipoVisita"][value="Visita comercial"]').checked = true;
+                document.querySelector('input[name="tipoVisita"][value="Visita técnica"]').checked = true;
 
                 window.mostrarAlerta('Sucesso', 'Visita agendada.');
 
@@ -1214,7 +1274,7 @@ window.abrirDetalhesVisita = function(index) {
 
     // Preenche radio buttons
 
-    const objValue = visitaEmEdicao.objetivo || "Visita comercial";
+    const objValue = normalizarTipoVisita(visitaEmEdicao);
 
     document.querySelectorAll('input[name="detTipoVisita"]').forEach(rad => { rad.checked = rad.value === objValue; });
 
@@ -1312,9 +1372,9 @@ function configurarTelaDetalhesVisita() {
 
             const data = lerDataHora(document.getElementById('det-data').value, document.getElementById('det-hora').value);
 
-            const objetivo = document.querySelector('input[name="detTipoVisita"]:checked')?.value;
+            const tipoVisita = document.querySelector('input[name="detTipoVisita"]:checked')?.value;
 
-            if (!objetivo) throw new Error('Selecione um tipo de visita disponível.');
+            if (!tipoVisita) throw new Error('Selecione um tipo de visita disponível.');
 
             const nota = document.getElementById('det-nota').value.trim();
 
@@ -1332,7 +1392,7 @@ function configurarTelaDetalhesVisita() {
 
                 if (snap.data().status !== 'Pendente') throw new Error('Somente visitas pendentes podem ser editadas.');
 
-                tx.update(ref, { data, objetivo, nota, atualizadoEm: new Date() });
+                tx.update(ref, { data, tipoVisita, nota, atualizadoEm: new Date() });
 
             });
 
@@ -1816,58 +1876,46 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
 
 async function encerrarVisita(id, btn) {
-
     if (operacaoEmCurso) return;
-
-    operacaoEmCurso = true; btn.disabled = true; btn.textContent = 'Obtendo GPS de saída...';
-
+    operacaoEmCurso = true;
+    btn.disabled = true;
+    btn.textContent = 'Obtendo GPS de saída...';
     try {
-
-        const sessao = sessaoAtual(), pos = await obterPosicao(); exigirSessao(sessao);
+        const sessao = sessaoAtual();
+        const pos = await obterPosicao();
+        exigirSessao(sessao);
         const accuracy = validarPrecisaoGps(pos);
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        if (!coordenadasValidas(lat, lng)) throw new Error('Coordenadas de saída inválidas.');
+        const endereco = await obterEnderecoPorCoords(lat, lng);
+        exigirSessao(sessao);
 
-        const { latitude:lat, longitude:lng } = pos.coords;
+        const ref = doc(db, 'atividades', id);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) throw new Error('Visita não encontrada.');
+        const atividade = { ...snap.data(), id };
+        validarResponsavel(atividade, sessao);
+        if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
+        if (!atividade.relatorioId) throw new Error('Salve o relatório antes de iniciar o check-out.');
 
-        if (!coordenadasValidas(lat,lng)) throw new Error('Coordenadas de saída inválidas.');
+        const relSnap = await getDoc(doc(db, 'relatorios', atividade.relatorioId));
+        if (!relSnap.exists() || relSnap.data().atividadeId !== id || relSnap.data().ptvId !== sessao.id || !String(relSnap.data().textoAtual || '').trim()) {
+            throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
+        }
 
-        const endereco = await obterEnderecoPorCoords(lat,lng); exigirSessao(sessao);
-
-        btn.textContent = 'Encerrando...';
-
-        await runTransaction(db, async tx => {
-
-            const ref = doc(db,'atividades',id), snap = await tx.get(ref);
-
-            if (!snap.exists()) throw new Error('Visita não encontrada.');
-
-            const atividade = snap.data(); validarResponsavel(atividade,sessao);
-
-            if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
-
-            if (!atividade.relatorioId) throw new Error('Salve o relatório antes de encerrar.');
-
-            const relatorio = await tx.get(doc(db,'relatorios',atividade.relatorioId));
-
-            if (!relatorio.exists() || relatorio.data().atividadeId !== id || relatorio.data().ptvId !== sessao.id || !String(relatorio.data().textoAtual || '').trim()) throw new Error('O relatório não está válido. Abra e salve o relatório antes de encerrar.');
-
-            const agora = new Date();
-
-            tx.update(ref, { status:'Concluída', checkoutDataHora:agora, checkoutGps:`${lat}, ${lng}`, checkoutGpsAccuracy:Number(accuracy), checkoutEndereco:endereco, atualizadoEm:agora });
-
-        });
-
-        if (!sessaoValida(sessao)) return;
-
-        limparEstadoVisita(); mostrarApenasTela('tela-inicio'); await carregarAtividadesPendentes();
-
-        window.mostrarAlerta('Sucesso','Visita encerrada.');
-
-    } finally { operacaoEmCurso = false; btn.disabled = false; btn.textContent = 'Encerrar visita'; }
-
+        const relatorio = { ...relSnap.data(), id: relSnap.id };
+        const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
+        objetoAtividadeGlobal = atividade;
+        objetoRelatorioGlobal = relatorio;
+        preencherCheckout(atividade, relatorio, saida);
+    } catch (erro) {
+        informarErro('Erro no check-out', erro);
+    } finally {
+        operacaoEmCurso = false;
+        btn.disabled = false;
+        btn.textContent = 'Encerrar visita';
+    }
 }
-
-
-
 function atualizarInterfaceVisitaAtual() {
 
     if (!objetoAtividadeGlobal) return;
@@ -2021,6 +2069,94 @@ function atualizarInterfaceVisitaAtual() {
 
 
 function configurarEventosGlobais() {
+    document.getElementById('btn-voltar-checkout')?.addEventListener('click', () => {
+        if (operacaoEmCurso) return;
+        checkoutPendenteGlobal = null;
+        mostrarApenasTela('tela-inicio');
+        atualizarInterfaceVisitaAtual();
+    });
+
+    document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
+        if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;
+        const btn = document.getElementById('btn-concluir-checkout');
+        const atividadeId = checkoutPendenteGlobal.atividadeId;
+        const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+        const objetivo = document.getElementById('checkout-objetivo').value.trim();
+        const oportunidade = document.querySelector('input[name="checkoutOportunidade"]:checked')?.value || '';
+        const categoria = document.getElementById('checkout-categoria').value.trim();
+        const participantesTexto = document.getElementById('checkout-participantes').value.trim();
+        const publico = document.getElementById('checkout-publico').value.trim();
+
+        if (tipo === 'Treinamento') {
+            if (!categoria) return window.mostrarAlerta('Atenção', 'Selecione a categoria do treinamento.');
+            const participantes = Number(participantesTexto);
+            if (!Number.isInteger(participantes) || participantes < 1 || participantes > 10000) return window.mostrarAlerta('Atenção', 'Informe uma quantidade válida de participantes.');
+            if (!publico) return window.mostrarAlerta('Atenção', 'Selecione o público atendido.');
+        } else {
+            if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita.');
+            if (!oportunidade) return window.mostrarAlerta('Atenção', 'Informe se houve oportunidade identificada.');
+        }
+
+        operacaoEmCurso = true;
+        btn.disabled = true;
+        btn.textContent = 'Concluindo...';
+        try {
+            const sessao = sessaoAtual();
+            const saida = checkoutPendenteGlobal.posicao;
+            if (!saida || !coordenadasValidas(saida.lat, saida.lng)) throw new Error('A localização de saída não está mais disponível.');
+
+            await runTransaction(db, async tx => {
+                const atvRef = doc(db, 'atividades', atividadeId);
+                const atvSnap = await tx.get(atvRef);
+                if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
+                const atividade = atvSnap.data();
+                validarResponsavel(atividade, sessao);
+                if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
+                if (normalizarTipoVisita(atividade) !== tipo) throw new Error('A visita foi alterada. Volte e abra o check-out novamente.');
+                if (!atividade.relatorioId) throw new Error('O relatório não está vinculado à visita.');
+
+                const relRef = doc(db, 'relatorios', atividade.relatorioId);
+                const relSnap = await tx.get(relRef);
+                if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
+                const relatorioAtual = relSnap.data();
+                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !String(relatorioAtual.textoAtual || '').trim()) throw new Error('O relatório não está válido.');
+
+                const agora = new Date();
+                const dadosCheckout = {
+                    tipoVisita: tipo,
+                    checkoutDataHora: agora,
+                    checkoutGps: String(saida.lat) + ', ' + String(saida.lng),
+                    checkoutGpsAccuracy: Number(saida.accuracy),
+                    checkoutEndereco: saida.endereco
+                };
+
+                if (tipo === 'Treinamento') {
+                    dadosCheckout.categoriaTreinamento = categoria;
+                    dadosCheckout.quantidadeParticipantes = Number(participantesTexto);
+                    dadosCheckout.publicoAtendido = publico;
+                } else {
+                    dadosCheckout.objetivo = objetivo;
+                    dadosCheckout.oportunidadeIdentificada = oportunidade;
+                }
+
+                tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora });
+                tx.update(relRef, { ...dadosCheckout, atualizadoEm: agora });
+            });
+
+            if (!sessaoValida(sessao)) return;
+            limparEstadoVisita();
+            mostrarApenasTela('tela-inicio');
+            await carregarAtividadesPendentes();
+            window.mostrarAlerta('Sucesso', 'Visita concluída.');
+        } catch (erro) {
+            informarErro('Erro ao concluir visita', erro);
+        } finally {
+            operacaoEmCurso = false;
+            btn.disabled = false;
+            btn.textContent = 'Concluir';
+        }
+    });
+
 
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => {
 

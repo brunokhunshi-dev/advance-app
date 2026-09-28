@@ -143,9 +143,9 @@
                 <label>Tipo da visita</label>
                 <div class="radio-group">
                     <label class="radio-label">
-                        <input type="radio" name="tipoVisita" value="Visita comercial" checked>
+                        <input type="radio" name="tipoVisita" value="Visita técnica" checked>
                         <span class="radio-custom"></span>
-                        Visita comercial
+                        Visita técnica
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="tipoVisita" value="Treinamento">
@@ -211,9 +211,9 @@
                 <label>Tipo da visita</label>
                 <div class="radio-group">
                     <label class="radio-label">
-                        <input type="radio" name="detTipoVisita" value="Visita comercial">
+                        <input type="radio" name="detTipoVisita" value="Visita técnica">
                         <span class="radio-custom"></span>
-                        Visita comercial
+                        Visita técnica
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="detTipoVisita" value="Treinamento">
@@ -418,6 +418,126 @@
                 <button class="btn-voltar" id="btn-voltar">Voltar</button>
             </div>
         </div>
+
+        <!-- TELA 6.5: CHECK-OUT / CONCLUSÃO DA VISITA -->
+        <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none; padding-bottom: 40px;">
+            <div class="checkout-logo">
+                <div class="logo-placeholder logo-small">ADVANCE<span>TINTAS</span></div>
+            </div>
+
+            <h1 class="checkout-titulo">Check-out</h1>
+
+            <div class="checkout-bloco">
+                <label>Cliente</label>
+                <div class="checkout-cliente" id="checkout-cliente">...</div>
+            </div>
+
+            <div class="checkout-bloco checkout-horarios">
+                <div>
+                    <label>Chegada</label>
+                    <div class="checkout-pill-row">
+                        <div class="checkout-pill" id="checkout-chegada-data">--/--/----</div>
+                        <div class="checkout-pill" id="checkout-chegada-hora">--h--</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Saída</label>
+                    <div class="checkout-pill-row">
+                        <div class="checkout-pill" id="checkout-saida-data">--/--/----</div>
+                        <div class="checkout-pill" id="checkout-saida-hora">--h--</div>
+                    </div>
+                </div>
+
+                <div class="checkout-duracao" id="checkout-duracao">Tempo de visita: --.</div>
+            </div>
+
+            <section class="checkout-tipo-section" id="checkout-tecnico-section">
+                <h2 id="checkout-tipo-titulo">Visita técnica</h2>
+
+                <div class="checkout-campo">
+                    <label for="checkout-objetivo">Objetivo da visita</label>
+                    <div class="select-wrapper">
+                        <select id="checkout-objetivo" class="input-box">
+                            <option value="">Escolha uma opção</option>
+                            <option value="Relacionamento">Relacionamento</option>
+                            <option value="Suporte Técnico">Suporte Técnico</option>
+                            <option value="STR">STR</option>
+                            <option value="Demonstração de produto">Demonstração de produto</option>
+                            <option value="Prospecção de oportunidade indústria">Prospecção de oportunidade indústria</option>
+                            <option value="Prospecção de oportunidade varejo">Prospecção de oportunidade varejo</option>
+                            <option value="Outra">Outra</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="checkout-campo">
+                    <label>Houve oportunidade identificada?</label>
+                    <div class="checkout-radio-group">
+                        <label class="checkout-radio-label">
+                            <input type="radio" name="checkoutOportunidade" value="Sim">
+                            <span class="checkout-radio-custom"></span>
+                            Sim
+                        </label>
+                        <label class="checkout-radio-label">
+                            <input type="radio" name="checkoutOportunidade" value="Não">
+                            <span class="checkout-radio-custom"></span>
+                            Não
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <section class="checkout-tipo-section" id="checkout-treinamento-section" style="display: none;">
+                <h2>Treinamento</h2>
+
+                <div class="checkout-campo">
+                    <label for="checkout-categoria">Categoria do treinamento</label>
+                    <div class="select-wrapper">
+                        <select id="checkout-categoria" class="input-box">
+                            <option value="">Escolha uma opção</option>
+                            <option value="Admax">Admax</option>
+                            <option value="Módulo I">Módulo I</option>
+                            <option value="Módulo II">Módulo II</option>
+                            <option value="Módulo III">Módulo III</option>
+                            <option value="Módulo I, II e III">Módulo I, II e III</option>
+                            <option value="Comercial">Comercial</option>
+                            <option value="STR">STR</option>
+                            <option value="Produto e aplicação">Produto e aplicação</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="checkout-campo">
+                    <label for="checkout-participantes">Quantidade de participantes</label>
+                    <input type="number" id="checkout-participantes" class="input-box" min="1" max="10000" step="1" placeholder="Digite um número">
+                </div>
+
+                <div class="checkout-campo">
+                    <label for="checkout-publico">Público atendido</label>
+                    <div class="select-wrapper">
+                        <select id="checkout-publico" class="input-box">
+                            <option value="">Escolha uma opção</option>
+                            <option value="Balconistas">Balconistas</option>
+                            <option value="Televendas">Televendas</option>
+                            <option value="Pintor Profissional Varejo">Pintor Profissional Varejo</option>
+                            <option value="Pintor Profissional Industria">Pintor Profissional Industria</option>
+                            <option value="Operador STR">Operador STR</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="checkout-relatorio-section">
+                <label>Relatório final</label>
+                <div class="checkout-relatorio-box" id="checkout-relatorio-final">Nenhum relatório salvo.</div>
+            </section>
+
+            <div class="checkout-acoes">
+                <button class="btn-checkin" id="btn-concluir-checkout">Concluir</button>
+                <button class="btn-voltar" id="btn-voltar-checkout">Voltar</button>
+            </div>
+        </main>
 
         <!-- MODAIS DE ALERTA NATIVOS (POPOUTS) -->
         <div id="modal-alerta-generico" class="modal-overlay alert-modal">
