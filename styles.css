@@ -646,3 +646,168 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     outline: none !important;
     box-shadow: none !important;
 }
+
+
+/* === REFINO DE PADRÃO: CHECKOUT / HISTÓRICO / VISUALIZADOR === */
+.tela-checkout {
+    padding-bottom: 40px !important;
+}
+.checkout-logo {
+    margin-bottom: 30px;
+}
+.checkout-titulo {
+    font-size: 1.7rem;
+    font-weight: 800;
+    margin-bottom: 24px;
+}
+.checkout-bloco {
+    margin-bottom: 22px;
+}
+.checkout-bloco > label,
+.checkout-campo > label,
+.checkout-relatorio-section > label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+.checkout-cliente {
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+.checkout-horarios {
+    gap: 18px;
+}
+.checkout-pill-row {
+    gap: 10px;
+}
+.checkout-pill {
+    min-height: 52px;
+    border: 1px solid #D4D4D4;
+    border-radius: 28px;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+.checkout-duracao {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.checkout-tipo-section {
+    margin-top: 30px;
+}
+.checkout-tipo-section h2 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin: 0 0 18px;
+}
+.checkout-campo {
+    margin-bottom: 20px;
+}
+.checkout-campo .input-box {
+    min-height: 52px;
+    border: 0;
+    border-radius: 25px;
+    background: var(--color-bg);
+    font-size: 0.95rem;
+}
+.checkout-radio-group {
+    gap: 12px;
+}
+.checkout-radio-label {
+    gap: 12px;
+    font-size: 0.95rem;
+}
+.checkout-radio-custom {
+    width: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    flex: 0 0 24px !important;
+    background: #EAEAEA;
+}
+.checkout-radio-label input:checked + .checkout-radio-custom::after {
+    inset: 5px;
+}
+.checkout-relatorio-section {
+    margin-top: 30px;
+}
+.checkout-relatorio-box {
+    border-radius: 20px;
+    padding: 22px 20px;
+    font-size: 0.95rem;
+    min-height: 120px;
+}
+.checkout-acoes {
+    gap: 10px;
+    margin-top: 30px;
+}
+.checkout-acoes .btn-checkin,
+.checkout-acoes .btn-voltar {
+    min-height: 52px;
+}
+
+/* Histórico: status textual, sem cápsula. */
+.hist-status {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    font-size: 0.72rem !important;
+    line-height: 1.2 !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    white-space: nowrap;
+}
+.hist-status-concluida { color: #777 !important; }
+.hist-status-resolvido { color: #22a928 !important; }
+.hist-status-nao-resolvido { color: #f51e30 !important; }
+.hist-status-cancelada { color: #999 !important; }
+.hist-status-pendente-analise { color: #9b7a00 !important; }
+
+/* Visualizador: X preso na viewport e estado colado no título. */
+.visualizador-logo {
+    margin-bottom: 28px;
+}
+.visualizador-header {
+    margin-bottom: 0;
+    padding-right: 58px;
+}
+.visualizador-titulo {
+    margin: 0 0 3px;
+    font-size: 1.7rem;
+}
+.visualizador-resultado {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.visualizador-concluida { color: #777; }
+.visualizador-fechar {
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    right: 16px;
+    z-index: 2200;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 50%;
+    background: var(--color-white);
+    color: var(--color-dark);
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1;
+}
+.visualizador-voltar {
+    display: none !important;
+}
+@media (max-width:420px) {
+    .checkout-logo { margin-bottom: 26px; }
+    .checkout-titulo { font-size: 1.55rem; margin-bottom: 22px; }
+    .checkout-pill { min-height: 50px; font-size: 0.92rem; }
+    .checkout-tipo-section h2 { font-size: 1.1rem; margin-bottom: 16px; }
+    .visualizador-logo { margin-bottom: 24px; }
+    .visualizador-titulo { font-size: 1.55rem; }
+}
