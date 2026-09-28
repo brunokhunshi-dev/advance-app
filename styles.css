@@ -175,3 +175,49 @@ input[type="date"], input[type="time"] { position: relative; }
 .hist-info svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
 .hist-vazio { color:#777; text-align:center; padding:28px 10px; font-size:.9rem; }
 @media (max-width:420px) { .historico-filtro-grid { grid-template-columns:1fr; } .historico-card { padding:22px 20px; } }
+
+/* === CHECK-OUT / CONCLUSÃO DA VISITA === */
+.tela-checkout { background-color: var(--color-white); }
+.checkout-logo { display:flex; justify-content:center; margin:0 0 48px; }
+.checkout-titulo { color:var(--color-dark); font-size:2rem; font-weight:800; margin:0 0 38px; }
+.checkout-bloco { margin-bottom:30px; }
+.checkout-bloco > label, .checkout-campo > label, .checkout-relatorio-section > label {
+    display:block; color:var(--color-dark); font-size:1rem; font-weight:500; margin-bottom:10px;
+}
+.checkout-cliente { color:var(--color-dark); font-size:1.2rem; font-weight:800; text-transform:uppercase; line-height:1.25; }
+.checkout-horarios { display:flex; flex-direction:column; gap:22px; }
+.checkout-pill-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.checkout-pill {
+    min-height:70px; border:2px solid #D8D8D8; border-radius:38px; display:flex;
+    align-items:center; justify-content:center; color:var(--color-dark); font-size:1.05rem; font-weight:500;
+}
+.checkout-duracao { color:#9A9AB5; font-size:.92rem; font-weight:700; margin-top:-4px; }
+.checkout-tipo-section { margin-top:42px; }
+.checkout-tipo-section h2 { color:var(--color-dark); font-size:1.8rem; font-weight:500; margin:0 0 28px; }
+.checkout-campo { margin-bottom:28px; }
+.checkout-campo .input-box { width:100%; min-height:58px; border:1.5px solid #DEDEDE; border-radius:14px; background:var(--color-white); color:var(--color-dark); }
+.checkout-radio-group { display:flex; flex-direction:column; gap:18px; }
+.checkout-radio-label { display:flex; align-items:center; gap:12px; color:var(--color-dark); font-size:1rem; font-weight:500; cursor:pointer; }
+.checkout-radio-label input { position:absolute; opacity:0; pointer-events:none; }
+.checkout-radio-custom {
+    width:34px; height:34px; border-radius:50%; background:#DFE5F1; position:relative; flex:0 0 auto;
+}
+.checkout-radio-label input:checked + .checkout-radio-custom { background:var(--color-red); }
+.checkout-radio-label input:checked + .checkout-radio-custom::after {
+    content:""; position:absolute; inset:5px; border-radius:50%; background:var(--color-red);
+}
+.checkout-relatorio-section { margin-top:40px; }
+.checkout-relatorio-box {
+    background:#F1F1F3; border-radius:40px; padding:38px 34px; color:#676783;
+    font-size:1rem; line-height:1.42; white-space:pre-wrap; overflow-wrap:anywhere;
+    min-height:160px;
+}
+.checkout-acoes { display:flex; flex-direction:column; gap:12px; margin-top:44px; }
+.checkout-acoes .btn-checkin, .checkout-acoes .btn-voltar { min-height:72px; }
+@media (max-width:420px) {
+    .checkout-logo { margin-bottom:40px; }
+    .checkout-titulo { font-size:1.9rem; margin-bottom:34px; }
+    .checkout-pill-row { gap:12px; }
+    .checkout-pill { min-height:68px; font-size:1rem; }
+    .checkout-relatorio-box { border-radius:36px; padding:32px 28px; }
+}
