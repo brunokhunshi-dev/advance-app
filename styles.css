@@ -162,7 +162,6 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .relatorio-info-section { padding: 0 20px 20px 20px; background-color: var(--color-white); }
 .rel-codigo { font-size: 0.85rem; font-weight: 600; color: #A0A0A0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
 .select-wrapper { position: relative; }
-.select-wrapper::after { content: ''; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); width: 12px; height: 8px; background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="%23F51E30" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat center; pointer-events: none; }
 #rel-cliente-select { appearance: none; -webkit-appearance: none; color: var(--color-dark); opacity: 1; }
 .relatorio-editor-section { flex: 1; background-color: var(--color-bg); padding: 24px 20px; }
 .textarea-box-full { width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 1rem; color: var(--color-dark); outline: none; resize: none; min-height: 200px;}
@@ -486,3 +485,29 @@ select.input-box, .select-wrapper .input-box {
     min-height: 30px;
     flex: 0 0 30px;
 }
+
+/* === CONSISTÊNCIA DE TIPOGRAFIA E INTERAÇÃO === */
+button { font-weight: 400; }
+.alert-actions button,
+.historico-filtro-limpar,
+.nav-item,
+.nav-item.active { font-weight: 400; }
+.btn-back,
+.historico-filtro-btn,
+.visualizador-fechar {
+    box-shadow: none;
+}
+.btn-back {
+    background: var(--color-white);
+    color: var(--color-red);
+    border-color: var(--color-red);
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible {
+    outline: 2px solid rgba(245, 30, 48, .35);
+    outline-offset: 2px;
+}
+.input-box::placeholder { color: #8A8A96; opacity: 1; }
+select.input-box { color: var(--color-dark); }
