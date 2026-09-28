@@ -925,7 +925,8 @@ async function carregarAgenda() {
 
 
 function obterResultadoHistorico(visita) {
-    if (String(visita.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise') return 'Pendente de análise';
+    if (String(visita.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise') return 'Pendente';
+    if (visita.status === 'Em andamento') return 'Em andamento';
     const valor = String(visita.resultado || '').trim().toLowerCase();
     if (valor === 'resolvido') return 'Resolvido';
     if (valor === 'não resolvido' || valor === 'nao resolvido') return 'Não resolvido';
@@ -937,7 +938,8 @@ function obterClasseResultadoHistorico(resultado) {
     if (resultado === 'Resolvido') return 'hist-status-resolvido';
     if (resultado === 'Não resolvido') return 'hist-status-nao-resolvido';
     if (resultado === 'Cancelada') return 'hist-status-cancelada';
-    if (resultado === 'Pendente de análise') return 'hist-status-pendente-analise';
+    if (resultado === 'Pendente') return 'hist-status-pendente';
+    if (resultado === 'Em andamento') return 'hist-status-andamento';
     return 'hist-status-concluida';
 }
 
@@ -2220,166 +2222,102 @@ async function encerrarVisita(id, btn) {
     }
 }
 function atualizarInterfaceVisitaAtual() {
-
     if (!objetoAtividadeGlobal) return;
 
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
-
     const areaVisitas = document.getElementById('area-visitas');
+    const temRelatorio = !!(objetoRelatorioGlobal && String(objetoRelatorioGlobal.textoAtual || '').trim());
 
-    let htmlTimeline = `
+    const etapas = [{
+        titulo: 'Check-in',
+        hora: objData.hora,
+        descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' chegou a ' + escaparHtml(clienteSelecionadoNome) + ' às ' + objData.hora + '.'
+    }];
 
-    <div class="card-visita-atual" style="margin-top: 10px;">
-
-        <h2 class="va-titulo">${escaparHtml(clienteSelecionadoNome)}</h2>
-
-        <div class="va-status">EM ANDAMENTO</div>
-
-        <hr class="va-divider" style="margin: 15px 0;">
-
-        <div class="timeline-container">
-
-            <div class="timeline-line"></div>
-
-            <div class="timeline-item">
-
-                <div class="${objetoRelatorioGlobal && objetoRelatorioGlobal.textoAtual ? 'timeline-dot-gray' : 'timeline-dot-blue'}"></div>
-
-                <div class="timeline-content">
-
-                    <div class="timeline-header">
-
-                        <strong>Check-in</strong>
-
-                        <span>${objData.hora}</span>
-
-                    </div>
-
-                    <p class="timeline-desc">${escaparHtml(nomeUsuarioLogado || 'Técnico')} chegou a ${escaparHtml(clienteSelecionadoNome)} às ${objData.hora}.</p>
-
-                </div>
-
-            </div>`;
-
-    let htmlBotoes = '';
-
-
-
-    if (objetoRelatorioGlobal && objetoRelatorioGlobal.textoAtual) {
-
-        const historico = Array.isArray(objetoRelatorioGlobal.historico) && objetoRelatorioGlobal.historico.length ? objetoRelatorioGlobal.historico : [{ salvoEm: objetoRelatorioGlobal.atualizadoEm }];
+    if (temRelatorio) {
+        const historico = Array.isArray(objetoRelatorioGlobal.historico) && objetoRelatorioGlobal.historico.length
+            ? objetoRelatorioGlobal.historico
+            : [{ salvoEm: objetoRelatorioGlobal.atualizadoEm }];
 
         historico.forEach((registro, index) => {
-
-            const horaReg = formatarDataHoraPT(registro.salvoEm).hora; 
-
-            const isLast = (index === historico.length - 1); 
-
-            const dotClass = isLast ? 'timeline-dot-blue' : 'timeline-dot-gray';
-
-            const titulo = (index === 0) ? 'Relatório adicionado' : 'Relatório atualizado'; 
-
-            const acaoTxt = (index === 0) ? 'escreveu um relatório.' : 'atualizou o relatório.';
-
-            htmlTimeline += `
-
-            <div class="timeline-item">
-
-                <div class="${dotClass}"></div>
-
-                <div class="timeline-content">
-
-                    <div class="timeline-header">
-
-                        <strong>${titulo}</strong>
-
-                        <span>${horaReg}</span>
-
-                    </div>
-
-                    <p class="timeline-desc" ${isLast ? 'style="margin-bottom: 12px;"' : ''}>${escaparHtml(nomeUsuarioLogado || 'Técnico')} ${acaoTxt}</p>
-
-                    ${isLast ? '<button class="btn-outline-red" id="btn-ver-relatorio-inicio">Ver ou editar relatório</button>' : ''}
-
-                </div>
-
-            </div>`;
-
+            const horaReg = formatarDataHoraPT(registro.salvoEm).hora;
+            etapas.push({
+                titulo: index === 0 ? 'Relatório adicionado' : 'Relatório atualizado',
+                hora: horaReg,
+                descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' ' + (index === 0 ? 'escreveu um relatório.' : 'atualizou o relatório.'),
+                relatorioAtual: index === historico.length - 1
+            });
         });
-
-        htmlBotoes = `<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>`;
-
-    } else { 
-
-        htmlBotoes = `<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>`; 
-
     }
 
-    htmlTimeline += `</div>${htmlBotoes}</div>`;
+    const currentIndex = etapas.length - 1;
 
+    let htmlTimeline = '';
+    htmlTimeline += '<div class="card-visita-atual" style="margin-top: 10px;">';
+    htmlTimeline += '<h2 class="va-titulo">' + escaparHtml(clienteSelecionadoNome) + '</h2>';
+    htmlTimeline += '<div class="va-status">EM ANDAMENTO</div>';
+    htmlTimeline += '<hr class="va-divider" style="margin: 15px 0;">';
+    htmlTimeline += '<div class="timeline-container">';
+
+    etapas.forEach((etapa, index) => {
+        const isComplete = index <= currentIndex;
+        const isLinkComplete = index < currentIndex;
+        const classes = 'timeline-step' + (isComplete ? ' timeline-step-complete' : '') + (isLinkComplete ? ' timeline-link-complete' : '');
+
+        htmlTimeline += '<div class="' + classes + '">';
+        htmlTimeline += '<div class="timeline-marker"><span class="timeline-dot"></span></div>';
+        htmlTimeline += '<div class="timeline-content">';
+        htmlTimeline += '<div class="timeline-header"><strong>' + etapa.titulo + '</strong><span>' + etapa.hora + '</span></div>';
+        htmlTimeline += '<p class="timeline-desc"' + (etapa.relatorioAtual ? ' style="margin-bottom: 12px;"' : '') + '>' + etapa.descricao + '</p>';
+        if (etapa.relatorioAtual) htmlTimeline += '<button class="btn-outline-red" id="btn-ver-relatorio-inicio">Ver ou editar relatório</button>';
+        htmlTimeline += '</div></div>';
+    });
+
+    const htmlBotoes = temRelatorio
+        ? '<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>'
+        : '<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>';
+
+    htmlTimeline += '</div>' + htmlBotoes + '</div>';
     areaVisitas.innerHTML = htmlTimeline;
 
-    const timeline = areaVisitas.querySelector('.timeline-container');
-    const timelineCurrent = timeline?.querySelector('.timeline-dot-blue');
-    if (timeline && timelineCurrent) {
-        requestAnimationFrame(() => {
-            const lineStart = 12;
-            const dotCenter = timelineCurrent.offsetTop + (timelineCurrent.offsetHeight / 2);
-            timeline.style.setProperty('--timeline-progress-height', Math.max(0, dotCenter - lineStart) + 'px');
-        });
-    }
-
-
-
-    // Reconfigurar eventos
-
-    const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio'); 
-
-    const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio'); 
-
+    const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio');
+    const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio');
     const btnEncerrar = document.getElementById('btn-encerrar-visita-inicio');
 
-
-
     const acaoAbrirRelatorio = () => {
-
         if (operacaoEmCurso) return;
-
         mostrarApenasTela('tela-relatorio');
+        const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
+        let codigoRelatorio = '';
 
-        const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora); let codigoRelatorio = "";
+        if (objetoRelatorioGlobal) {
+            codigoRelatorio = objetoRelatorioGlobal.codigo || '#' + atividadeSelecionadaId;
+            document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || '';
+        } else {
+            const dataPura = new Date();
+            codigoRelatorio = '#' + dataPura.getFullYear() + String(dataPura.getMonth() + 1).padStart(2, '0') + String(dataPura.getDate()).padStart(2, '0') + obterIniciais(nomeUsuarioLogado || 'TEC') + '-' + atividadeSelecionadaId;
+            document.getElementById('rel-texto').value = '';
+        }
 
-        if (objetoRelatorioGlobal) { codigoRelatorio = objetoRelatorioGlobal.codigo || `#${atividadeSelecionadaId}`; document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || ""; 
-
-        } else { const dataPura = new Date(); codigoRelatorio = `#${dataPura.getFullYear()}${String(dataPura.getMonth() + 1).padStart(2, '0')}${String(dataPura.getDate()).padStart(2, '0')}${obterIniciais(nomeUsuarioLogado || 'TEC')}-${atividadeSelecionadaId}`; document.getElementById('rel-texto').value = ""; }
-
-        document.getElementById('rel-titulo-cliente').textContent = `Relatório - ${clienteSelecionadoNome}`; document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
-
-        document.getElementById('rel-data').value = formatoData.data; document.getElementById('rel-hora').value = formatoData.hora; document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; document.getElementById('rel-texto')?.blur(); window.scrollTo(0, 0);
-
+        document.getElementById('rel-titulo-cliente').textContent = 'Relatório - ' + clienteSelecionadoNome;
+        document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
+        document.getElementById('rel-data').value = formatoData.data;
+        document.getElementById('rel-hora').value = formatoData.hora;
+        document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio;
+        document.getElementById('rel-texto')?.blur();
+        window.scrollTo(0, 0);
     };
 
-
-
-    if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio); 
-
+    if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio);
     if (btnVerEditar) btnVerEditar.addEventListener('click', acaoAbrirRelatorio);
 
     if (btnEncerrar) {
-
         const id = atividadeSelecionadaId;
-
         btnEncerrar.addEventListener('click', () => {
-
             if (!operacaoEmCurso) window.mostrarConfirmacaoExclusao(() => encerrarVisita(id, btnEncerrar), true);
-
         });
-
     }
-
 }
-
-
 
 function abrirModalFechamentoManual(atividadeId, mensagem) {
     fechamentoManualPendente = { atividadeId };
