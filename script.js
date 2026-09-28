@@ -610,7 +610,7 @@ function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).t
 
 function mostrarApenasTela(idTelaAlvo) {
 
-    const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout'];
+    const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout', 'tela-visualizador-visita'];
 
     telas.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (id === idTelaAlvo) ? 'block' : 'none'; });
 
@@ -629,6 +629,14 @@ function mostrarApenasTela(idTelaAlvo) {
     } else if (idTelaAlvo === 'tela-checkout') {
 
         document.getElementById('tela-checkout').style.display = 'block';
+
+        document.getElementById('header-principal').style.display = 'none';
+
+        document.querySelector('.bottom-nav').style.display = 'none';
+
+    } else if (idTelaAlvo === 'tela-visualizador-visita') {
+
+        document.getElementById('tela-visualizador-visita').style.display = 'block';
 
         document.getElementById('header-principal').style.display = 'none';
 
@@ -1009,6 +1017,18 @@ function renderizarHistoricoVisitas(visitas) {
                         endereco.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6.5-8 12-8 12s-8-5.5-8-12a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>';
                         endereco.append(document.createTextNode(visita.enderecoCompleto || 'Endereço não informado'));
 
+                        card.classList.add('historico-card-clicavel');
+                        card.tabIndex = 0;
+                        card.setAttribute('role', 'button');
+                        card.setAttribute('aria-label', 'Visualizar visita de ' + (visita.nomeCliente || 'cliente'));
+                        card.addEventListener('click', () => window.abrirVisualizadorVisita(visita.id));
+                        card.addEventListener('keydown', event => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                window.abrirVisualizadorVisita(visita.id);
+                            }
+                        });
+
                         card.append(topo, horario, endereco);
                         blocoDia.appendChild(card);
                     });
@@ -1250,6 +1270,108 @@ function configurarTelaNovaVisita() {
 }
 
 
+
+
+function formatarProtocoloVisualizador(valor, fallback) {
+    const bruto = String(valor || fallback || '').trim();
+    if (!bruto) return '#...';
+    return bruto.startsWith('#') ? bruto : '#' + bruto;
+}
+
+function preencherCampoVisualizador(id, valor, fallback = 'Não informado') {
+    const el = document.getElementById(id);
+    if (el) el.textContent = valor == null || String(valor).trim() === '' ? fallback : String(valor);
+}
+
+function formatarGpsVisualizador(gps, accuracy) {
+    const texto = gps ? String(gps) : 'GPS não informado';
+    const precisao = Number.isFinite(Number(accuracy)) ? ' • Precisão: ' + Math.round(Number(accuracy)) + ' m' : '';
+    return texto + precisao;
+}
+
+function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
+    const resultado = obterResultadoHistorico(atividade);
+    const resultadoEl = document.getElementById('visu-resultado');
+    resultadoEl.textContent = resultado;
+    resultadoEl.className = 'visualizador-resultado ' + obterClasseResultadoHistorico(resultado).replace('hist-status-', 'visualizador-');
+
+    preencherCampoVisualizador('visu-cliente', cliente?.nome || 'Cliente não encontrado');
+    preencherCampoVisualizador('visu-protocolo', formatarProtocoloVisualizador(relatorio?.codigo, atividade.id), '');
+    preencherCampoVisualizador('visu-chegada-data', formatarDataCheckout(atividade.checkinDataHora), '--/--/----');
+    preencherCampoVisualizador('visu-chegada-hora', formatarHoraCheckout(atividade.checkinDataHora), '--h--');
+    preencherCampoVisualizador('visu-saida-data', formatarDataCheckout(atividade.checkoutDataHora), '--/--/----');
+    preencherCampoVisualizador('visu-saida-hora', formatarHoraCheckout(atividade.checkoutDataHora), '--h--');
+    preencherCampoVisualizador('visu-duracao', formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora), 'Tempo de visita: --.');
+    document.getElementById('visu-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora);
+
+    const enderecoCliente = document.getElementById('visu-endereco-cliente');
+    if (enderecoCliente) enderecoCliente.textContent = cliente?.enderecoCompleto || 'Endereço não informado';
+
+    const tipo = normalizarTipoVisita(atividade);
+    document.getElementById('visu-tecnica').style.display = tipo === 'Treinamento' ? 'none' : 'block';
+    document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+
+    preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
+    preencherCampoVisualizador('visu-oportunidade', atividade.oportunidadeIdentificada);
+    preencherCampoVisualizador('visu-categoria', atividade.categoriaTreinamento);
+    preencherCampoVisualizador('visu-participantes', atividade.quantidadeParticipantes);
+    preencherCampoVisualizador('visu-publico', atividade.publicoAtendido);
+    preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
+    preencherCampoVisualizador('visu-relatorio', relatorio?.textoAtual, 'Nenhum relatório registrado.');
+
+    const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
+    document.getElementById('visu-manual').style.display = manual ? 'block' : 'none';
+    preencherCampoVisualizador('visu-motivo-manual', atividade.motivoFechamentoManual);
+    preencherCampoVisualizador('visu-manual-data', atividade.fechamentoSolicitadoEm ? formatarDataHoraPT(atividade.fechamentoSolicitadoEm).completo : null);
+
+    preencherCampoVisualizador('visu-checkin-endereco', atividade.checkinEndereco);
+    preencherCampoVisualizador('visu-checkout-endereco', atividade.checkoutEndereco);
+    preencherCampoVisualizador('visu-checkin-gps', formatarGpsVisualizador(atividade.checkinGps, atividade.checkinGpsAccuracy));
+    preencherCampoVisualizador('visu-checkout-gps', formatarGpsVisualizador(atividade.checkoutGps, atividade.checkoutGpsAccuracy));
+
+    document.getElementById('btn-fechar-visualizador').focus({ preventScroll: true });
+}
+
+window.abrirVisualizadorVisita = async function(atividadeId) {
+    if (operacaoEmCurso || !atividadeId) return;
+
+    const sessao = sessaoAtual();
+    const area = document.getElementById('tela-visualizador-visita');
+    const clienteEl = document.getElementById('visu-cliente');
+
+    area.style.display = 'block';
+    mostrarApenasTela('tela-visualizador-visita');
+    preencherCampoVisualizador('visu-cliente', 'Carregando...');
+    preencherCampoVisualizador('visu-relatorio', 'Carregando...');
+    window.scrollTo(0, 0);
+
+    try {
+        const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeId));
+        exigirSessao(sessao);
+
+        if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
+        const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
+        if (atividade.ptvId !== sessao.id) throw new Error('Esta visita não pertence ao usuário conectado.');
+
+        const [cliente, relatorioSnap] = await Promise.all([
+            atividade.clienteId ? obterCliente(atividade.clienteId) : Promise.resolve(null),
+            atividade.relatorioId ? getDoc(doc(db, 'relatorios', atividade.relatorioId)) : Promise.resolve(null)
+        ]);
+
+        exigirSessao(sessao);
+
+        let relatorio = null;
+        if (relatorioSnap?.exists()) {
+            relatorio = { ...relatorioSnap.data(), id: relatorioSnap.id };
+            if (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id) throw new Error('O relatório associado não corresponde a esta visita.');
+        }
+
+        renderizarVisualizadorVisita(atividade, cliente, relatorio);
+    } catch (erro) {
+        informarErro('Não foi possível abrir a visita', erro);
+        mostrarApenasTela('tela-historico');
+    }
+};
 
 // === TELA 8: DETALHES DA VISITA ===
 
