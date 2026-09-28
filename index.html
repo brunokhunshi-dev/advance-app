@@ -7,10 +7,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <title>Advance Tintas - PWA</title>
+    <meta name="apple-mobile-web-app-title" content="Advance Check">
+    <title>Advance Check</title>
 
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="midia/iconspwa/advancecheck192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -27,6 +28,13 @@
     </script>
 </head>
 <body>
+
+    <div id="pwa-splash" class="pwa-splash" aria-hidden="true">
+        <div class="pwa-splash-content">
+            <img src="midia/iconspwa/advancecheck512.png" alt="" class="pwa-splash-icon">
+            <div class="pwa-splash-name">Advance Check</div>
+        </div>
+    </div>
 
     <!-- TELA 0: LOGIN -->
     <main id="tela-login" class="tela-login-container">
@@ -814,5 +822,13 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            const splash = document.getElementById('pwa-splash');
+            if (!splash) return;
+            splash.classList.add('pwa-splash-hidden');
+            window.setTimeout(() => splash.remove(), 320);
+        });
+    </script>
 </body>
 </html>
