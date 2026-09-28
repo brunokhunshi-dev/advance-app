@@ -2374,10 +2374,63 @@ function configurarEventosGlobais() {
     });
 
 
-    document.getElementById('btn-exportar-visualizador')?.addEventListener('click', () => {
+    document.getElementById('btn-compartilhar-visualizador')?.addEventListener('click', async () => {
         if (!objetoAtividadeGlobal) return;
-        prepararImpressaoVisualizador(objetoAtividadeGlobal, window._clienteVisualizadorAtual, objetoRelatorioGlobal);
-        setTimeout(() => window.print(), 50);
+
+        const atividade = objetoAtividadeGlobal;
+        const cliente = window._clienteVisualizadorAtual;
+        const relatorio = objetoRelatorioGlobal;
+        const resultado = obterResultadoHistorico(atividade);
+        const tipo = normalizarTipoVisita(atividade);
+        const protocolo = formatarProtocoloVisualizador(relatorio?.codigo, atividade.id);
+
+        const texto = [
+            'ADVANCE TINTAS',
+            'RELATÓRIO DE VISITA',
+            '',
+            `Cliente: ${cliente?.nome || 'Não informado'}`,
+            `Protocolo: ${protocolo || 'Não informado'}`,
+            `Tipo de visita: ${tipo}`,
+            `Resultado: ${resultado}`,
+            `Técnico: ${nomeUsuarioLogado || 'Não informado'}`,
+            cliente?.enderecoCompleto ? `Endereço: ${cliente.enderecoCompleto}` : null,
+            '',
+            `Chegada: ${formatarDataCheckout(atividade.checkinDataHora)} às ${formatarHoraCheckout(atividade.checkinDataHora)}`,
+            `Saída: ${formatarDataCheckout(atividade.checkoutDataHora)} às ${formatarHoraCheckout(atividade.checkoutDataHora)}`,
+            `Duração: ${formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora)}`,
+            tipo === 'Treinamento'
+                ? `Participantes: ${atividade.quantidadeParticipantes || 'Não informado'}`
+                : `Objetivo: ${atividade.objetivo || 'Não informado'}`,
+            atividade.oportunidadeIdentificada ? `Oportunidade identificada: ${atividade.oportunidadeIdentificada}` : null,
+            atividade.nota ? `Observações: ${atividade.nota}` : null,
+            relatorio?.textoAtual ? `Relatório: ${relatorio.textoAtual}` : null
+        ].filter(Boolean).join('\\n');
+
+        const dadosCompartilhamento = {
+            title: `Visita técnica — ${cliente?.nome || 'Advance Tintas'}`,
+            text: texto
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(dadosCompartilhamento);
+                return;
+            }
+
+            await navigator.clipboard.writeText(texto);
+            const whatsapp = 'https://wa.me/?text=' + encodeURIComponent(texto);
+            window.mostrarAlerta('Compartilhar visita', 'O conteúdo foi copiado. Escolha onde enviar.');
+            window.open(whatsapp, '_blank', 'noopener,noreferrer');
+        } catch (erro) {
+            if (erro?.name === 'AbortError') return;
+
+            try {
+                await navigator.clipboard.writeText(texto);
+                window.mostrarAlerta('Compartilhar visita', 'Não foi possível abrir o menu de compartilhamento. O relatório foi copiado para a área de transferência.');
+            } catch {
+                window.mostrarAlerta('Compartilhar visita', 'Não foi possível abrir o menu de compartilhamento. Tente novamente.');
+            }
+        }
     });
 
 
