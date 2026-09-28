@@ -1,2 +1,7 @@
 firebase-config.js
 .DS_Store
+node_modules/
+exports/
+.env
+service-account*.json
+*-service-account*.json
