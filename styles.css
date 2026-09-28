@@ -432,11 +432,3 @@ input[type="date"], input[type="time"] { position: relative; }
         text-align:right;
     }
 }
-
-/* Compartilhamento de relatório */
-.compartilhar-visita-box { width: min(92vw, 520px); }
-.compartilhar-visita-opcoes { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
-.compartilhar-opcao { width: 100%; padding: 15px 17px; border: 1px solid #dfe3e8; border-radius: 10px; background: #fff; text-align: left; cursor: pointer; }
-.compartilhar-opcao strong { display: block; font-size: 16px; color: #222; margin-bottom: 4px; }
-.compartilhar-opcao span { display: block; font-size: 13px; color: #70757a; }
-.compartilhar-opcao:active { transform: scale(.99); }
