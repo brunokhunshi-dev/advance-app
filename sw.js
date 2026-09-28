@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-v3';
+const CACHE_NAME = 'advance-pwa-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,10 +8,8 @@ const APP_SHELL = [
   './pwa-mobile.css',
   './manifest.json',
   './manifest.webmanifest',
-  './icon-192.png',
-  './icon-512.png',
-  './icons/icon-192.svg',
-  './icons/icon-512.svg'
+  './midia/iconspwa/advancecheck192.png',
+  './midia/iconspwa/advancecheck512.png'
 ];
 
 self.addEventListener('install', event => {
