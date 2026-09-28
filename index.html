@@ -539,6 +539,34 @@
             </div>
         </main>
 
+        <!-- MODAL DE FECHAMENTO MANUAL -->
+        <div id="modal-fechamento-manual" class="modal-overlay alert-modal" style="display: none;">
+            <div class="alert-box fechamento-manual-box">
+                <div class="alert-content">
+                    <h3 id="fechamento-manual-titulo">Não foi possível validar o check-out</h3>
+                    <p id="fechamento-manual-mensagem">A localização de saída não pôde ser validada.</p>
+                </div>
+
+                <div id="fechamento-manual-pergunta" class="fechamento-manual-conteudo">
+                    <p class="fechamento-manual-pergunta-texto">Deseja solicitar um fechamento manual para o seu gestor?</p>
+                    <div class="alert-actions split">
+                        <button id="btn-fechamento-manual-nao" class="alert-btn-black">NÃO</button>
+                        <button id="btn-fechamento-manual-sim" class="alert-btn-red">SIM</button>
+                    </div>
+                </div>
+
+                <div id="fechamento-manual-form" class="fechamento-manual-conteudo" style="display: none;">
+                    <label for="fechamento-manual-motivo" class="fechamento-manual-label">Motivo do fechamento manual</label>
+                    <textarea id="fechamento-manual-motivo" class="input-box fechamento-manual-textarea" maxlength="600" placeholder="Explique por que o check-out não pôde ser realizado."></textarea>
+                    <div class="fechamento-manual-contador"><span id="fechamento-manual-contador">0</span>/600</div>
+                    <div class="alert-actions split">
+                        <button id="btn-fechamento-manual-cancelar" class="alert-btn-black">VOLTAR</button>
+                        <button id="btn-enviar-fechamento-manual" class="alert-btn-red">ENVIAR</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAIS DE ALERTA NATIVOS (POPOUTS) -->
         <div id="modal-alerta-generico" class="modal-overlay alert-modal">
             <div class="alert-box">
