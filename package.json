@@ -1,0 +1,11 @@
+{
+  "name": "advance-app-firestore-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "export:firestore": "node tools/export-firestore.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0"
+  }
+}
