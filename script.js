@@ -600,6 +600,15 @@ window.fecharConfirmacaoExclusao = function() {
 
 };
 
+window.mostrarConfirmacaoDescarteRelatorio = function(callback) {
+    callbackExclusaoAtual = callback;
+    const modal = document.getElementById('modal-confirmar-exclusao');
+    modal.querySelector('h3').textContent = 'Sair sem salvar?';
+    modal.querySelector('p').textContent = 'As alterações feitas no relatório serão descartadas.';
+    modal.querySelector('.alert-btn-red').textContent = 'DESCARTAR';
+    modal.style.display = 'flex';
+};
+
 
 
 // === FUNÇÕES DE LOCALIZAÇÃO ===
@@ -681,6 +690,8 @@ function mostrarApenasTela(idTelaAlvo) {
     const indice = { 'tela-inicio': 0, 'tela-agenda': 1, 'tela-historico': 2, 'tela-perfil': 3 }[idTelaAlvo];
 
     document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', i === indice));
+
+    document.body.classList.toggle('screen-form-mode', idTelaAlvo === 'tela-nova-visita' || idTelaAlvo === 'tela-detalhes-visita');
 
     if (idTelaAlvo === 'tela-relatorio') {
 
@@ -2232,7 +2243,7 @@ function atualizarInterfaceVisitaAtual() {
 
             <div class="timeline-item">
 
-                <div class="timeline-dot-gray"></div>
+                <div class="${objetoRelatorioGlobal && objetoRelatorioGlobal.textoAtual ? 'timeline-dot-gray' : 'timeline-dot-blue'}"></div>
 
                 <div class="timeline-content">
 
@@ -2308,6 +2319,16 @@ function atualizarInterfaceVisitaAtual() {
 
     areaVisitas.innerHTML = htmlTimeline;
 
+    const timeline = areaVisitas.querySelector('.timeline-container');
+    const timelineCurrent = timeline?.querySelector('.timeline-dot-blue');
+    if (timeline && timelineCurrent) {
+        requestAnimationFrame(() => {
+            const lineStart = 12;
+            const dotCenter = timelineCurrent.offsetTop + (timelineCurrent.offsetHeight / 2);
+            timeline.style.setProperty('--timeline-progress-height', Math.max(0, dotCenter - lineStart) + 'px');
+        });
+    }
+
 
 
     // Reconfigurar eventos
@@ -2334,7 +2355,7 @@ function atualizarInterfaceVisitaAtual() {
 
         document.getElementById('rel-titulo-cliente').textContent = `Relatório - ${clienteSelecionadoNome}`; document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
 
-        document.getElementById('rel-data').value = formatoData.data; document.getElementById('rel-hora').value = formatoData.hora; document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; window.scrollTo(0, 0);
+        document.getElementById('rel-data').value = formatoData.data; document.getElementById('rel-hora').value = formatoData.hora; document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio; document.getElementById('rel-texto')?.blur(); window.scrollTo(0, 0);
 
     };
 
@@ -2581,7 +2602,10 @@ function configurarEventosGlobais() {
 
         const atual = document.getElementById('rel-texto').value.trim();
 
-        if (atual !== String(objetoRelatorioGlobal?.textoAtual || '').trim() && !confirm('Voltar sem salvar as alterações do relatório?')) return;
+        if (atual !== String(objetoRelatorioGlobal?.textoAtual || '').trim()) {
+            window.mostrarConfirmacaoDescarteRelatorio(() => mostrarApenasTela('tela-inicio'));
+            return;
+        }
 
         mostrarApenasTela('tela-inicio');
 
