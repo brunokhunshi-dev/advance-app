@@ -2374,8 +2374,14 @@ function configurarEventosGlobais() {
     });
 
 
-    document.getElementById('btn-compartilhar-visualizador')?.addEventListener('click', async () => {
-        if (!objetoAtividadeGlobal) return;
+    document.addEventListener('click', async (event) => {
+        const botao = event.target.closest('#btn-compartilhar-visualizador');
+        if (!botao) return;
+
+        if (!objetoAtividadeGlobal) {
+            window.mostrarAlerta('Compartilhar visita', 'Não foi possível carregar os dados desta visita. Feche e abra a visita novamente.');
+            return;
+        }
 
         const atividade = objetoAtividadeGlobal;
         const cliente = window._clienteVisualizadorAtual;
@@ -2412,23 +2418,26 @@ function configurarEventosGlobais() {
         };
 
         try {
-            if (navigator.share) {
+            if (typeof navigator.share === 'function') {
                 await navigator.share(dadosCompartilhamento);
                 return;
             }
 
-            await navigator.clipboard.writeText(texto);
             const whatsapp = 'https://wa.me/?text=' + encodeURIComponent(texto);
-            window.mostrarAlerta('Compartilhar visita', 'O conteúdo foi copiado. Escolha onde enviar.');
-            window.open(whatsapp, '_blank', 'noopener,noreferrer');
+            const abriuWhatsApp = window.open(whatsapp, '_blank', 'noopener,noreferrer');
+
+            if (!abriuWhatsApp) {
+                await navigator.clipboard?.writeText(texto);
+                window.mostrarAlerta('Compartilhar visita', 'O relatório foi copiado. Cole-o no WhatsApp ou em outro aplicativo.');
+            }
         } catch (erro) {
             if (erro?.name === 'AbortError') return;
 
             try {
-                await navigator.clipboard.writeText(texto);
-                window.mostrarAlerta('Compartilhar visita', 'Não foi possível abrir o menu de compartilhamento. O relatório foi copiado para a área de transferência.');
+                if (navigator.clipboard) await navigator.clipboard.writeText(texto);
+                window.mostrarAlerta('Compartilhar visita', 'O compartilhamento não pôde ser aberto. O relatório foi copiado para a área de transferência.');
             } catch {
-                window.mostrarAlerta('Compartilhar visita', 'Não foi possível abrir o menu de compartilhamento. Tente novamente.');
+                window.mostrarAlerta('Compartilhar visita', 'Não foi possível compartilhar esta visita. Tente novamente.');
             }
         }
     });
