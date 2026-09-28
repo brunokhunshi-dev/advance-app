@@ -1420,6 +1420,13 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
             if (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id) throw new Error('O relatório associado não corresponde a esta visita.');
         }
 
+        // Mantém os dados da visita atual disponíveis para ações do visualizador,
+        // como compartilhamento e exportação, sem depender da tela anterior.
+        objetoAtividadeGlobal = atividade;
+        objetoRelatorioGlobal = relatorio;
+        clienteSelecionadoId = atividade.clienteId || null;
+        clienteSelecionadoNome = cliente?.nome || '';
+
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
         informarErro('Não foi possível abrir a visita', erro);
