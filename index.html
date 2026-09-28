@@ -120,7 +120,8 @@
         </main>
 
         <!-- TELA 4: NOVA VISITA (Design Atualizado) -->
-        <main class="main-content tela-branca" id="tela-nova-visita" style="display: none; padding-bottom: 40px;">
+        <main class="main-content tela-branca screen-form-sheet" id="tela-nova-visita" style="display: none; padding-bottom: 40px;">
+<button class="screen-close" id="btn-cancelar-visita" type="button" aria-label="Fechar">×</button>
 <h1 class="page-title" style="margin-bottom: 30px;">Nova visita</h1>
 
             <div class="form-group autocomplete-wrapper">
@@ -159,9 +160,8 @@
                 <div class="char-count" id="nv-char-count">0/600</div>
             </div>
 
-            <div class="botoes-acao" style="margin-top: 40px; max-width: 100%;">
+            <div class="botoes-acao screen-action-dock">
                 <button class="btn-iniciar" id="btn-agendar-visita">Agendar</button>
-                <button class="btn-voltar" id="btn-cancelar-visita">Voltar</button>
             </div>
         </main>
 
@@ -381,7 +381,8 @@
         </main>
 
         <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->
-        <main class="main-content tela-branca" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
+        <main class="main-content tela-branca screen-form-sheet" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
+<button class="screen-close" id="btn-voltar-detalhes" type="button" aria-label="Fechar">×</button>
 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
                 <div>
                     <h1 class="page-title" style="margin-bottom: 2px;">Visita agendada</h1>
@@ -437,9 +438,8 @@
                 <textarea id="det-nota" class="input-box box-cinza textarea-box" maxlength="600"></textarea>
             </div>
 
-            <div class="botoes-acao" style="margin-top: 40px; max-width: 100%;">
+            <div class="botoes-acao screen-action-dock">
                 <button class="btn-iniciar" id="btn-salvar-detalhes">Salvar</button>
-                <button class="btn-voltar" id="btn-voltar-detalhes">Voltar</button>
             </div>
         </main>
 
@@ -557,10 +557,8 @@
 
                 <div class="form-group">
                     <label>Cliente</label>
-                    <div class="select-wrapper">
-                        <select id="rel-cliente-select" class="input-box box-cinza" disabled>
-                            <option id="rel-opcao-cliente">...</option>
-                        </select>
+                    <div id="rel-cliente-select" class="input-box box-cinza rel-cliente-readonly">
+                        <span id="rel-opcao-cliente">...</span>
                     </div>
                 </div>
             </div>
