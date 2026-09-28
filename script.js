@@ -618,9 +618,17 @@ function mostrarApenasTela(idTelaAlvo) {
 
     document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', i === indice));
 
-    if (idTelaAlvo === 'tela-relatorio' || idTelaAlvo === 'tela-checkout') {
+    if (idTelaAlvo === 'tela-relatorio') {
 
         document.getElementById('tela-relatorio').style.display = 'flex';
+
+        document.getElementById('header-principal').style.display = 'none';
+
+        document.querySelector('.bottom-nav').style.display = 'none';
+
+    } else if (idTelaAlvo === 'tela-checkout') {
+
+        document.getElementById('tela-checkout').style.display = 'block';
 
         document.getElementById('header-principal').style.display = 'none';
 
@@ -1028,30 +1036,29 @@ async function carregarHistoricoVisitas() {
             limit(100)
         );
 
-        let querySnapshot;
+        let documentosHistorico;
 
         try {
-            querySnapshot = await getDocs(q);
+            documentosHistorico = (await getDocs(q)).docs;
         } catch (erro) {
             if (erro.code !== 'failed-precondition') throw erro;
-            querySnapshot = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));
+            documentosHistorico = (await getDocs(
+                query(collection(db, 'atividades'), where('ptvId', '==', sessao.id))
+            )).docs;
         }
 
-        querySnapshot = {
-            ...querySnapshot,
-            docs: querySnapshot.docs.filter(documento => {
-                const status = documento.data()?.status;
-                return status === 'Concluída' || status === 'Cancelada';
-            })
-        };
+        documentosHistorico = documentosHistorico.filter(documento => {
+            const status = documento.data()?.status;
+            return status === 'Concluída' || status === 'Cancelada';
+        });
         if (!sessaoValida(sessao) || pedido !== sequenciaHistorico) return;
 
-        if (querySnapshot.empty) {
+        if (!documentosHistorico.length) {
             areaHistorico.innerHTML = '<p class="hist-vazio">Nenhuma visita encontrada.</p>';
             return;
         }
 
-        const historicoArray = await Promise.all(querySnapshot.docs.map(async documento => {
+        const historicoArray = await Promise.all(documentosHistorico.map(async documento => {
             const dados = { ...documento.data(), id: documento.id, nomeCliente: "Cliente não encontrado", enderecoCompleto: "" };
             const cliente = dados.clienteId ? await obterCliente(dados.clienteId) : null;
 
@@ -2256,10 +2263,22 @@ function configurarEventosGlobais() {
             });
 
             if (!sessaoValida(sessao)) return;
+
+            const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
+            if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') {
+                throw new Error('A visita não foi confirmada como concluída no banco. Tente novamente.');
+            }
+
+            const resultadoSalvo = confirmacao.data().fechamentoAnaliseStatus === 'Pendente de análise'
+                ? 'Pendente de análise'
+                : (confirmacao.data().resultado || 'Concluída');
+
             limparEstadoVisita();
-            mostrarApenasTela('tela-inicio');
-            await carregarAtividadesPendentes();
-            window.mostrarAlerta('Sucesso', 'Visita concluída.');
+            mostrarApenasTela('tela-historico');
+            await carregarHistoricoVisitas();
+            window.mostrarAlerta('Sucesso', resultadoSalvo === 'Pendente de análise'
+                ? 'Visita encerrada e enviada para análise.'
+                : 'Visita concluída.');
         } catch (erro) {
             informarErro('Erro ao concluir visita', erro);
         } finally {
