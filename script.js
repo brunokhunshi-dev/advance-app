@@ -1616,7 +1616,7 @@ async function carregarDadosParaAutocomplete() {
     }
 
     try {
-        const snap = await getDocs(query(collection(db,'clientes'), where('status','==','Ativo')));
+        const snap = await getDocs(query(collection(db,'clientes'), where('status','in',['Ativo','Provisorio'])));
         if (!sessaoValida(sessao)) return;
 
         listaClientes = snap.docs.map(d => {
@@ -1666,7 +1666,16 @@ function configurarTelaCadastroCliente() {
 
         if (!idUsuarioLogado || cadastroSalvando) return;
 
-        const puro = cnpj.value.replace(/\D/g, ''), pedido = ++versaoConsultaCnpj, sessao = sessaoAtual();
+        const puro = cnpj.value.replace(/\D/g, '');
+
+        // CNPJ é opcional. Sem CNPJ, o cadastro segue como provisório e não dispara consulta externa.
+        if (!puro) {
+            hashCnpjNovoCliente = null;
+            campo('cc-status-cnpj').textContent = ' (Opcional)';
+            return;
+        }
+
+        const pedido = ++versaoConsultaCnpj, sessao = sessaoAtual();
 
         const lbl = campo('cc-status-cnpj');
 
@@ -1790,9 +1799,10 @@ function configurarTelaCadastroCliente() {
 
             const sessao = sessaoAtual(), puro = cnpj.value.replace(/\D/g,'');
 
-            if (!cnpjValido(puro)) throw new Error('Informe um CNPJ válido, incluindo os dígitos verificadores.');
+            if (puro && !cnpjValido(puro)) throw new Error('Informe um CNPJ válido, incluindo os dígitos verificadores.');
 
-            const codigo = ofuscarCNPJ(puro), nome = campo('cc-nome').value.trim();
+            const codigo = puro ? ofuscarCNPJ(puro) : null;
+            const nome = campo('cc-nome').value.trim();
 
             const cidade = campo('cc-cidade').value.trim(), uf = campo('cc-uf').value.trim().toUpperCase();
 
@@ -1804,60 +1814,60 @@ function configurarTelaCadastroCliente() {
 
             cadastroSalvando = true; operacaoEmCurso = true; atualizarBotaoCadastro(); btn.textContent = 'Salvando...';
 
-            // Compatibilidade com os clientes antigos que usam IDs aleatórios.
-
-            const anteriores = await getDocs(query(collection(db,'clientes'), where('codigoCnpj','==',codigo)));
-
-            exigirSessao(sessao);
-
             let clienteId, nomeFinal = nome, localizado = false;
 
-            if (!anteriores.empty) {
-
-                const existente = anteriores.docs[0];
-
-                if (existente.data().status !== 'Ativo') throw new Error('Este CNPJ já existe, mas está inativo. Solicite a reativação.');
-
-                clienteId = existente.id; nomeFinal = existente.data().nome || nome; localizado = true;
-
-            } else {
-
-                // Sempre geocodifica o endereço atual, nunca reutiliza o dataset de outro cliente.
-
-                const coords = await obterCoordsPorEndereco(enderecoCompleto);
+            if (codigo) {
+                // Fluxo atual de CNPJ: o código determinístico continua sendo a chave de unicidade.
+                const anteriores = await getDocs(query(collection(db,'clientes'), where('codigoCnpj','==',codigo)));
 
                 exigirSessao(sessao);
 
+                if (!anteriores.empty) {
+
+                    const existente = anteriores.docs[0];
+
+                    if (existente.data().status !== 'Ativo') throw new Error('Este CNPJ já existe, mas está inativo. Solicite a reativação.');
+
+                    clienteId = existente.id; nomeFinal = existente.data().nome || nome; localizado = true;
+
+                } else {
+
+                    const coords = await obterCoordsPorEndereco(enderecoCompleto);
+
+                    exigirSessao(sessao);
+
+                    if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
+
+                    clienteId = 'cli_' + codigo;
+                    const ref = doc(db,'clientes',clienteId);
+
+                    const resultado = await runTransaction(db, async tx => {
+                        const atual = await tx.get(ref); exigirSessao(sessao);
+                        if (atual.exists()) {
+                            if (atual.data().status !== 'Ativo') throw new Error('Este CNPJ está inativo. Solicite a reativação.');
+                            return { nome: atual.data().nome || nome, localizado: true };
+                        }
+                        const agora = new Date();
+                        tx.set(ref, { codigoCnpj: codigo, nome, cidade, uf, enderecoCompleto,
+                            lat: Number(coords.lat), lng: Number(coords.lng), status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
+                        return { nome, localizado: false };
+                    });
+                    nomeFinal = resultado.nome; localizado = resultado.localizado;
+                }
+            } else {
+                // Sem CNPJ: ID aleatório e cadastro provisório, sem tentativa de detectar duplicidade.
+                const coords = await obterCoordsPorEndereco(enderecoCompleto);
+                exigirSessao(sessao);
                 if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
 
-                clienteId = 'cli_' + codigo;
-
-                const ref = doc(db,'clientes',clienteId);
-
-                const resultado = await runTransaction(db, async tx => {
-
-                    const atual = await tx.get(ref); exigirSessao(sessao);
-
-                    if (atual.exists()) {
-
-                        if (atual.data().status !== 'Ativo') throw new Error('Este CNPJ está inativo. Solicite a reativação.');
-
-                        return { nome: atual.data().nome || nome, localizado: true };
-
-                    }
-
-                    const agora = new Date();
-
-                    tx.set(ref, { codigoCnpj: codigo, nome, cidade, uf, enderecoCompleto,
-
-                        lat: Number(coords.lat), lng: Number(coords.lng), status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
-
-                    return { nome, localizado: false };
-
+                const ref = doc(collection(db,'clientes'));
+                const agora = new Date();
+                await runTransaction(db, async tx => {
+                    tx.set(ref, { nome, cidade, uf, enderecoCompleto,
+                        lat: Number(coords.lat), lng: Number(coords.lng), status: 'Provisorio',
+                        criadoEm: agora, atualizadoEm: agora, criadoPor: sessao.id });
                 });
-
-                nomeFinal = resultado.nome; localizado = resultado.localizado;
-
+                clienteId = ref.id;
             }
 
             if (!sessaoValida(sessao)) return;
@@ -1870,7 +1880,9 @@ function configurarTelaCadastroCliente() {
 
             limparCadastroCliente(); mostrarApenasTela('tela-nova-visita');
 
-            window.mostrarAlerta('Sucesso', localizado ? 'Cliente existente selecionado.' : 'Loja salva com coordenadas do endereço informado.');
+            window.mostrarAlerta('Sucesso', codigo
+                ? (localizado ? 'Cliente existente selecionado.' : 'Loja salva com coordenadas do endereço informado.')
+                : 'Loja provisória salva. Ela poderá ser revisada posteriormente.');
 
         } catch (erro) { informarErro('Não foi possível salvar a loja', erro); }
 
