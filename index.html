@@ -586,6 +586,8 @@
             <div class="card-box" style="text-align: center; margin-top: 20px;">
                 <p style="color: #777; margin-bottom: 20px;">Gerencie a sua conta e preferências aqui.</p>
                 <button class="btn-outline-red" id="btn-configuracoes">Configurações</button>
+                <button class="btn-outline-red" id="btn-exportar-schema" style="margin-top: 12px;">Exportar schema do banco</button>
+                <p style="color: #777; font-size: 0.78rem; line-height: 1.4; margin: 12px 0 0;">Exporta somente a estrutura do Firestore, sem dados dos documentos.</p>
             </div>
         </main>
 
@@ -823,6 +825,7 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');
