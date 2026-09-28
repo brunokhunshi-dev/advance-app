@@ -1039,3 +1039,43 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .visualizador-cancelada { color: #555555 !important; }
 .hist-status-andamento,
 .visualizador-andamento { color: #040438 !important; }
+
+
+/* === SPLASH SCREEN DO PWA === */
+.pwa-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #F9F9FA;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.pwa-splash-hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+.pwa-splash-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    text-align: center;
+}
+.pwa-splash-icon {
+    display: block;
+    width: 112px;
+    height: 112px;
+    object-fit: contain;
+}
+.pwa-splash-name {
+    color: #040438;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
