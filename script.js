@@ -37,7 +37,8 @@ let dataCheckinAtual = null;
 let objetoAtividadeGlobal = null; 
 
 let objetoRelatorioGlobal = null;
-let checkoutPendenteGlobal = null; 
+let checkoutPendenteGlobal = null;
+let fechamentoManualPendente = null; 
 
 
 
@@ -270,6 +271,8 @@ function preencherCheckout(atividade, relatorio, saida) {
     mostrarApenasTela('tela-checkout');
     window.scrollTo(0, 0);
 }
+class ErroCheckoutLocalizacao extends Error {}
+
 function validarPrecisaoGps(pos) {
     const accuracy = Number(pos?.coords?.accuracy);
     if (!Number.isFinite(accuracy) || accuracy < 0) throw new Error('O GPS não retornou uma precisão válida.');
@@ -281,7 +284,7 @@ function limparEstadoVisita() {
 
     atividadeSelecionadaId = null; clienteSelecionadoId = null; clienteSelecionadoNome = '';
 
-    dataCheckinAtual = null; objetoAtividadeGlobal = null; objetoRelatorioGlobal = null; visitaEmEdicao = null; checkoutPendenteGlobal = null;
+    dataCheckinAtual = null; objetoAtividadeGlobal = null; objetoRelatorioGlobal = null; visitaEmEdicao = null; checkoutPendenteGlobal = null; fechamentoManualPendente = null;
 
 }
 
@@ -347,7 +350,7 @@ function inicializarAplicativo() {
 
     // Alertas precisam continuar visíveis quando o app-container está oculto.
 
-    ['modal-alerta-generico','modal-aviso-andamento','modal-confirmar-exclusao'].forEach(id => {
+    ['modal-alerta-generico','modal-aviso-andamento','modal-confirmar-exclusao','modal-fechamento-manual'].forEach(id => {
 
         const el = document.getElementById(id); if (el) document.body.appendChild(el);
 
@@ -831,6 +834,7 @@ async function carregarAgenda() {
 
 
 function obterResultadoHistorico(visita) {
+    if (String(visita.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise') return 'Pendente de análise';
     const valor = String(visita.resultado || '').trim().toLowerCase();
     if (valor === 'resolvido') return 'Resolvido';
     if (valor === 'não resolvido' || valor === 'nao resolvido') return 'Não resolvido';
@@ -842,6 +846,7 @@ function obterClasseResultadoHistorico(resultado) {
     if (resultado === 'Resolvido') return 'hist-status-resolvido';
     if (resultado === 'Não resolvido') return 'hist-status-nao-resolvido';
     if (resultado === 'Cancelada') return 'hist-status-cancelada';
+    if (resultado === 'Pendente de análise') return 'hist-status-pendente-analise';
     return 'hist-status-concluida';
 }
 
@@ -1882,34 +1887,46 @@ async function encerrarVisita(id, btn) {
     btn.textContent = 'Obtendo GPS de saída...';
     try {
         const sessao = sessaoAtual();
-        const pos = await obterPosicao();
+        let pos;
+        try { pos = await obterPosicao(); }
+        catch (erro) { throw new ErroCheckoutLocalizacao(erro.message); }
         exigirSessao(sessao);
-        const accuracy = validarPrecisaoGps(pos);
+
+        let accuracy;
+        try { accuracy = validarPrecisaoGps(pos); }
+        catch (erro) { throw new ErroCheckoutLocalizacao(erro.message); }
+
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        if (!coordenadasValidas(lat, lng)) throw new Error('Coordenadas de saída inválidas.');
-        const endereco = await obterEnderecoPorCoords(lat, lng);
-        exigirSessao(sessao);
+        if (!coordenadasValidas(lat, lng)) throw new ErroCheckoutLocalizacao('O GPS retornou coordenadas inválidas.');
 
         const ref = doc(db, 'atividades', id);
         const snap = await getDoc(ref);
         if (!snap.exists()) throw new Error('Visita não encontrada.');
+
         const atividade = { ...snap.data(), id };
         validarResponsavel(atividade, sessao);
         if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
         if (!atividade.relatorioId) throw new Error('Salve o relatório antes de iniciar o check-out.');
 
+        const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
+        if (!cliente || !coordenadasValidas(cliente.lat, cliente.lng)) throw new ErroCheckoutLocalizacao('Não foi possível validar a localização da loja.');
+
+        const distancia = calcularDistancia(Number(lat), Number(lng), Number(cliente.lat), Number(cliente.lng));
+        if (!Number.isFinite(distancia) || distancia > 500) throw new ErroCheckoutLocalizacao('Você está a ' + Math.round(distancia) + ' m da loja. A distância máxima para o check-out é 500 m.');
+
+        const endereco = await obterEnderecoPorCoords(lat, lng);
+        exigirSessao(sessao);
         const relSnap = await getDoc(doc(db, 'relatorios', atividade.relatorioId));
         if (!relSnap.exists() || relSnap.data().atividadeId !== id || relSnap.data().ptvId !== sessao.id || !String(relSnap.data().textoAtual || '').trim()) {
             throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
         }
 
-        const relatorio = { ...relSnap.data(), id: relSnap.id };
-        const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
         objetoAtividadeGlobal = atividade;
-        objetoRelatorioGlobal = relatorio;
-        preencherCheckout(atividade, relatorio, saida);
+        objetoRelatorioGlobal = { ...relSnap.data(), id: relSnap.id };
+        preencherCheckout(atividade, objetoRelatorioGlobal, { dataHora: new Date(), lat, lng, accuracy, endereco });
     } catch (erro) {
-        informarErro('Erro no check-out', erro);
+        if (erro instanceof ErroCheckoutLocalizacao) abrirModalFechamentoManual(id, erro.message);
+        else informarErro('Erro no check-out', erro);
     } finally {
         operacaoEmCurso = false;
         btn.disabled = false;
@@ -2068,7 +2085,98 @@ function atualizarInterfaceVisitaAtual() {
 
 
 
+function abrirModalFechamentoManual(atividadeId, mensagem) {
+    fechamentoManualPendente = { atividadeId };
+    const modal = document.getElementById('modal-fechamento-manual');
+    document.getElementById('fechamento-manual-mensagem').textContent = mensagem || 'A localização de saída não pôde ser validada.';
+    document.getElementById('fechamento-manual-pergunta').style.display = 'block';
+    document.getElementById('fechamento-manual-form').style.display = 'none';
+    document.getElementById('fechamento-manual-motivo').value = '';
+    document.getElementById('fechamento-manual-contador').textContent = '0';
+    modal.style.display = 'flex';
+}
+
+function fecharModalFechamentoManual() {
+    const modal = document.getElementById('modal-fechamento-manual');
+    if (modal) modal.style.display = 'none';
+    fechamentoManualPendente = null;
+}
+
+async function enviarFechamentoManual() {
+    if (operacaoEmCurso || !fechamentoManualPendente?.atividadeId) return;
+    const motivoEl = document.getElementById('fechamento-manual-motivo');
+    const motivo = motivoEl.value.trim();
+    if (motivo.length < 5) return window.mostrarAlerta('Atenção', 'Informe o motivo do fechamento manual.');
+
+    const btn = document.getElementById('btn-enviar-fechamento-manual');
+    const atividadeId = fechamentoManualPendente.atividadeId;
+    operacaoEmCurso = true;
+    btn.disabled = true;
+    btn.textContent = 'ENVIANDO...';
+    try {
+        const sessao = sessaoAtual();
+        await runTransaction(db, async tx => {
+            const atvRef = doc(db, 'atividades', atividadeId);
+            const atvSnap = await tx.get(atvRef);
+            if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
+
+            const atividade = atvSnap.data();
+            validarResponsavel(atividade, sessao);
+            if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
+            if (!atividade.relatorioId) throw new Error('O relatório precisa estar salvo antes do fechamento manual.');
+
+            const relRef = doc(db, 'relatorios', atividade.relatorioId);
+            const relSnap = await tx.get(relRef);
+            if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
+            const relatorio = relSnap.data();
+            if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !String(relatorio.textoAtual || '').trim()) throw new Error('O relatório não está válido.');
+
+            const agora = new Date();
+            const manual = {
+                resultado: 'Pendente de análise',
+                fechamentoTipo: 'Manual',
+                fechamentoAnaliseStatus: 'Pendente de análise',
+                motivoFechamentoManual: motivo,
+                fechamentoSolicitadoEm: agora,
+                fechamentoSolicitadoPor: sessao.id,
+                checkoutDataHora: agora,
+                atualizadoEm: agora
+            };
+
+            tx.update(atvRef, { ...manual, status: 'Concluída' });
+            tx.update(relRef, { ...manual });
+        });
+
+        if (!sessaoValida(sessao)) return;
+        fecharModalFechamentoManual();
+        limparEstadoVisita();
+        mostrarApenasTela('tela-inicio');
+        await carregarAtividadesPendentes();
+        window.mostrarAlerta('Sucesso', 'Fechamento manual enviado para análise do gestor.');
+    } catch (erro) {
+        informarErro('Não foi possível solicitar o fechamento manual', erro);
+    } finally {
+        operacaoEmCurso = false;
+        btn.disabled = false;
+        btn.textContent = 'ENVIAR';
+    }
+}
 function configurarEventosGlobais() {
+    document.getElementById('btn-fechamento-manual-nao')?.addEventListener('click', fecharModalFechamentoManual);
+    document.getElementById('btn-fechamento-manual-sim')?.addEventListener('click', () => {
+        document.getElementById('fechamento-manual-pergunta').style.display = 'none';
+        document.getElementById('fechamento-manual-form').style.display = 'block';
+        document.getElementById('fechamento-manual-motivo')?.focus();
+    });
+    document.getElementById('btn-fechamento-manual-cancelar')?.addEventListener('click', () => {
+        document.getElementById('fechamento-manual-pergunta').style.display = 'block';
+        document.getElementById('fechamento-manual-form').style.display = 'none';
+    });
+    document.getElementById('fechamento-manual-motivo')?.addEventListener('input', event => {
+        document.getElementById('fechamento-manual-contador').textContent = String(event.target.value.length);
+    });
+    document.getElementById('btn-enviar-fechamento-manual')?.addEventListener('click', enviarFechamentoManual);
+
     document.getElementById('btn-voltar-checkout')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
         checkoutPendenteGlobal = null;
