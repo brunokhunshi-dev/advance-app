@@ -406,12 +406,13 @@ function limparFormularioAssistencia() {
 }
 
 function lerFormularioAssistencia() {
-    const fotos = [...(document.getElementById('at-fotos')?.files || [])].map(file => ({
+    const novasFotos = [...(document.getElementById('at-fotos')?.files || [])].map(file => ({
         nome: file.name,
         tipo: file.type || '',
         tamanho: Number(file.size || 0),
         alteradoEm: Number(file.lastModified || 0)
     }));
+    const fotos = novasFotos.length ? novasFotos : (Array.isArray(objetoRelatorioGlobal?.assistenciaTecnica?.fotosSelecionadas) ? objetoRelatorioGlobal.assistenciaTecnica.fotosSelecionadas : []);
 
     return {
         clienteFinal: valorCampoAssistencia('at-cliente-final'),
@@ -2773,7 +2774,11 @@ function configurarEventosGlobais() {
                         });
                     }
 
+                    dadosCheckout.resultado = atResultado;
                     dadosCheckout.resultadoAssistencia = atResultado;
+                    dadosCheckout.acoesDefinidas = atAcoes;
+                    dadosCheckout.conclusaoTecnica = atConclusao;
+                    dadosCheckout.proximoPasso = atProximoPasso;
                     dadosCheckout.proximoPassoAssistencia = atProximoPasso;
                     atualizacaoRelatorio = {
                         ...dadosCheckout,
