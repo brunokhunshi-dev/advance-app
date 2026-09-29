@@ -78,6 +78,25 @@ let sequenciaAgenda = 0;
 let sequenciaHistorico = 0;
 let filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
 
+const APP_HISTORY_KEY = 'advanceCheck';
+const HASH_POR_TELA = Object.freeze({
+    'tela-inicio': '#inicio',
+    'tela-agenda': '#agenda',
+    'tela-historico': '#historico',
+    'tela-nova-visita': '#nova-visita',
+    'tela-cadastro-cliente': '#cadastro-cliente',
+    'tela-visita-atual': '#visita',
+    'tela-relatorio': '#relatorio',
+    'tela-perfil': '#perfil',
+    'tela-detalhes-visita': '#detalhes-visita',
+    'tela-checkout': '#checkout',
+    'tela-visualizador-visita': '#visualizar-visita'
+});
+let navegacaoHistoricoAtiva = false;
+let estadoNavegacaoAtual = null;
+let ignorarProtecaoRelatorioUmaVez = false;
+
+
 
 
 function escaparHtml(valor) {
@@ -1137,6 +1156,133 @@ function mostrarApenasTela(idTelaAlvo) {
 
     }
 
+}
+
+function urlTela(idTela) {
+    return location.pathname + location.search + (HASH_POR_TELA[idTela] || '#inicio');
+}
+
+function estadoAppValido(estado) {
+    return !!(estado && estado[APP_HISTORY_KEY] === true && HASH_POR_TELA[estado.tela]);
+}
+
+function carregarConteudoTela(idTela) {
+    if (!idUsuarioLogado) return;
+    if (idTela === 'tela-inicio') carregarAtividadesPendentes();
+    else if (idTela === 'tela-agenda') carregarAgenda();
+    else if (idTela === 'tela-historico') carregarHistoricoVisitas();
+    else if (idTela === 'tela-nova-visita') carregarDadosParaAutocomplete();
+}
+
+function ativarHistoricoNavegacao(idTelaInicial = 'tela-inicio') {
+    navegacaoHistoricoAtiva = true;
+    estadoNavegacaoAtual = { [APP_HISTORY_KEY]: true, tela: idTelaInicial, profundidade: 0 };
+    history.replaceState(estadoNavegacaoAtual, '', urlTela(idTelaInicial));
+    mostrarApenasTela(idTelaInicial);
+}
+
+function desativarHistoricoNavegacao() {
+    navegacaoHistoricoAtiva = false;
+    estadoNavegacaoAtual = null;
+    ignorarProtecaoRelatorioUmaVez = false;
+    history.replaceState(null, '', location.pathname + location.search);
+}
+
+function navegarParaTela(idTela, opcoes = {}) {
+    const { substituir = false, carregar = true, forcar = false } = opcoes;
+    if (!HASH_POR_TELA[idTela]) return;
+
+    if (!navegacaoHistoricoAtiva) {
+        mostrarApenasTela(idTela);
+        if (carregar) carregarConteudoTela(idTela);
+        return;
+    }
+
+    if (!forcar && estadoNavegacaoAtual?.tela === idTela) {
+        mostrarApenasTela(idTela);
+        if (carregar) carregarConteudoTela(idTela);
+        return;
+    }
+
+    const profundidadeAtual = Number(estadoNavegacaoAtual?.profundidade || 0);
+    const novoEstado = {
+        [APP_HISTORY_KEY]: true,
+        tela: idTela,
+        profundidade: substituir ? profundidadeAtual : profundidadeAtual + 1
+    };
+
+    if (substituir) history.replaceState(novoEstado, '', urlTela(idTela));
+    else history.pushState(novoEstado, '', urlTela(idTela));
+
+    estadoNavegacaoAtual = novoEstado;
+    mostrarApenasTela(idTela);
+    if (carregar) carregarConteudoTela(idTela);
+}
+
+function relatorioPossuiAlteracoesNaoSalvas() {
+    if (!objetoAtividadeGlobal) return false;
+    const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+
+    if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+        const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
+        const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
+        return JSON.stringify(atual) !== JSON.stringify(salvo);
+    }
+
+    return document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
+}
+
+function voltarNavegacao(fallback = 'tela-inicio') {
+    if (operacaoEmCurso) return;
+
+    const profundidade = Number(estadoNavegacaoAtual?.profundidade || 0);
+    if (navegacaoHistoricoAtiva && profundidade > 0) {
+        history.back();
+        return;
+    }
+
+    if (estadoNavegacaoAtual?.tela === 'tela-relatorio' && relatorioPossuiAlteracoesNaoSalvas()) {
+        window.mostrarConfirmacaoDescarteRelatorio(() => navegarParaTela(fallback, { substituir: true }));
+        return;
+    }
+
+    navegarParaTela(fallback, { substituir: true });
+}
+
+function configurarHistoricoNativo() {
+    window.addEventListener('popstate', event => {
+        if (!navegacaoHistoricoAtiva) return;
+
+        const destino = event.state;
+        const telaAtual = estadoNavegacaoAtual?.tela;
+
+        if (
+            telaAtual === 'tela-relatorio' &&
+            relatorioPossuiAlteracoesNaoSalvas() &&
+            !ignorarProtecaoRelatorioUmaVez
+        ) {
+            const restaurado = estadoNavegacaoAtual || { [APP_HISTORY_KEY]: true, tela: 'tela-relatorio', profundidade: 1 };
+            history.pushState(restaurado, '', urlTela('tela-relatorio'));
+            window.mostrarConfirmacaoDescarteRelatorio(() => {
+                ignorarProtecaoRelatorioUmaVez = true;
+                history.back();
+            });
+            return;
+        }
+
+        ignorarProtecaoRelatorioUmaVez = false;
+
+        if (!estadoAppValido(destino)) return;
+
+        if (telaAtual === 'tela-checkout' && destino.tela !== 'tela-checkout') {
+            checkoutPendenteGlobal = null;
+        }
+
+        estadoNavegacaoAtual = destino;
+        mostrarApenasTela(destino.tela);
+        carregarConteudoTela(destino.tela);
+        window.scrollTo(0, 0);
+    });
 }
 
 
