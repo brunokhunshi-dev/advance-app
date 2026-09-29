@@ -52,7 +52,7 @@ const ADVANCE_SCHEMA = {
                 data: { type: "timestamp", required: true },
                 ptvId: { type: "string", required: true },
                 clienteId: { type: "string", required: true },
-                tipoVisita: { type: "string", required: true, enum: ["Visita técnica", "Treinamento"] },
+                tipoVisita: { type: "string", required: true, enum: ["Visita comercial", "Treinamento", "Assistência técnica"] },
                 nota: { type: "string", required: false },
                 status: { type: "string", required: true, enum: ["Pendente", "Em andamento", "Concluída"] },
                 criadoEm: { type: "timestamp", required: true },
@@ -69,12 +69,12 @@ const ADVANCE_SCHEMA = {
                 objetivo: {
                     type: "string",
                     required: false,
-                    conditional: "tipoVisita = Visita técnica"
+                    conditional: "tipoVisita = Visita comercial"
                 },
                 oportunidadeIdentificada: {
                     type: "string",
                     required: false,
-                    conditional: "tipoVisita = Visita técnica",
+                    conditional: "tipoVisita = Visita comercial",
                     enum: ["Sim", "Não"]
                 },
                 categoriaTreinamento: {
@@ -91,6 +91,17 @@ const ADVANCE_SCHEMA = {
                     type: "string",
                     required: false,
                     conditional: "tipoVisita = Treinamento"
+                },
+                resultadoAssistencia: {
+                    type: "string",
+                    required: false,
+                    conditional: "tipoVisita = Assistência técnica após check-out",
+                    enum: ["Resolvido", "Acompanhar", "Nova visita", "Aguardando cliente"]
+                },
+                proximoPassoAssistencia: {
+                    type: "string",
+                    required: false,
+                    conditional: "tipoVisita = Assistência técnica após check-out"
                 },
                 resultado: {
                     type: "string",
@@ -146,16 +157,53 @@ const ADVANCE_SCHEMA = {
                 },
                 criadoEm: { type: "timestamp", required: true },
                 atualizadoEm: { type: "timestamp", required: true },
-                tipoVisita: { type: "string", required: false, conditional: "após check-out", enum: ["Visita técnica", "Treinamento"] },
+                tipoVisita: { type: "string", required: false, conditional: "após check-out", enum: ["Visita comercial", "Treinamento"] },
                 checkoutDataHora: { type: "timestamp", required: false, conditional: "após check-out ou fechamento manual" },
                 checkoutGps: { type: "string", required: false, conditional: "após check-out validado" },
                 checkoutGpsAccuracy: { type: "number", required: false, conditional: "após check-out validado" },
                 checkoutEndereco: { type: "string", required: false, conditional: "após check-out validado" },
-                objetivo: { type: "string", required: false, conditional: "visita técnica após check-out" },
-                oportunidadeIdentificada: { type: "string", required: false, conditional: "visita técnica após check-out", enum: ["Sim", "Não"] },
+                objetivo: { type: "string", required: false, conditional: "visita comercial após check-out" },
+                oportunidadeIdentificada: { type: "string", required: false, conditional: "visita comercial após check-out", enum: ["Sim", "Não"] },
                 categoriaTreinamento: { type: "string", required: false, conditional: "treinamento após check-out" },
                 quantidadeParticipantes: { type: "number", required: false, conditional: "treinamento após check-out" },
                 publicoAtendido: { type: "string", required: false, conditional: "treinamento após check-out" },
+                assistenciaTecnica: {
+                    type: "object",
+                    required: false,
+                    conditional: "tipoVisita = Assistência técnica",
+                    fields: {
+                        clienteFinal: { type: "string", required: false },
+                        contato: { type: "string", required: false },
+                        setor: { type: "string", required: false },
+                        enderecoAplicacao: { type: "string", required: false },
+                        empresaAplicacao: { type: "string", required: false },
+                        responsavelEmpresa: { type: "string", required: false },
+                        acompanhadoPor: { type: "string", required: false },
+                        superficie: { type: "string", required: false },
+                        dataAplicacao: { type: "string", required: false },
+                        houveEspecificacao: { type: "string", required: false, enum: ["Sim", "Não"] },
+                        numeroEspecificacao: { type: "string", required: false },
+                        produto: { type: "string", required: false },
+                        lote: { type: "string", required: false },
+                        cor: { type: "string", required: false },
+                        queixa: { type: "string", required: false },
+                        esquemaPintura: { type: "string", required: false },
+                        preparoSuperficie: { type: "string", required: false },
+                        metodosLimpeza: { type: "array<string>", required: false },
+                        impactoClimatico: { type: "string", required: false, enum: ["Sim", "Não"] },
+                        impactoClimaticoDetalhe: { type: "string", required: false },
+                        ferramentasAplicacao: { type: "array<string>", required: false },
+                        itensVerificados: { type: "array<string>", required: false },
+                        umidade: { type: "string", required: false },
+                        umidadeReferencia: { type: "string", required: false },
+                        constatacoes: { type: "string", required: false },
+                        fotosSelecionadas: { type: "array<object>", required: false, note: "Metadados locais; armazenamento dos arquivos depende de serviço externo." },
+                        acoesDefinidas: { type: "string", required: false, conditional: "checkout" },
+                        conclusaoTecnica: { type: "string", required: false, conditional: "checkout" },
+                        resultado: { type: "string", required: false, conditional: "checkout", enum: ["Resolvido", "Acompanhar", "Nova visita", "Aguardando cliente"] },
+                        proximoPasso: { type: "string", required: false, conditional: "checkout" }
+                    }
+                },
                 resultado: { type: "string", required: false, conditional: "fechamento manual" },
                 fechamentoTipo: { type: "string", required: false, conditional: "fechamento manual", enum: ["Manual"] },
                 fechamentoAnaliseStatus: { type: "string", required: false, conditional: "fechamento manual", enum: ["Pendente de análise"] },
