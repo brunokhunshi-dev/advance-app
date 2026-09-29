@@ -16,8 +16,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=assistencia-2">
-    <link rel="stylesheet" href="pwa-mobile.css?v=assistencia-2">
+    <link rel="stylesheet" href="styles.css?v=assistencia-3">
+    <link rel="stylesheet" href="pwa-mobile.css?v=assistencia-3">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
@@ -249,15 +249,9 @@
                 </div>
             </section>
 
-            <section class="visualizador-tipo-section assistencia-relatorio-visual" id="visu-assistencia" style="display:none;">
-                <div class="assistencia-relatorio-cabecalho">
-                    <div>
-                        <span>RELATÓRIO TÉCNICO</span>
-                        <h2>Assistência técnica</h2>
-                    </div>
-                    <div id="visu-at-status" class="assistencia-relatorio-status">Em análise</div>
-                </div>
-                <div id="visu-at-relatorio-visual" class="assistencia-relatorio-conteudo"></div>
+            <section class="visualizador-tipo-section" id="visu-assistencia" style="display:none;">
+                <h2>Assistência técnica</h2>
+                <div id="visu-at-relatorio-visual"></div>
             </section>
 
             <section class="visualizador-section">
@@ -980,9 +974,9 @@
                 <div class="checkout-relatorio-box" id="checkout-relatorio-final">Nenhum relatório salvo.</div>
             </section>
 
-            <section class="checkout-relatorio-section checkout-assistencia-preview" id="checkout-assistencia-preview" style="display:none;">
-                <label>Prévia do relatório</label>
-                <div id="checkout-at-preview" class="assistencia-relatorio-conteudo assistencia-relatorio-conteudo-preview"></div>
+            <section class="checkout-relatorio-section" id="checkout-assistencia-preview" style="display:none;">
+                <label>Relatório preenchido</label>
+                <div id="checkout-at-preview"></div>
             </section>
 
             <div class="checkout-acoes">
@@ -1059,7 +1053,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=assistencia-2"></script>
+    <script type="module" src="script.js?v=assistencia-3"></script>
     <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {
