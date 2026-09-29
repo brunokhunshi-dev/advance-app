@@ -109,6 +109,15 @@ export async function uploadReportImage({ app, relatorioId, file, onProgress }) 
   };
 }
 
+export async function getReportImageUrl({ app, path }) {
+  if (!path) throw new Error('Caminho da imagem não informado.');
+  return getDownloadURL(ref(getAdvanceStorage(app), path));
+}
+
+export function isStorageEmulatorActive() {
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+
 export async function deleteReportImage({ app, path }) {
   if (!path) return;
   await deleteObject(ref(getAdvanceStorage(app), path));
