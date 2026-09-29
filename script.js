@@ -287,6 +287,47 @@ function normalizarTipoVisita(atividade) {
     return 'Visita comercial';
 }
 
+const COLECOES_RELATORIO = Object.freeze({
+    'Visita comercial': 'relatorios_comerciais',
+    'Treinamento': 'relatorios_treinamentos',
+    'Assistência técnica': 'relatorios_assistencia_tecnica'
+});
+
+function colecaoRelatorioPorTipo(tipoOuAtividade) {
+    const tipo = typeof tipoOuAtividade === 'string' ? normalizarTipoVisita({ tipoVisita: tipoOuAtividade }) : normalizarTipoVisita(tipoOuAtividade || {});
+    return COLECOES_RELATORIO[tipo] || 'relatorios_comerciais';
+}
+
+function colecaoRelatorioDaAtividade(atividade, paraNovo = false) {
+    const explicita = String(atividade?.relatorioColecao || '').trim();
+    if (explicita) return explicita;
+    // Registros antigos já vinculados continuam na coleção histórica.
+    if (atividade?.relatorioId && !paraNovo) return 'relatorios';
+    return colecaoRelatorioPorTipo(atividade);
+}
+
+function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, paraNovo = false) {
+    if (!relatorioId) return null;
+    return doc(db, colecaoRelatorioDaAtividade(atividade, paraNovo), relatorioId);
+}
+
+async function carregarRelatorioDaAtividade(atividade) {
+    if (!atividade?.relatorioId) return null;
+    const ref = referenciaRelatorio(atividade);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
+}
+
+function relatorioValidoParaCheckout(relatorio, tipo) {
+    if (!relatorio) return false;
+    if (tipo === 'Assistência técnica') {
+        const dados = relatorio.assistenciaTecnica || {};
+        return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());
+    }
+    return Boolean(String(relatorio.textoAtual || '').trim());
+}
+
 function formatarDataCheckout(valor) {
     const data = obterData(valor);
     if (!data) return '--/--/----';
