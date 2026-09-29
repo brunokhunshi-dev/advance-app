@@ -1106,7 +1106,7 @@ async function carregarAgenda() {
 
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escaparHtml(atividade.enderecoCompleto)}</div>
 
-                    <div class="agenda-motivo">${escaparHtml(atividade.tipoVisita || (atividade.objetivo === "Treinamento" ? "Treinamento" : "Visita técnica"))}</div>
+                    <div class="agenda-motivo">${escaparHtml(normalizarTipoVisita(atividade))}</div>
 
                     ${botaoGpsHTML}
 
@@ -1601,15 +1601,26 @@ function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
 
     const tecnica = document.getElementById('pdf-tecnica-table');
     const treinamento = document.getElementById('pdf-treinamento-table');
+    const assistencia = document.getElementById('pdf-assistencia-table');
 
-    tecnica.style.display = tipo === 'Treinamento' ? 'none' : 'table';
+    tecnica.style.display = tipo === 'Visita comercial' ? 'table' : 'none';
     treinamento.style.display = tipo === 'Treinamento' ? 'table' : 'none';
+    assistencia.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'table' : 'none';
 
     preencherCelulaPdf('pdf-objetivo', atividade.objetivo);
     preencherCelulaPdf('pdf-oportunidade', atividade.oportunidadeIdentificada);
     preencherCelulaPdf('pdf-categoria', atividade.categoriaTreinamento);
     preencherCelulaPdf('pdf-participantes', atividade.quantidadeParticipantes);
     preencherCelulaPdf('pdf-publico', atividade.publicoAtendido);
+
+    const dadosAssistencia = relatorio?.assistenciaTecnica || {};
+    preencherCelulaPdf('pdf-at-cliente-final', dadosAssistencia.clienteFinal);
+    preencherCelulaPdf('pdf-at-produto', dadosAssistencia.produto);
+    preencherCelulaPdf('pdf-at-lote', dadosAssistencia.lote);
+    preencherCelulaPdf('pdf-at-queixa', dadosAssistencia.queixa);
+    preencherCelulaPdf('pdf-at-constatacoes', dadosAssistencia.constatacoes);
+    preencherCelulaPdf('pdf-at-conclusao', dadosAssistencia.conclusaoTecnica);
+    preencherCelulaPdf('pdf-at-resultado', dadosAssistencia.resultado);
 
     preencherCelulaPdf('pdf-nota', atividade.nota);
     preencherCelulaPdf('pdf-relatorio', relatorio?.textoAtual);
@@ -1650,14 +1661,22 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     if (enderecoCliente) enderecoCliente.textContent = cliente?.enderecoCompleto || 'Endereço não informado';
 
     const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('visu-tecnica').style.display = tipo === 'Treinamento' ? 'none' : 'block';
+    document.getElementById('visu-tecnica').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
     document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+    document.getElementById('visu-assistencia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
 
     preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
     preencherCampoVisualizador('visu-oportunidade', atividade.oportunidadeIdentificada);
     preencherCampoVisualizador('visu-categoria', atividade.categoriaTreinamento);
     preencherCampoVisualizador('visu-participantes', atividade.quantidadeParticipantes);
     preencherCampoVisualizador('visu-publico', atividade.publicoAtendido);
+
+    const dadosAssistencia = relatorio?.assistenciaTecnica || {};
+    preencherCampoVisualizador('visu-at-cliente-final', dadosAssistencia.clienteFinal);
+    preencherCampoVisualizador('visu-at-produto', dadosAssistencia.produto);
+    preencherCampoVisualizador('visu-at-queixa', dadosAssistencia.queixa);
+    preencherCampoVisualizador('visu-at-conclusao', dadosAssistencia.conclusaoTecnica);
+    preencherCampoVisualizador('visu-at-resultado', dadosAssistencia.resultado);
     preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
     preencherCampoVisualizador('visu-relatorio', relatorio?.textoAtual, 'Nenhum relatório registrado.');
 
@@ -2659,28 +2678,40 @@ function configurarEventosGlobais() {
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
         if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;
+
         const btn = document.getElementById('btn-concluir-checkout');
         const atividadeId = checkoutPendenteGlobal.atividadeId;
         const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+
         const objetivo = document.getElementById('checkout-objetivo').value.trim();
         const oportunidade = document.querySelector('input[name="checkoutOportunidade"]:checked')?.value || '';
         const categoria = document.getElementById('checkout-categoria').value.trim();
         const participantesTexto = document.getElementById('checkout-participantes').value.trim();
         const publico = document.getElementById('checkout-publico').value.trim();
 
+        const atAcoes = document.getElementById('checkout-at-acoes').value.trim();
+        const atConclusao = document.getElementById('checkout-at-conclusao').value.trim();
+        const atResultado = document.querySelector('input[name="checkoutAtResultado"]:checked')?.value || '';
+        const atProximoPasso = document.getElementById('checkout-at-proximo-passo').value.trim();
+
         if (tipo === 'Treinamento') {
             if (!categoria) return window.mostrarAlerta('Atenção', 'Selecione a categoria do treinamento.');
             const participantes = Number(participantesTexto);
             if (!Number.isInteger(participantes) || participantes < 1 || participantes > 10000) return window.mostrarAlerta('Atenção', 'Informe uma quantidade válida de participantes.');
             if (!publico) return window.mostrarAlerta('Atenção', 'Selecione o público atendido.');
+        } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+            if (!atAcoes) return window.mostrarAlerta('Atenção', 'Informe as ações definidas.');
+            if (!atConclusao) return window.mostrarAlerta('Atenção', 'Informe a conclusão técnica.');
+            if (!atResultado) return window.mostrarAlerta('Atenção', 'Selecione o resultado da assistência.');
         } else {
-            if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita.');
+            if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita comercial.');
             if (!oportunidade) return window.mostrarAlerta('Atenção', 'Informe se houve oportunidade identificada.');
         }
 
         operacaoEmCurso = true;
         btn.disabled = true;
         btn.textContent = 'Concluindo...';
+
         try {
             const sessao = sessaoAtual();
             const saida = checkoutPendenteGlobal.posicao;
@@ -2690,6 +2721,7 @@ function configurarEventosGlobais() {
                 const atvRef = doc(db, 'atividades', atividadeId);
                 const atvSnap = await tx.get(atvRef);
                 if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
+
                 const atividade = atvSnap.data();
                 validarResponsavel(atividade, sessao);
                 if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
@@ -2699,8 +2731,11 @@ function configurarEventosGlobais() {
                 const relRef = doc(db, 'relatorios', atividade.relatorioId);
                 const relSnap = await tx.get(relRef);
                 if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
+
                 const relatorioAtual = relSnap.data();
-                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !String(relatorioAtual.textoAtual || '').trim()) throw new Error('O relatório não está válido.');
+                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !String(relatorioAtual.textoAtual || '').trim()) {
+                    throw new Error('O relatório não está válido.');
+                }
 
                 const agora = new Date();
                 const dadosCheckout = {
@@ -2711,17 +2746,50 @@ function configurarEventosGlobais() {
                     checkoutEndereco: saida.endereco
                 };
 
+                let atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
+
                 if (tipo === 'Treinamento') {
                     dadosCheckout.categoriaTreinamento = categoria;
                     dadosCheckout.quantidadeParticipantes = Number(participantesTexto);
                     dadosCheckout.publicoAtendido = publico;
+                    atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
+                } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+                    const assistenciaTecnica = {
+                        ...(relatorioAtual.assistenciaTecnica || {}),
+                        acoesDefinidas: atAcoes,
+                        conclusaoTecnica: atConclusao,
+                        resultado: atResultado,
+                        proximoPasso: atProximoPasso
+                    };
+                    const textoFinal = gerarResumoAssistenciaTecnica(assistenciaTecnica);
+                    const historico = Array.isArray(relatorioAtual.historico) ? [...relatorioAtual.historico] : [];
+
+                    if (relatorioAtual.textoAtual !== textoFinal) {
+                        historico.push({
+                            texto: textoFinal,
+                            assistenciaTecnica,
+                            etapa: 'checkout',
+                            salvoEm: agora
+                        });
+                    }
+
+                    dadosCheckout.resultadoAssistencia = atResultado;
+                    dadosCheckout.proximoPassoAssistencia = atProximoPasso;
+                    atualizacaoRelatorio = {
+                        ...dadosCheckout,
+                        assistenciaTecnica,
+                        textoAtual: textoFinal,
+                        historico,
+                        atualizadoEm: agora
+                    };
                 } else {
                     dadosCheckout.objetivo = objetivo;
                     dadosCheckout.oportunidadeIdentificada = oportunidade;
+                    atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
                 }
 
                 tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora });
-                tx.update(relRef, { ...dadosCheckout, atualizadoEm: agora });
+                tx.update(relRef, atualizacaoRelatorio);
             });
 
             if (!sessaoValida(sessao)) return;
@@ -2734,7 +2802,7 @@ function configurarEventosGlobais() {
             limparEstadoVisita();
             mostrarApenasTela('tela-historico');
             await carregarHistoricoVisitas();
-            window.mostrarAlerta('Sucesso', 'Visita concluída.');
+            window.mostrarAlerta('Sucesso', tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica concluída.' : 'Visita concluída.');
         } catch (erro) {
             informarErro('Erro ao concluir visita', erro);
         } finally {
