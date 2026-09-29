@@ -1222,6 +1222,19 @@ function navegarParaTela(idTela, opcoes = {}) {
     if (carregar) carregarConteudoTela(idTela);
 }
 
+function abrirCamadaHistorica(nome) {
+    if (!navegacaoHistoricoAtiva || !estadoNavegacaoAtual || estadoNavegacaoAtual.overlay === nome) return;
+
+    const novoEstado = {
+        ...estadoNavegacaoAtual,
+        overlay: nome,
+        profundidade: Number(estadoNavegacaoAtual.profundidade || 0) + 1
+    };
+
+    history.pushState(novoEstado, '', urlTela(estadoNavegacaoAtual.tela));
+    estadoNavegacaoAtual = novoEstado;
+}
+
 function relatorioPossuiAlteracoesNaoSalvas() {
     if (!objetoAtividadeGlobal) return false;
     const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
@@ -1258,6 +1271,16 @@ function configurarHistoricoNativo() {
 
         const destino = event.state;
         const telaAtual = estadoNavegacaoAtual?.tela;
+
+        if (estadoNavegacaoAtual?.overlay === 'checkin') {
+            document.getElementById('tela-confirmacao').style.display = 'none';
+            if (estadoAppValido(destino)) {
+                estadoNavegacaoAtual = destino;
+                mostrarApenasTela(destino.tela);
+                carregarConteudoTela(destino.tela);
+            }
+            return;
+        }
 
         if (
             telaAtual === 'tela-relatorio' &&
@@ -2642,6 +2665,7 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
     document.getElementById('data-hora-atual').textContent = formatarDataHoraPT(new Date()).completo; 
 
     telaConfirmacao.style.display = 'flex';
+    abrirCamadaHistorica('checkin');
 
 }
 
@@ -2657,9 +2681,9 @@ function configurarBotoesModal() {
 
 
     document.getElementById('btn-voltar')?.addEventListener('click', () => {
-
-        if (!operacaoEmCurso) document.getElementById('tela-confirmacao').style.display = 'none';
-
+        if (operacaoEmCurso) return;
+        if (estadoNavegacaoAtual?.overlay === 'checkin') history.back();
+        else document.getElementById('tela-confirmacao').style.display = 'none';
     });
 
     document.getElementById('btn-iniciar')?.addEventListener('click', async () => {
@@ -2741,7 +2765,11 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
     document.getElementById('tela-confirmacao').style.display = 'none';
 
-    mostrarApenasTela('tela-inicio'); await carregarAtividadesPendentes();
+    if (estadoNavegacaoAtual?.overlay === 'checkin') history.back();
+    else {
+        mostrarApenasTela('tela-inicio');
+        await carregarAtividadesPendentes();
+    }
 
 }
 
