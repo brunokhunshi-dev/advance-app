@@ -3020,6 +3020,13 @@ function configurarEventosGlobais() {
         document.getElementById('at-fotos-status').textContent = total ? total + (total === 1 ? ' foto selecionada' : ' fotos selecionadas') : 'Use a câmera ou selecione imagens do aparelho';
     });
 
+    ['checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', atualizarPreviewCheckoutAssistencia);
+    });
+    document.querySelectorAll('input[name="checkoutAtResultado"]').forEach(input => {
+        input.addEventListener('change', atualizarPreviewCheckoutAssistencia);
+    });
+
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
 
