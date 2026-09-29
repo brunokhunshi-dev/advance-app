@@ -78,6 +78,25 @@ let sequenciaAgenda = 0;
 let sequenciaHistorico = 0;
 let filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
 
+const APP_HISTORY_KEY = 'advanceCheck';
+const HASH_POR_TELA = Object.freeze({
+    'tela-inicio': '#inicio',
+    'tela-agenda': '#agenda',
+    'tela-historico': '#historico',
+    'tela-nova-visita': '#nova-visita',
+    'tela-cadastro-cliente': '#cadastro-cliente',
+    'tela-visita-atual': '#visita',
+    'tela-relatorio': '#relatorio',
+    'tela-perfil': '#perfil',
+    'tela-detalhes-visita': '#detalhes-visita',
+    'tela-checkout': '#checkout',
+    'tela-visualizador-visita': '#visualizar-visita'
+});
+let navegacaoHistoricoAtiva = false;
+let estadoNavegacaoAtual = null;
+let ignorarProtecaoRelatorioUmaVez = false;
+
+
 
 
 function escaparHtml(valor) {
@@ -464,7 +483,7 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
     if (tipo === ASSISTENCIA_TECNICA_TIPO) atualizarPreviewCheckoutAssistencia();
 
-    mostrarApenasTela('tela-checkout');
+    navegarParaTela('tela-checkout', { carregar: false });
     window.scrollTo(0, 0);
 }
 
@@ -822,6 +841,7 @@ function inicializarAplicativo() {
 
     });
 
+    configurarHistoricoNativo();
     configurarNavegacao(); configurarBotoesModal(); configurarEventosGlobais(); configurarFiltroHistorico();
 
     configurarTelaNovaVisita(); configurarTelaCadastroCliente(); configurarTelaDetalhesVisita();
@@ -890,6 +910,7 @@ function inicializarAplicativo() {
 
         document.getElementById('tela-login').style.display = 'flex';
 
+        desativarHistoricoNavegacao();
         mostrarApenasTela('tela-inicio');
 
         const btn = document.getElementById('btn-entrar');
@@ -936,6 +957,7 @@ function inicializarAplicativo() {
 
             document.getElementById('login-senha').value = '';
 
+            ativarHistoricoNavegacao('tela-inicio');
             await carregarAtividadesPendentes();
 
         } catch (erro) {
@@ -1137,6 +1159,156 @@ function mostrarApenasTela(idTelaAlvo) {
 
     }
 
+}
+
+function urlTela(idTela) {
+    return location.pathname + location.search + (HASH_POR_TELA[idTela] || '#inicio');
+}
+
+function estadoAppValido(estado) {
+    return !!(estado && estado[APP_HISTORY_KEY] === true && HASH_POR_TELA[estado.tela]);
+}
+
+function carregarConteudoTela(idTela) {
+    if (!idUsuarioLogado) return;
+    if (idTela === 'tela-inicio') carregarAtividadesPendentes();
+    else if (idTela === 'tela-agenda') carregarAgenda();
+    else if (idTela === 'tela-historico') carregarHistoricoVisitas();
+    else if (idTela === 'tela-nova-visita') carregarDadosParaAutocomplete();
+}
+
+function ativarHistoricoNavegacao(idTelaInicial = 'tela-inicio') {
+    navegacaoHistoricoAtiva = true;
+    estadoNavegacaoAtual = { [APP_HISTORY_KEY]: true, tela: idTelaInicial, profundidade: 0 };
+    history.replaceState(estadoNavegacaoAtual, '', urlTela(idTelaInicial));
+    mostrarApenasTela(idTelaInicial);
+}
+
+function desativarHistoricoNavegacao() {
+    navegacaoHistoricoAtiva = false;
+    estadoNavegacaoAtual = null;
+    ignorarProtecaoRelatorioUmaVez = false;
+    history.replaceState(null, '', location.pathname + location.search);
+}
+
+function navegarParaTela(idTela, opcoes = {}) {
+    const { substituir = false, carregar = true, forcar = false } = opcoes;
+    if (!HASH_POR_TELA[idTela]) return;
+
+    if (!navegacaoHistoricoAtiva) {
+        mostrarApenasTela(idTela);
+        if (carregar) carregarConteudoTela(idTela);
+        return;
+    }
+
+    if (!forcar && estadoNavegacaoAtual?.tela === idTela) {
+        mostrarApenasTela(idTela);
+        if (carregar) carregarConteudoTela(idTela);
+        return;
+    }
+
+    const profundidadeAtual = Number(estadoNavegacaoAtual?.profundidade || 0);
+    const novoEstado = {
+        [APP_HISTORY_KEY]: true,
+        tela: idTela,
+        profundidade: substituir ? profundidadeAtual : profundidadeAtual + 1
+    };
+
+    if (substituir) history.replaceState(novoEstado, '', urlTela(idTela));
+    else history.pushState(novoEstado, '', urlTela(idTela));
+
+    estadoNavegacaoAtual = novoEstado;
+    mostrarApenasTela(idTela);
+    if (carregar) carregarConteudoTela(idTela);
+}
+
+function abrirCamadaHistorica(nome) {
+    if (!navegacaoHistoricoAtiva || !estadoNavegacaoAtual || estadoNavegacaoAtual.overlay === nome) return;
+
+    const novoEstado = {
+        ...estadoNavegacaoAtual,
+        overlay: nome,
+        profundidade: Number(estadoNavegacaoAtual.profundidade || 0) + 1
+    };
+
+    history.pushState(novoEstado, '', urlTela(estadoNavegacaoAtual.tela));
+    estadoNavegacaoAtual = novoEstado;
+}
+
+function relatorioPossuiAlteracoesNaoSalvas() {
+    if (!objetoAtividadeGlobal) return false;
+    const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+
+    if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+        const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
+        const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
+        return JSON.stringify(atual) !== JSON.stringify(salvo);
+    }
+
+    return document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
+}
+
+function voltarNavegacao(fallback = 'tela-inicio') {
+    if (operacaoEmCurso) return;
+
+    const profundidade = Number(estadoNavegacaoAtual?.profundidade || 0);
+    if (navegacaoHistoricoAtiva && profundidade > 0) {
+        history.back();
+        return;
+    }
+
+    if (estadoNavegacaoAtual?.tela === 'tela-relatorio' && relatorioPossuiAlteracoesNaoSalvas()) {
+        window.mostrarConfirmacaoDescarteRelatorio(() => navegarParaTela(fallback, { substituir: true }));
+        return;
+    }
+
+    navegarParaTela(fallback, { substituir: true });
+}
+
+function configurarHistoricoNativo() {
+    window.addEventListener('popstate', event => {
+        if (!navegacaoHistoricoAtiva) return;
+
+        const destino = event.state;
+        const telaAtual = estadoNavegacaoAtual?.tela;
+
+        if (estadoNavegacaoAtual?.overlay === 'checkin') {
+            document.getElementById('tela-confirmacao').style.display = 'none';
+            if (estadoAppValido(destino)) {
+                estadoNavegacaoAtual = destino;
+                mostrarApenasTela(destino.tela);
+                carregarConteudoTela(destino.tela);
+            }
+            return;
+        }
+
+        if (
+            telaAtual === 'tela-relatorio' &&
+            relatorioPossuiAlteracoesNaoSalvas() &&
+            !ignorarProtecaoRelatorioUmaVez
+        ) {
+            const restaurado = estadoNavegacaoAtual || { [APP_HISTORY_KEY]: true, tela: 'tela-relatorio', profundidade: 1 };
+            history.pushState(restaurado, '', urlTela('tela-relatorio'));
+            window.mostrarConfirmacaoDescarteRelatorio(() => {
+                ignorarProtecaoRelatorioUmaVez = true;
+                history.back();
+            });
+            return;
+        }
+
+        ignorarProtecaoRelatorioUmaVez = false;
+
+        if (!estadoAppValido(destino)) return;
+
+        if (telaAtual === 'tela-checkout' && destino.tela !== 'tela-checkout') {
+            checkoutPendenteGlobal = null;
+        }
+
+        estadoNavegacaoAtual = destino;
+        mostrarApenasTela(destino.tela);
+        carregarConteudoTela(destino.tela);
+        window.scrollTo(0, 0);
+    });
 }
 
 
@@ -1656,7 +1828,7 @@ function configurarTelaNovaVisita() {
 
             divNovo.textContent = `+ Cadastrar novo cliente`;
 
-            divNovo.addEventListener('click', () => { if (operacaoEmCurso) return; limparCadastroCliente(); mostrarApenasTela('tela-cadastro-cliente'); dropCliente.style.display = 'none'; });
+            divNovo.addEventListener('click', () => { if (operacaoEmCurso) return; limparCadastroCliente(); navegarParaTela('tela-cadastro-cliente'); dropCliente.style.display = 'none'; });
 
             dropCliente.appendChild(divNovo);
 
@@ -1741,7 +1913,8 @@ function configurarTelaNovaVisita() {
 
                 window.mostrarAlerta('Sucesso', 'Visita agendada.');
 
-                mostrarApenasTela('tela-agenda'); await carregarAgenda();
+                navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+                await carregarAgenda();
 
             } catch (erro) { informarErro('Não foi possível agendar', erro); }
 
@@ -1903,7 +2076,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
     const clienteEl = document.getElementById('visu-cliente');
 
     area.style.display = 'block';
-    mostrarApenasTela('tela-visualizador-visita');
+    navegarParaTela('tela-visualizador-visita', { carregar: false });
     preencherCampoVisualizador('visu-cliente', 'Carregando...');
     preencherCampoVisualizador('visu-relatorio', 'Carregando...');
     window.scrollTo(0, 0);
@@ -1937,7 +2110,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
         informarErro('Não foi possível abrir a visita', erro);
-        mostrarApenasTela('tela-historico');
+        navegarParaTela('tela-historico', { substituir: true });
     }
 };
 
@@ -2013,7 +2186,7 @@ window.abrirDetalhesVisita = function(index) {
 
 
 
-    mostrarApenasTela('tela-detalhes-visita');
+    navegarParaTela('tela-detalhes-visita', { carregar: false });
 
 };
 
@@ -2021,7 +2194,7 @@ window.abrirDetalhesVisita = function(index) {
 
 function configurarTelaDetalhesVisita() {
 
-    document.getElementById('btn-voltar-detalhes')?.addEventListener('click', () => { if (!operacaoEmCurso) mostrarApenasTela('tela-agenda'); });
+    document.getElementById('btn-voltar-detalhes')?.addEventListener('click', () => voltarNavegacao('tela-agenda'));
 
     document.getElementById('btn-excluir-visita')?.addEventListener('click', () => {
 
@@ -2059,7 +2232,8 @@ function configurarTelaDetalhesVisita() {
 
                 window.mostrarAlerta('Sucesso', 'Visita movida para a lixeira.');
 
-                mostrarApenasTela('tela-agenda'); await carregarAgenda();
+                navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+                await carregarAgenda();
 
             } finally { operacaoEmCurso = false; }
 
@@ -2105,7 +2279,9 @@ function configurarTelaDetalhesVisita() {
 
             if (!sessaoValida(sessao)) return;
 
-            window.mostrarAlerta('Sucesso', 'Visita atualizada.'); mostrarApenasTela('tela-agenda'); await carregarAgenda();
+            window.mostrarAlerta('Sucesso', 'Visita atualizada.');
+            navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+            await carregarAgenda();
 
         } catch (erro) { informarErro('Erro ao atualizar', erro); }
 
@@ -2219,7 +2395,7 @@ function configurarTelaCadastroCliente() {
 
                 nvClienteSelecionadoId = existente.id; campo('nv-cliente').value = existente.data().nome || '';
 
-                limparCadastroCliente(); mostrarApenasTela('tela-nova-visita'); window.mostrarAlerta('Cliente localizado', 'Esta loja já está cadastrada e foi selecionada.'); return;
+                limparCadastroCliente(); voltarNavegacao('tela-nova-visita'); window.mostrarAlerta('Cliente localizado', 'Esta loja já está cadastrada e foi selecionada.'); return;
 
             }
 
@@ -2299,7 +2475,7 @@ function configurarTelaCadastroCliente() {
 
         if (cadastroSalvando) return;
 
-        limparCadastroCliente(); mostrarApenasTela('tela-nova-visita');
+        limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
     });
 
@@ -2393,7 +2569,7 @@ function configurarTelaCadastroCliente() {
 
             nvClienteSelecionadoId = clienteId; campo('nv-cliente').value = nomeFinal;
 
-            limparCadastroCliente(); mostrarApenasTela('tela-nova-visita');
+            limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
             window.mostrarAlerta('Sucesso', codigo
                 ? (localizado ? 'Cliente existente selecionado.' : 'Loja salva com coordenadas do endereço informado.')
@@ -2425,13 +2601,13 @@ function configurarNavegacao() {
 
             this.classList.add('active');
 
-            if (index === 0) { mostrarApenasTela('tela-inicio'); carregarAtividadesPendentes(); } 
+            if (index === 0) navegarParaTela('tela-inicio');
 
-            else if (index === 1) { mostrarApenasTela('tela-agenda'); carregarAgenda(); } 
+            else if (index === 1) navegarParaTela('tela-agenda');
 
-            else if (index === 2) { mostrarApenasTela('tela-historico'); carregarHistoricoVisitas(); }
+            else if (index === 2) navegarParaTela('tela-historico');
 
-            else if (index === 3) { mostrarApenasTela('tela-perfil'); } 
+            else if (index === 3) navegarParaTela('tela-perfil'); 
 
         });
 
@@ -2447,9 +2623,8 @@ function configurarNavegacao() {
 
             if (operacaoEmCurso) return;
 
-            mostrarApenasTela('tela-nova-visita');
-
-            carregarDadosParaAutocomplete(); window.scrollTo(0, 0);
+            navegarParaTela('tela-nova-visita');
+            window.scrollTo(0, 0);
 
         });
 
@@ -2461,7 +2636,7 @@ function configurarNavegacao() {
 
     if (btnCancelarVisita) {
 
-        btnCancelarVisita.addEventListener('click', () => { if (operacaoEmCurso) return; mostrarApenasTela('tela-agenda'); });
+        btnCancelarVisita.addEventListener('click', () => voltarNavegacao('tela-agenda'));
 
     }
 
@@ -2490,6 +2665,7 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
     document.getElementById('data-hora-atual').textContent = formatarDataHoraPT(new Date()).completo; 
 
     telaConfirmacao.style.display = 'flex';
+    abrirCamadaHistorica('checkin');
 
 }
 
@@ -2505,9 +2681,9 @@ function configurarBotoesModal() {
 
 
     document.getElementById('btn-voltar')?.addEventListener('click', () => {
-
-        if (!operacaoEmCurso) document.getElementById('tela-confirmacao').style.display = 'none';
-
+        if (operacaoEmCurso) return;
+        if (estadoNavegacaoAtual?.overlay === 'checkin') history.back();
+        else document.getElementById('tela-confirmacao').style.display = 'none';
     });
 
     document.getElementById('btn-iniciar')?.addEventListener('click', async () => {
@@ -2589,7 +2765,11 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
     document.getElementById('tela-confirmacao').style.display = 'none';
 
-    mostrarApenasTela('tela-inicio'); await carregarAtividadesPendentes();
+    if (estadoNavegacaoAtual?.overlay === 'checkin') history.back();
+    else {
+        mostrarApenasTela('tela-inicio');
+        await carregarAtividadesPendentes();
+    }
 
 }
 
@@ -2763,7 +2943,7 @@ function atualizarInterfaceVisitaAtual() {
             document.getElementById('rel-hora').value = formatoData.hora;
             document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio;
 
-            mostrarApenasTela('tela-relatorio');
+            navegarParaTela('tela-relatorio', { carregar: false });
             document.getElementById('rel-texto')?.blur();
             window.scrollTo(0, 0);
         } catch (erro) {
@@ -2846,7 +3026,7 @@ async function enviarFechamentoManual() {
         if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') throw new Error('O fechamento não foi confirmado no banco. Tente novamente.');
         fecharModalFechamentoManual();
         limparEstadoVisita();
-        mostrarApenasTela('tela-historico');
+        navegarParaTela('tela-historico', { substituir: true, carregar: false });
         await carregarHistoricoVisitas();
         window.mostrarAlerta('Sucesso', 'Fechamento manual enviado para análise do gestor.');
     } catch (erro) {
@@ -2858,10 +3038,7 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
-    document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => {
-        if (operacaoEmCurso) return;
-        mostrarApenasTela('tela-historico');
-    });
+    document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 
 
     document.addEventListener('click', (event) => {
@@ -2900,8 +3077,7 @@ function configurarEventosGlobais() {
     document.getElementById('btn-voltar-checkout')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
         checkoutPendenteGlobal = null;
-        mostrarApenasTela('tela-inicio');
-        atualizarInterfaceVisitaAtual();
+        voltarNavegacao('tela-inicio');
     });
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
@@ -3027,7 +3203,7 @@ function configurarEventosGlobais() {
             }
 
             limparEstadoVisita();
-            mostrarApenasTela('tela-historico');
+            navegarParaTela('tela-historico', { substituir: true, carregar: false });
             await carregarHistoricoVisitas();
             window.mostrarAlerta('Sucesso', tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica concluída.' : 'Visita concluída.');
         } catch (erro) {
@@ -3058,25 +3234,7 @@ function configurarEventosGlobais() {
         input.addEventListener('change', atualizarPreviewCheckoutAssistencia);
     });
 
-    document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => {
-        if (operacaoEmCurso) return;
-
-        const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
-        let alterado = false;
-        if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-            const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
-            const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
-            alterado = JSON.stringify(atual) !== JSON.stringify(salvo);
-        } else {
-            alterado = document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
-        }
-
-        if (alterado) {
-            window.mostrarConfirmacaoDescarteRelatorio(() => mostrarApenasTela('tela-inicio'));
-            return;
-        }
-        mostrarApenasTela('tela-inicio');
-    });
+    document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
     document.getElementById('btn-salvar-relatorio')?.addEventListener('click', async () => {
         if (operacaoEmCurso) return;
@@ -3222,7 +3380,7 @@ function configurarEventosGlobais() {
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
             objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
-            mostrarApenasTela('tela-inicio');
+            navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
             informarErro('Erro ao salvar relatório', erro);
