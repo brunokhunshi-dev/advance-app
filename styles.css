@@ -1257,164 +1257,27 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 }
 
 
-/* === VISUALIZAÇÃO FINAL DO RELATÓRIO DE ASSISTÊNCIA === */
-.assistencia-relatorio-visual{
-    background:#F7F7F9;
-    border-radius:24px;
-    padding:0;
-    overflow:hidden;
+/* === LEITURA DO FORMULÁRIO DE ASSISTÊNCIA === */
+.assistencia-form-view-section{
+    margin-bottom:30px;
 }
-.assistencia-relatorio-cabecalho{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:14px;
-    padding:20px;
-    background:var(--color-dark);
-    color:#fff;
+.assistencia-form-view-section:last-child{
+    margin-bottom:0;
 }
-.assistencia-relatorio-cabecalho span{
-    display:block;
-    margin-bottom:4px;
-    color:rgba(255,255,255,.62);
-    font-size:.68rem;
-    font-weight:800;
-    letter-spacing:.11em;
-}
-.assistencia-relatorio-cabecalho h2{
-    margin:0!important;
-    color:#fff!important;
-    font-size:1.35rem!important;
-}
-.assistencia-relatorio-status{
-    flex:0 0 auto;
-    padding:7px 11px;
-    border-radius:999px;
-    background:#fff;
-    color:var(--color-dark);
-    font-size:.72rem;
-    font-weight:800;
-}
-.assistencia-relatorio-status.is-resolvido{
-    background:#E9F5EC;
-    color:#237A36;
-}
-.assistencia-relatorio-status.is-atencao{
-    background:#FFF3E2;
-    color:#8C5A00;
-}
-.assistencia-relatorio-conteudo{
-    display:grid;
-    gap:12px;
-    padding:14px;
-}
-.assistencia-report-card{
-    background:#fff;
-    border-radius:20px;
-    padding:17px;
-}
-.assistencia-report-card-title{
-    margin-bottom:13px;
-    color:#9B9BA4;
-    font-size:.69rem;
-    font-weight:800;
-    letter-spacing:.09em;
+.assistencia-form-view-section h3{
+    margin:0 0 20px;
+    color:#9A9AB5;
+    font-size:.78rem;
+    font-weight:700;
+    letter-spacing:.04em;
     text-transform:uppercase;
 }
-.assistencia-report-grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px 16px;
+#checkout-at-preview .assistencia-form-view-section{
+    margin-bottom:28px;
 }
-.assistencia-report-item{
-    min-width:0;
+#checkout-at-preview .visualizador-info{
+    margin-bottom:20px;
 }
-.assistencia-report-item.is-wide{
-    grid-column:1/-1;
-}
-.assistencia-report-item label{
-    display:block;
-    margin-bottom:4px;
-    color:#9A9AA2;
-    font-size:.72rem;
-    font-weight:600;
-}
-.assistencia-report-item strong,
-.assistencia-report-item p{
-    margin:0;
+#checkout-at-preview .visualizador-value{
     color:var(--color-dark);
-    font-size:.94rem;
-    font-weight:600;
-    line-height:1.4;
-    overflow-wrap:anywhere;
-}
-.assistencia-report-item p{
-    font-weight:500;
-}
-.assistencia-report-chips{
-    display:flex;
-    flex-wrap:wrap;
-    gap:7px;
-}
-.assistencia-report-chip{
-    display:inline-flex;
-    align-items:center;
-    min-height:30px;
-    padding:6px 10px;
-    border-radius:999px;
-    background:#F2F3F6;
-    color:#51515A;
-    font-size:.75rem;
-    font-weight:600;
-}
-.assistencia-report-highlight{
-    background:#FFF0F2;
-}
-.assistencia-report-highlight .assistencia-report-card-title{
-    color:var(--color-red);
-}
-.assistencia-report-result{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:14px 15px;
-    border-radius:18px;
-    background:#F4F5F7;
-}
-.assistencia-report-result strong{
-    color:var(--color-dark);
-    font-size:.98rem;
-}
-.assistencia-report-result span{
-    color:#777780;
-    font-size:.78rem;
-    text-align:right;
-}
-.assistencia-relatorio-conteudo-preview{
-    padding:0;
-}
-.checkout-assistencia-preview{
-    background:#F7F7F9;
-    border-radius:24px;
-    padding:18px;
-}
-.checkout-assistencia-preview>label{
-    display:block;
-    margin-bottom:12px;
-    color:var(--color-dark);
-    font-size:.95rem;
-    font-weight:700;
-}
-
-@media(max-width:560px){
-    .assistencia-report-grid{
-        grid-template-columns:1fr;
-    }
-    .assistencia-report-item.is-wide{
-        grid-column:auto;
-    }
-    .assistencia-relatorio-cabecalho{
-        padding:18px;
-    }
 }
