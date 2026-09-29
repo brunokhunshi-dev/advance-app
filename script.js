@@ -2661,7 +2661,8 @@ function atualizarInterfaceVisitaAtual() {
 
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
     const areaVisitas = document.getElementById('area-visitas');
-    const temRelatorio = !!(objetoRelatorioGlobal && String(objetoRelatorioGlobal.textoAtual || '').trim());
+    const tipoAtual = normalizarTipoVisita(objetoAtividadeGlobal);
+    const temRelatorio = relatorioValidoParaCheckout(objetoRelatorioGlobal, tipoAtual);
 
     const etapas = [{
         titulo: 'Check-in',
@@ -2670,17 +2671,23 @@ function atualizarInterfaceVisitaAtual() {
     }];
 
     if (temRelatorio) {
-        const historico = Array.isArray(objetoRelatorioGlobal.historico) && objetoRelatorioGlobal.historico.length
-            ? objetoRelatorioGlobal.historico
+        const revisoesFonte = tipoAtual === ASSISTENCIA_TECNICA_TIPO
+            ? objetoRelatorioGlobal.revisoes
+            : objetoRelatorioGlobal.historico;
+        const revisoes = Array.isArray(revisoesFonte) && revisoesFonte.length
+            ? revisoesFonte
             : [{ salvoEm: objetoRelatorioGlobal.atualizadoEm }];
 
-        historico.forEach((registro, index) => {
+        revisoes.forEach((registro, index) => {
             const horaReg = formatarDataHoraPT(registro.salvoEm).hora;
             etapas.push({
                 titulo: index === 0 ? 'Relatório adicionado' : 'Relatório atualizado',
                 hora: horaReg,
-                descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' ' + (index === 0 ? 'escreveu um relatório.' : 'atualizou o relatório.'),
-                relatorioAtual: index === historico.length - 1
+                descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' ' +
+                    (tipoAtual === ASSISTENCIA_TECNICA_TIPO
+                        ? (index === 0 ? 'preencheu o relatório técnico.' : 'atualizou o relatório técnico.')
+                        : (index === 0 ? 'escreveu um relatório.' : 'atualizou o relatório.')),
+                relatorioAtual: index === revisoes.length - 1
             });
         });
     }
