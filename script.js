@@ -483,7 +483,7 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
     if (tipo === ASSISTENCIA_TECNICA_TIPO) atualizarPreviewCheckoutAssistencia();
 
-    mostrarApenasTela('tela-checkout');
+    navegarParaTela('tela-checkout', { carregar: false });
     window.scrollTo(0, 0);
 }
 
@@ -841,6 +841,7 @@ function inicializarAplicativo() {
 
     });
 
+    configurarHistoricoNativo();
     configurarNavegacao(); configurarBotoesModal(); configurarEventosGlobais(); configurarFiltroHistorico();
 
     configurarTelaNovaVisita(); configurarTelaCadastroCliente(); configurarTelaDetalhesVisita();
@@ -909,6 +910,7 @@ function inicializarAplicativo() {
 
         document.getElementById('tela-login').style.display = 'flex';
 
+        desativarHistoricoNavegacao();
         mostrarApenasTela('tela-inicio');
 
         const btn = document.getElementById('btn-entrar');
@@ -955,6 +957,7 @@ function inicializarAplicativo() {
 
             document.getElementById('login-senha').value = '';
 
+            ativarHistoricoNavegacao('tela-inicio');
             await carregarAtividadesPendentes();
 
         } catch (erro) {
@@ -1802,7 +1805,7 @@ function configurarTelaNovaVisita() {
 
             divNovo.textContent = `+ Cadastrar novo cliente`;
 
-            divNovo.addEventListener('click', () => { if (operacaoEmCurso) return; limparCadastroCliente(); mostrarApenasTela('tela-cadastro-cliente'); dropCliente.style.display = 'none'; });
+            divNovo.addEventListener('click', () => { if (operacaoEmCurso) return; limparCadastroCliente(); navegarParaTela('tela-cadastro-cliente'); dropCliente.style.display = 'none'; });
 
             dropCliente.appendChild(divNovo);
 
@@ -2049,7 +2052,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
     const clienteEl = document.getElementById('visu-cliente');
 
     area.style.display = 'block';
-    mostrarApenasTela('tela-visualizador-visita');
+    navegarParaTela('tela-visualizador-visita', { carregar: false });
     preencherCampoVisualizador('visu-cliente', 'Carregando...');
     preencherCampoVisualizador('visu-relatorio', 'Carregando...');
     window.scrollTo(0, 0);
@@ -2083,7 +2086,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
         informarErro('Não foi possível abrir a visita', erro);
-        mostrarApenasTela('tela-historico');
+        navegarParaTela('tela-historico', { substituir: true });
     }
 };
 
@@ -2167,7 +2170,7 @@ window.abrirDetalhesVisita = function(index) {
 
 function configurarTelaDetalhesVisita() {
 
-    document.getElementById('btn-voltar-detalhes')?.addEventListener('click', () => { if (!operacaoEmCurso) mostrarApenasTela('tela-agenda'); });
+    document.getElementById('btn-voltar-detalhes')?.addEventListener('click', () => voltarNavegacao('tela-agenda'));
 
     document.getElementById('btn-excluir-visita')?.addEventListener('click', () => {
 
@@ -2365,7 +2368,7 @@ function configurarTelaCadastroCliente() {
 
                 nvClienteSelecionadoId = existente.id; campo('nv-cliente').value = existente.data().nome || '';
 
-                limparCadastroCliente(); mostrarApenasTela('tela-nova-visita'); window.mostrarAlerta('Cliente localizado', 'Esta loja já está cadastrada e foi selecionada.'); return;
+                limparCadastroCliente(); voltarNavegacao('tela-nova-visita'); window.mostrarAlerta('Cliente localizado', 'Esta loja já está cadastrada e foi selecionada.'); return;
 
             }
 
@@ -2539,7 +2542,7 @@ function configurarTelaCadastroCliente() {
 
             nvClienteSelecionadoId = clienteId; campo('nv-cliente').value = nomeFinal;
 
-            limparCadastroCliente(); mostrarApenasTela('tela-nova-visita');
+            limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
             window.mostrarAlerta('Sucesso', codigo
                 ? (localizado ? 'Cliente existente selecionado.' : 'Loja salva com coordenadas do endereço informado.')
@@ -2571,13 +2574,13 @@ function configurarNavegacao() {
 
             this.classList.add('active');
 
-            if (index === 0) { mostrarApenasTela('tela-inicio'); carregarAtividadesPendentes(); } 
+            if (index === 0) navegarParaTela('tela-inicio');
 
-            else if (index === 1) { mostrarApenasTela('tela-agenda'); carregarAgenda(); } 
+            else if (index === 1) navegarParaTela('tela-agenda');
 
-            else if (index === 2) { mostrarApenasTela('tela-historico'); carregarHistoricoVisitas(); }
+            else if (index === 2) navegarParaTela('tela-historico');
 
-            else if (index === 3) { mostrarApenasTela('tela-perfil'); } 
+            else if (index === 3) navegarParaTela('tela-perfil'); 
 
         });
 
@@ -2593,9 +2596,8 @@ function configurarNavegacao() {
 
             if (operacaoEmCurso) return;
 
-            mostrarApenasTela('tela-nova-visita');
-
-            carregarDadosParaAutocomplete(); window.scrollTo(0, 0);
+            navegarParaTela('tela-nova-visita');
+            window.scrollTo(0, 0);
 
         });
 
@@ -2607,7 +2609,7 @@ function configurarNavegacao() {
 
     if (btnCancelarVisita) {
 
-        btnCancelarVisita.addEventListener('click', () => { if (operacaoEmCurso) return; mostrarApenasTela('tela-agenda'); });
+        btnCancelarVisita.addEventListener('click', () => voltarNavegacao('tela-agenda'));
 
     }
 
@@ -2909,7 +2911,7 @@ function atualizarInterfaceVisitaAtual() {
             document.getElementById('rel-hora').value = formatoData.hora;
             document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio;
 
-            mostrarApenasTela('tela-relatorio');
+            navegarParaTela('tela-relatorio', { carregar: false });
             document.getElementById('rel-texto')?.blur();
             window.scrollTo(0, 0);
         } catch (erro) {
@@ -3004,10 +3006,7 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
-    document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => {
-        if (operacaoEmCurso) return;
-        mostrarApenasTela('tela-historico');
-    });
+    document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 
 
     document.addEventListener('click', (event) => {
@@ -3046,8 +3045,7 @@ function configurarEventosGlobais() {
     document.getElementById('btn-voltar-checkout')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
         checkoutPendenteGlobal = null;
-        mostrarApenasTela('tela-inicio');
-        atualizarInterfaceVisitaAtual();
+        voltarNavegacao('tela-inicio');
     });
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
@@ -3204,25 +3202,7 @@ function configurarEventosGlobais() {
         input.addEventListener('change', atualizarPreviewCheckoutAssistencia);
     });
 
-    document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => {
-        if (operacaoEmCurso) return;
-
-        const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
-        let alterado = false;
-        if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-            const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
-            const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
-            alterado = JSON.stringify(atual) !== JSON.stringify(salvo);
-        } else {
-            alterado = document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
-        }
-
-        if (alterado) {
-            window.mostrarConfirmacaoDescarteRelatorio(() => mostrarApenasTela('tela-inicio'));
-            return;
-        }
-        mostrarApenasTela('tela-inicio');
-    });
+    document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
     document.getElementById('btn-salvar-relatorio')?.addEventListener('click', async () => {
         if (operacaoEmCurso) return;
