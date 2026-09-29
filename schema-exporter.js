@@ -62,7 +62,7 @@ const ADVANCE_SCHEMA = {
                 checkinGpsAccuracy: { type: "number", required: false, conditional: "após check-in" },
                 checkinEndereco: { type: "string", required: false, conditional: "após check-in" },
                 relatorioId: { type: "string", required: false, conditional: "após criação do relatório" },
-                relatorioColecao: { type: "string", required: false, conditional: "novos relatórios", enum: ["relatorios_comerciais", "relatorios_treinamentos", "relatorios_assistencia_tecnica"] },
+                relatorioColecao: { type: "string", required: false, conditional: "novos relatórios", enum: ["relatorios_comerciais", "relatorios_treinamentos", "relatorios_assistencia_tecnica", "relatorios"] },
                 checkoutDataHora: { type: "timestamp", required: false, conditional: "após check-out ou fechamento manual" },
                 checkoutGps: { type: "string", required: false, conditional: "após check-out validado" },
                 checkoutGpsAccuracy: { type: "number", required: false, conditional: "após check-out validado" },
