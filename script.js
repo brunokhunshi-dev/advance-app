@@ -2946,24 +2946,20 @@ function configurarEventosGlobais() {
                     dadosCheckout.publicoAtendido = publico;
                     atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
                 } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-                    const assistenciaTecnica = {
-                        ...(dadosAssistenciaDoRelatorio(relatorioAtual)),
+                    const dadosAssistencia = {
+                        ...dadosAssistenciaDoRelatorio(relatorioAtual),
                         acoesDefinidas: atAcoes,
                         conclusaoTecnica: atConclusao,
                         resultado: atResultado,
                         proximoPasso: atProximoPasso
                     };
-                    const textoFinal = gerarResumoAssistenciaTecnica(assistenciaTecnica);
-                    const historico = Array.isArray(relatorioAtual.historico) ? [...relatorioAtual.historico] : [];
-
-                    if (relatorioAtual.textoAtual !== textoFinal) {
-                        historico.push({
-                            texto: textoFinal,
-                            assistenciaTecnica,
-                            etapa: 'checkout',
-                            salvoEm: agora
-                        });
-                    }
+                    const secoes = secoesAssistenciaParaDocumento(dadosAssistencia);
+                    const revisoes = Array.isArray(relatorioAtual.revisoes) ? [...relatorioAtual.revisoes] : [];
+                    revisoes.push({
+                        fechamento: secoes.fechamento,
+                        etapa: 'checkout',
+                        salvoEm: agora
+                    });
 
                     dadosCheckout.resultado = atResultado;
                     dadosCheckout.resultadoAssistencia = atResultado;
@@ -2973,9 +2969,8 @@ function configurarEventosGlobais() {
                     dadosCheckout.proximoPassoAssistencia = atProximoPasso;
                     atualizacaoRelatorio = {
                         ...dadosCheckout,
-                        assistenciaTecnica,
-                        textoAtual: textoFinal,
-                        historico,
+                        fechamento: secoes.fechamento,
+                        revisoes,
                         atualizadoEm: agora
                     };
                 } else {
