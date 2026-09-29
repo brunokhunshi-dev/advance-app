@@ -2465,12 +2465,11 @@ async function encerrarVisita(id, btn) {
 
         const endereco = await obterEnderecoPorCoords(lat, lng);
         exigirSessao(sessao);
-        const relSnap = await getDoc(doc(db, 'relatorios', atividade.relatorioId));
-        if (!relSnap.exists() || relSnap.data().atividadeId !== id || relSnap.data().ptvId !== sessao.id || !String(relSnap.data().textoAtual || '').trim()) {
+        const relatorio = await carregarRelatorioDaAtividade(atividade);
+        const tipo = normalizarTipoVisita(atividade);
+        if (!relatorio || relatorio.atividadeId !== id || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, tipo)) {
             throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
         }
-
-        const relatorio = { ...relSnap.data(), id: relSnap.id };
         const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
         objetoAtividadeGlobal = atividade;
         objetoRelatorioGlobal = relatorio;
@@ -2626,11 +2625,11 @@ async function enviarFechamentoManual() {
             if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
             if (!atividade.relatorioId) throw new Error('O relatório precisa estar salvo antes do fechamento manual.');
 
-            const relRef = doc(db, 'relatorios', atividade.relatorioId);
+            const relRef = referenciaRelatorio(atividade);
             const relSnap = await tx.get(relRef);
             if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
             const relatorio = relSnap.data();
-            if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !String(relatorio.textoAtual || '').trim()) throw new Error('O relatório não está válido.');
+            if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, normalizarTipoVisita(atividade))) throw new Error('O relatório não está válido.');
 
             const agora = new Date();
             const manual = {
@@ -2762,12 +2761,12 @@ function configurarEventosGlobais() {
                 if (normalizarTipoVisita(atividade) !== tipo) throw new Error('A visita foi alterada. Volte e abra o check-out novamente.');
                 if (!atividade.relatorioId) throw new Error('O relatório não está vinculado à visita.');
 
-                const relRef = doc(db, 'relatorios', atividade.relatorioId);
+                const relRef = referenciaRelatorio(atividade);
                 const relSnap = await tx.get(relRef);
                 if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
 
                 const relatorioAtual = relSnap.data();
-                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !String(relatorioAtual.textoAtual || '').trim()) {
+                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorioAtual, tipo)) {
                     throw new Error('O relatório não está válido.');
                 }
 
@@ -2910,7 +2909,6 @@ function configurarEventosGlobais() {
             const codigo = document.getElementById('rel-codigo-gerado').textContent;
             const textoBase = objetoRelatorioGlobal?.textoAtual ?? null;
             const novoIdRelatorio = gerarIdRelatorio(new Date(), nomeUsuarioLogado);
-            const novoRef = doc(db, 'relatorios', novoIdRelatorio);
 
             operacaoEmCurso = true;
             btn.disabled = true;
@@ -2925,7 +2923,8 @@ function configurarEventosGlobais() {
                 if (atv.status !== 'Em andamento') throw new Error('Só é possível salvar relatório de visita em andamento.');
                 if (normalizarTipoVisita(atv) !== tipo) throw new Error('O tipo da visita foi alterado. Reabra o relatório.');
 
-                const ref = atv.relatorioId ? doc(db,'relatorios',atv.relatorioId) : novoRef;
+                const colecaoRelatorio = atv.relatorioId ? colecaoRelatorioDaAtividade(atv) : colecaoRelatorioPorTipo(tipo);
+                const ref = doc(db, colecaoRelatorio, atv.relatorioId || novoIdRelatorio);
                 const anterior = await tx.get(ref);
                 const dados = anterior.exists() ? anterior.data() : null;
 
@@ -2965,14 +2964,15 @@ function configurarEventosGlobais() {
                 if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) throw new Error('O histórico deste relatório está muito grande. Solicite o arquivamento das revisões antes de continuar.');
 
                 tx.set(ref, resultado);
-                tx.update(atvRef, { relatorioId:ref.id, atualizadoEm:agora });
-                return resultado;
+                tx.update(atvRef, { relatorioId:ref.id, relatorioColecao:ref.parent.id, atualizadoEm:agora });
+                return { ...resultado, colecao: ref.parent.id };
             });
 
             if (!sessaoValida(sessao)) return;
 
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
+            objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
             mostrarApenasTela('tela-inicio');
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
