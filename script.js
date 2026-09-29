@@ -658,11 +658,11 @@ function renderFichaAssistencia(dados = {}, opcoes = {}) {
         '<div class="assistencia-report-item is-wide"><label>' + escaparHtml(rotulo) + '</label><div class="assistencia-report-chips">' + chipsVisualAssistencia(valores) + '</div></div>';
 
     const especificacao = dados.houveEspecificacao === 'Sim'
-        ? 'Sim' + (dados.numeroEspecificacao ? ' · ' + escaparHtml(dados.numeroEspecificacao) : '')
+        ? 'Sim' + (dados.numeroEspecificacao ? ' · ' + dados.numeroEspecificacao : '')
         : (dados.houveEspecificacao || 'Não informado');
 
     const clima = dados.impactoClimatico === 'Sim'
-        ? 'Sim' + (dados.impactoClimaticoDetalhe ? ' · ' + escaparHtml(dados.impactoClimaticoDetalhe) : '')
+        ? 'Sim' + (dados.impactoClimaticoDetalhe ? ' · ' + dados.impactoClimaticoDetalhe : '')
         : (dados.impactoClimatico || 'Não informado');
 
     let html = '';
