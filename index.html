@@ -16,8 +16,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=assistencia-1">
-    <link rel="stylesheet" href="pwa-mobile.css?v=assistencia-1">
+    <link rel="stylesheet" href="styles.css?v=assistencia-2">
+    <link rel="stylesheet" href="pwa-mobile.css?v=assistencia-2">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
@@ -249,13 +249,15 @@
                 </div>
             </section>
 
-            <section class="visualizador-tipo-section" id="visu-assistencia" style="display:none;">
-                <h2>Assistência técnica</h2>
-                <div class="visualizador-info"><label>Cliente final</label><div class="visualizador-value" id="visu-at-cliente-final">Não informado</div></div>
-                <div class="visualizador-info"><label>Produto</label><div class="visualizador-value" id="visu-at-produto">Não informado</div></div>
-                <div class="visualizador-info"><label>Queixa</label><div class="visualizador-value" id="visu-at-queixa">Não informado</div></div>
-                <div class="visualizador-info"><label>Conclusão técnica</label><div class="visualizador-value" id="visu-at-conclusao">Não informado</div></div>
-                <div class="visualizador-info"><label>Resultado</label><div class="visualizador-value" id="visu-at-resultado">Não informado</div></div>
+            <section class="visualizador-tipo-section assistencia-relatorio-visual" id="visu-assistencia" style="display:none;">
+                <div class="assistencia-relatorio-cabecalho">
+                    <div>
+                        <span>RELATÓRIO TÉCNICO</span>
+                        <h2>Assistência técnica</h2>
+                    </div>
+                    <div id="visu-at-status" class="assistencia-relatorio-status">Em análise</div>
+                </div>
+                <div id="visu-at-relatorio-visual" class="assistencia-relatorio-conteudo"></div>
             </section>
 
             <section class="visualizador-section">
@@ -263,7 +265,7 @@
                 <div id="visu-nota" class="visualizador-texto-box">Nenhuma nota registrada.</div>
             </section>
 
-            <section class="visualizador-section">
+            <section class="visualizador-section" id="visu-relatorio-section">
                 <label>Relatório final</label>
                 <div id="visu-relatorio" class="visualizador-texto-box visualizador-relatorio-box">Nenhum relatório registrado.</div>
             </section>
@@ -340,7 +342,7 @@
                 </table>
 
                 <table class="pdf-sheet-table" id="pdf-tecnica-table">
-                    <thead><tr><th colspan="4">VISITA TÉCNICA</th></tr></thead>
+                    <thead><tr><th colspan="4">VISITA COMERCIAL</th></tr></thead>
                     <tbody>
                         <tr><th>Objetivo da visita</th><td id="pdf-objetivo" colspan="3">—</td></tr>
                         <tr><th>Oportunidade identificada</th><td id="pdf-oportunidade" colspan="3">—</td></tr>
@@ -373,7 +375,7 @@
                     <tbody><tr><td id="pdf-nota">—</td></tr></tbody>
                 </table>
 
-                <table class="pdf-sheet-table pdf-long-table">
+                <table class="pdf-sheet-table pdf-long-table" id="pdf-relatorio-texto-table">
                     <thead><tr><th>RELATÓRIO FINAL</th></tr></thead>
                     <tbody><tr><td id="pdf-relatorio">—</td></tr></tbody>
                 </table>
@@ -973,9 +975,14 @@
                 </div>
             </section>
 
-            <section class="checkout-relatorio-section">
+            <section class="checkout-relatorio-section" id="checkout-relatorio-texto-section">
                 <label>Relatório final</label>
                 <div class="checkout-relatorio-box" id="checkout-relatorio-final">Nenhum relatório salvo.</div>
+            </section>
+
+            <section class="checkout-relatorio-section checkout-assistencia-preview" id="checkout-assistencia-preview" style="display:none;">
+                <label>Prévia do relatório</label>
+                <div id="checkout-at-preview" class="assistencia-relatorio-conteudo assistencia-relatorio-conteudo-preview"></div>
             </section>
 
             <div class="checkout-acoes">
@@ -1052,7 +1059,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=assistencia-1"></script>
+    <script type="module" src="script.js?v=assistencia-2"></script>
     <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {
