@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-assistencia-v2';
+const CACHE_NAME = 'advance-pwa-assistencia-v3';
 const APP_SHELL = [
   './',
   './index.html',
