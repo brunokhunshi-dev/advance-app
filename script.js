@@ -522,7 +522,8 @@ function lerFormularioAssistencia() {
         tamanho: Number(file.size || 0),
         alteradoEm: Number(file.lastModified || 0)
     }));
-    const fotos = novasFotos.length ? novasFotos : (Array.isArray(objetoRelatorioGlobal?.assistenciaTecnica?.fotosSelecionadas) ? objetoRelatorioGlobal.assistenciaTecnica.fotosSelecionadas : []);
+    const fotosSalvas = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas;
+    const fotos = novasFotos.length ? novasFotos : (Array.isArray(fotosSalvas) ? fotosSalvas : []);
 
     return {
         clienteFinal: valorCampoAssistencia('at-cliente-final'),
