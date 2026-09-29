@@ -1259,25 +1259,43 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 
 /* === LEITURA DO FORMULÁRIO DE ASSISTÊNCIA === */
 .assistencia-form-view-section{
-    margin-bottom:30px;
+    margin-bottom:34px;
 }
 .assistencia-form-view-section:last-child{
     margin-bottom:0;
 }
 .assistencia-form-view-section h3{
-    margin:0 0 20px;
-    color:#9A9AB5;
-    font-size:.78rem;
+    margin:0 0 22px;
+    color:var(--color-dark);
+    font-size:1.08rem;
     font-weight:700;
-    letter-spacing:.04em;
+    letter-spacing:-.01em;
+    text-transform:none;
+}
+#visu-at-relatorio-visual .visualizador-info,
+#checkout-at-preview .visualizador-info{
+    margin-bottom:22px;
+}
+#visu-at-relatorio-visual .visualizador-info:last-child,
+#checkout-at-preview .visualizador-info:last-child{
+    margin-bottom:0;
+}
+#visu-at-relatorio-visual .visualizador-info > label,
+#checkout-at-preview .visualizador-info > label{
+    margin-bottom:5px;
+    color:#9A9AA4;
+    font-size:.72rem;
+    font-weight:700;
+    letter-spacing:.045em;
     text-transform:uppercase;
 }
-#checkout-at-preview .assistencia-form-view-section{
-    margin-bottom:28px;
-}
-#checkout-at-preview .visualizador-info{
-    margin-bottom:20px;
-}
+#visu-at-relatorio-visual .visualizador-value,
 #checkout-at-preview .visualizador-value{
     color:var(--color-dark);
+    font-size:1rem;
+    font-weight:600;
+    line-height:1.5;
+}
+#checkout-at-preview .assistencia-form-view-section{
+    margin-bottom:32px;
 }
