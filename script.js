@@ -319,10 +319,73 @@ async function carregarRelatorioDaAtividade(atividade) {
     return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
 }
 
+function dadosAssistenciaDoRelatorio(relatorio = {}) {
+    if (relatorio?.assistenciaTecnica) return { ...relatorio.assistenciaTecnica };
+
+    return {
+        ...(relatorio.clienteAplicacao || {}),
+        ...(relatorio.produtoQueixa || {}),
+        ...(relatorio.preparoAplicacao || {}),
+        ...(relatorio.verificacao || {}),
+        fotosSelecionadas: Array.isArray(relatorio?.evidencias?.fotos) ? relatorio.evidencias.fotos : [],
+        acoesDefinidas: relatorio?.fechamento?.acoesDefinidas || '',
+        conclusaoTecnica: relatorio?.fechamento?.conclusaoTecnica || '',
+        resultado: relatorio?.fechamento?.resultado || '',
+        proximoPasso: relatorio?.fechamento?.proximoPasso || ''
+    };
+}
+
+function secoesAssistenciaParaDocumento(dados = {}) {
+    return {
+        clienteAplicacao: {
+            clienteFinal: dados.clienteFinal || '',
+            contato: dados.contato || '',
+            setor: dados.setor || '',
+            enderecoAplicacao: dados.enderecoAplicacao || '',
+            empresaAplicacao: dados.empresaAplicacao || '',
+            responsavelEmpresa: dados.responsavelEmpresa || '',
+            acompanhadoPor: dados.acompanhadoPor || '',
+            superficie: dados.superficie || '',
+            dataAplicacao: dados.dataAplicacao || '',
+            houveEspecificacao: dados.houveEspecificacao || '',
+            numeroEspecificacao: dados.numeroEspecificacao || ''
+        },
+        produtoQueixa: {
+            produto: dados.produto || '',
+            lote: dados.lote || '',
+            cor: dados.cor || '',
+            queixa: dados.queixa || '',
+            esquemaPintura: dados.esquemaPintura || ''
+        },
+        preparoAplicacao: {
+            preparoSuperficie: dados.preparoSuperficie || '',
+            metodosLimpeza: Array.isArray(dados.metodosLimpeza) ? dados.metodosLimpeza : [],
+            impactoClimatico: dados.impactoClimatico || '',
+            impactoClimaticoDetalhe: dados.impactoClimaticoDetalhe || '',
+            ferramentasAplicacao: Array.isArray(dados.ferramentasAplicacao) ? dados.ferramentasAplicacao : []
+        },
+        verificacao: {
+            itensVerificados: Array.isArray(dados.itensVerificados) ? dados.itensVerificados : [],
+            umidade: dados.umidade || '',
+            umidadeReferencia: dados.umidadeReferencia || '',
+            constatacoes: dados.constatacoes || ''
+        },
+        evidencias: {
+            fotos: Array.isArray(dados.fotosSelecionadas) ? dados.fotosSelecionadas : []
+        },
+        fechamento: {
+            acoesDefinidas: dados.acoesDefinidas || '',
+            conclusaoTecnica: dados.conclusaoTecnica || '',
+            resultado: dados.resultado || '',
+            proximoPasso: dados.proximoPasso || ''
+        }
+    };
+}
+
 function relatorioValidoParaCheckout(relatorio, tipo) {
     if (!relatorio) return false;
     if (tipo === 'Assistência técnica') {
-        const dados = relatorio.assistenciaTecnica || {};
+        const dados = dadosAssistenciaDoRelatorio(relatorio);
         return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());
     }
     return Boolean(String(relatorio.textoAtual || '').trim());
@@ -384,7 +447,7 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-participantes').value = atividade.quantidadeParticipantes ?? '';
     document.getElementById('checkout-publico').value = atividade.publicoAtendido || '';
 
-    const assistencia = relatorio?.assistenciaTecnica || {};
+    const assistencia = dadosAssistenciaDoRelatorio(relatorio);
     document.getElementById('checkout-at-acoes').value = assistencia.acoesDefinidas || '';
     document.getElementById('checkout-at-conclusao').value = assistencia.conclusaoTecnica || '';
     document.getElementById('checkout-at-proximo-passo').value = assistencia.proximoPasso || '';
@@ -1649,7 +1712,7 @@ function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
     preencherCelulaPdf('pdf-participantes', atividade.quantidadeParticipantes);
     preencherCelulaPdf('pdf-publico', atividade.publicoAtendido);
 
-    const dadosAssistencia = relatorio?.assistenciaTecnica || {};
+    const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
     preencherCelulaPdf('pdf-at-cliente-final', dadosAssistencia.clienteFinal);
     preencherCelulaPdf('pdf-at-produto', dadosAssistencia.produto);
     preencherCelulaPdf('pdf-at-lote', dadosAssistencia.lote);
@@ -1707,7 +1770,7 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     preencherCampoVisualizador('visu-participantes', atividade.quantidadeParticipantes);
     preencherCampoVisualizador('visu-publico', atividade.publicoAtendido);
 
-    const dadosAssistencia = relatorio?.assistenciaTecnica || {};
+    const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
     preencherCampoVisualizador('visu-at-cliente-final', dadosAssistencia.clienteFinal);
     preencherCampoVisualizador('visu-at-produto', dadosAssistencia.produto);
     preencherCampoVisualizador('visu-at-queixa', dadosAssistencia.queixa);
@@ -2564,7 +2627,7 @@ function atualizarInterfaceVisitaAtual() {
 
         mostrarEditorRelatorioPorTipo(tipo);
         if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-            preencherFormularioAssistencia(objetoRelatorioGlobal?.assistenciaTecnica || {});
+            preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
         }
 
         document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + clienteSelecionadoNome;
@@ -2788,7 +2851,7 @@ function configurarEventosGlobais() {
                     atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
                 } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
                     const assistenciaTecnica = {
-                        ...(relatorioAtual.assistenciaTecnica || {}),
+                        ...(dadosAssistenciaDoRelatorio(relatorioAtual)),
                         acoesDefinidas: atAcoes,
                         conclusaoTecnica: atConclusao,
                         resultado: atResultado,
@@ -2868,7 +2931,7 @@ function configurarEventosGlobais() {
         let alterado = false;
         if (tipo === ASSISTENCIA_TECNICA_TIPO) {
             const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
-            const salvo = normalizarAssistenciaComparacao(objetoRelatorioGlobal?.assistenciaTecnica || {});
+            const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             alterado = JSON.stringify(atual) !== JSON.stringify(salvo);
         } else {
             alterado = document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
