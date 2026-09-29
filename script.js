@@ -1819,6 +1819,8 @@ function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
 
     preencherCelulaPdf('pdf-nota', atividade.nota);
     preencherCelulaPdf('pdf-relatorio', relatorio?.textoAtual);
+    const relatorioTextoTable = document.getElementById('pdf-relatorio-texto-table');
+    if (relatorioTextoTable) relatorioTextoTable.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'table';
 
     const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
     const manualTable = document.getElementById('pdf-manual-table');
@@ -1867,11 +1869,23 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     preencherCampoVisualizador('visu-publico', atividade.publicoAtendido);
 
     const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
-    preencherCampoVisualizador('visu-at-cliente-final', dadosAssistencia.clienteFinal);
-    preencherCampoVisualizador('visu-at-produto', dadosAssistencia.produto);
-    preencherCampoVisualizador('visu-at-queixa', dadosAssistencia.queixa);
-    preencherCampoVisualizador('visu-at-conclusao', dadosAssistencia.conclusaoTecnica);
-    preencherCampoVisualizador('visu-at-resultado', dadosAssistencia.resultado);
+    const relatorioTextoSection = document.getElementById('visu-relatorio-section');
+    if (relatorioTextoSection) relatorioTextoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
+
+    if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+        const visual = document.getElementById('visu-at-relatorio-visual');
+        if (visual) visual.innerHTML = renderFichaAssistencia(dadosAssistencia);
+
+        const statusAssistencia = document.getElementById('visu-at-status');
+        if (statusAssistencia) {
+            const resultadoAssistencia = String(dadosAssistencia.resultado || 'Em análise');
+            statusAssistencia.textContent = resultadoAssistencia;
+            statusAssistencia.className = 'assistencia-relatorio-status' +
+                (resultadoAssistencia === 'Resolvido' ? ' is-resolvido' :
+                    (resultadoAssistencia && resultadoAssistencia !== 'Em análise' ? ' is-atencao' : ''));
+        }
+    }
+
     preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
     preencherCampoVisualizador('visu-relatorio', relatorio?.textoAtual, 'Nenhum relatório registrado.');
 
