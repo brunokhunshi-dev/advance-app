@@ -1890,7 +1890,8 @@ function configurarTelaNovaVisita() {
 
                 window.mostrarAlerta('Sucesso', 'Visita agendada.');
 
-                mostrarApenasTela('tela-agenda'); await carregarAgenda();
+                navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+                await carregarAgenda();
 
             } catch (erro) { informarErro('Não foi possível agendar', erro); }
 
@@ -2162,7 +2163,7 @@ window.abrirDetalhesVisita = function(index) {
 
 
 
-    mostrarApenasTela('tela-detalhes-visita');
+    navegarParaTela('tela-detalhes-visita', { carregar: false });
 
 };
 
@@ -2208,7 +2209,8 @@ function configurarTelaDetalhesVisita() {
 
                 window.mostrarAlerta('Sucesso', 'Visita movida para a lixeira.');
 
-                mostrarApenasTela('tela-agenda'); await carregarAgenda();
+                navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+                await carregarAgenda();
 
             } finally { operacaoEmCurso = false; }
 
@@ -2254,7 +2256,9 @@ function configurarTelaDetalhesVisita() {
 
             if (!sessaoValida(sessao)) return;
 
-            window.mostrarAlerta('Sucesso', 'Visita atualizada.'); mostrarApenasTela('tela-agenda'); await carregarAgenda();
+            window.mostrarAlerta('Sucesso', 'Visita atualizada.');
+            navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+            await carregarAgenda();
 
         } catch (erro) { informarErro('Erro ao atualizar', erro); }
 
@@ -2994,7 +2998,7 @@ async function enviarFechamentoManual() {
         if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') throw new Error('O fechamento não foi confirmado no banco. Tente novamente.');
         fecharModalFechamentoManual();
         limparEstadoVisita();
-        mostrarApenasTela('tela-historico');
+        navegarParaTela('tela-historico', { substituir: true, carregar: false });
         await carregarHistoricoVisitas();
         window.mostrarAlerta('Sucesso', 'Fechamento manual enviado para análise do gestor.');
     } catch (erro) {
@@ -3171,7 +3175,7 @@ function configurarEventosGlobais() {
             }
 
             limparEstadoVisita();
-            mostrarApenasTela('tela-historico');
+            navegarParaTela('tela-historico', { substituir: true, carregar: false });
             await carregarHistoricoVisitas();
             window.mostrarAlerta('Sucesso', tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica concluída.' : 'Visita concluída.');
         } catch (erro) {
@@ -3348,7 +3352,7 @@ function configurarEventosGlobais() {
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
             objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
-            mostrarApenasTela('tela-inicio');
+            navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
             informarErro('Erro ao salvar relatório', erro);
