@@ -632,6 +632,96 @@ function gerarResumoAssistenciaTecnica(dados = {}) {
     ].filter(item => item !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function valorVisualAssistencia(valor, fallback = 'Não informado') {
+    const texto = String(valor ?? '').trim();
+    return texto ? escaparHtml(texto) : fallback;
+}
+
+function chipsVisualAssistencia(valores) {
+    const lista = Array.isArray(valores) ? valores.filter(Boolean) : [];
+    if (!lista.length) return '<span class="assistencia-report-chip">Não informado</span>';
+    return lista.map(valor => '<span class="assistencia-report-chip">' + escaparHtml(valor) + '</span>').join('');
+}
+
+function renderFichaAssistencia(dados = {}, opcoes = {}) {
+    const item = (rotulo, valor, wide = false) =>
+        '<div class="assistencia-report-item' + (wide ? ' is-wide' : '') + '"><label>' + escaparHtml(rotulo) + '</label><p>' + valorVisualAssistencia(valor) + '</p></div>';
+
+    const chips = (rotulo, valores) =>
+        '<div class="assistencia-report-item is-wide"><label>' + escaparHtml(rotulo) + '</label><div class="assistencia-report-chips">' + chipsVisualAssistencia(valores) + '</div></div>';
+
+    const especificacao = dados.houveEspecificacao === 'Sim'
+        ? 'Sim' + (dados.numeroEspecificacao ? ' · ' + escaparHtml(dados.numeroEspecificacao) : '')
+        : (dados.houveEspecificacao || 'Não informado');
+
+    const clima = dados.impactoClimatico === 'Sim'
+        ? 'Sim' + (dados.impactoClimaticoDetalhe ? ' · ' + escaparHtml(dados.impactoClimaticoDetalhe) : '')
+        : (dados.impactoClimatico || 'Não informado');
+
+    let html = '';
+    html += '<section class="assistencia-report-card"><div class="assistencia-report-card-title">Cliente e aplicação</div><div class="assistencia-report-grid">';
+    html += item('Cliente final', dados.clienteFinal);
+    html += item('Contato / setor', [dados.contato, dados.setor].filter(Boolean).join(' / '));
+    html += item('Empresa de aplicação', dados.empresaAplicacao);
+    html += item('Responsável', dados.responsavelEmpresa);
+    html += item('Acompanhado por', dados.acompanhadoPor);
+    html += item('Superfície / equipamento', dados.superficie);
+    html += item('Data da aplicação', dados.dataAplicacao);
+    html += item('Especificação', especificacao);
+    html += item('Endereço de aplicação', dados.enderecoAplicacao, true);
+    html += '</div></section>';
+
+    html += '<section class="assistencia-report-card assistencia-report-highlight"><div class="assistencia-report-card-title">Produto e ocorrência</div><div class="assistencia-report-grid">';
+    html += item('Produto', dados.produto);
+    html += item('Lote', dados.lote);
+    html += item('Cor', dados.cor);
+    html += item('Queixa', dados.queixa, true);
+    html += item('Esquema de pintura', dados.esquemaPintura, true);
+    html += '</div></section>';
+
+    html += '<section class="assistencia-report-card"><div class="assistencia-report-card-title">Aplicação e condições</div><div class="assistencia-report-grid">';
+    html += item('Preparo da superfície', dados.preparoSuperficie, true);
+    html += chips('Métodos de limpeza', dados.metodosLimpeza);
+    html += item('Impacto climático / intempéries', clima, true);
+    html += chips('Ferramentas de aplicação', dados.ferramentasAplicacao);
+    html += '</div></section>';
+
+    html += '<section class="assistencia-report-card"><div class="assistencia-report-card-title">Verificação técnica</div><div class="assistencia-report-grid">';
+    html += chips('Itens verificados', dados.itensVerificados);
+    html += item('Umidade medida', dados.umidade);
+    html += item('Referência / limite', dados.umidadeReferencia);
+    html += item('Constatações técnicas', dados.constatacoes, true);
+    html += '</div></section>';
+
+    if (!opcoes.omitirFechamento) {
+        html += '<section class="assistencia-report-card"><div class="assistencia-report-card-title">Ações e conclusão</div><div class="assistencia-report-grid">';
+        html += item('Ações definidas', dados.acoesDefinidas, true);
+        html += item('Conclusão técnica', dados.conclusaoTecnica, true);
+        html += item('Próximo passo', dados.proximoPasso, true);
+        html += '</div>';
+        html += '<div class="assistencia-report-result"><strong>' + valorVisualAssistencia(dados.resultado, 'Resultado ainda não definido') + '</strong><span>Resultado da assistência</span></div>';
+        html += '</section>';
+    }
+
+    return html;
+}
+
+function dadosAssistenciaCheckoutAtual() {
+    return {
+        ...dadosAssistenciaDoRelatorio(objetoRelatorioGlobal),
+        acoesDefinidas: String(document.getElementById('checkout-at-acoes')?.value || '').trim(),
+        conclusaoTecnica: String(document.getElementById('checkout-at-conclusao')?.value || '').trim(),
+        resultado: document.querySelector('input[name="checkoutAtResultado"]:checked')?.value || '',
+        proximoPasso: String(document.getElementById('checkout-at-proximo-passo')?.value || '').trim()
+    };
+}
+
+function atualizarPreviewCheckoutAssistencia() {
+    const container = document.getElementById('checkout-at-preview');
+    if (!container) return;
+    container.innerHTML = renderFichaAssistencia(dadosAssistenciaCheckoutAtual());
+}
+
 function mostrarEditorRelatorioPorTipo(tipo) {
     const assistencia = tipo === ASSISTENCIA_TECNICA_TIPO;
     const padrao = document.getElementById('relatorio-editor-padrao');
