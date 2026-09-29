@@ -2452,7 +2452,7 @@ function configurarTelaCadastroCliente() {
 
         if (cadastroSalvando) return;
 
-        limparCadastroCliente(); mostrarApenasTela('tela-nova-visita');
+        limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
     });
 
