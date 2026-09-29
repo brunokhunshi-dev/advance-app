@@ -320,18 +320,19 @@ async function carregarRelatorioDaAtividade(atividade) {
 }
 
 function dadosAssistenciaDoRelatorio(relatorio = {}) {
-    if (relatorio?.assistenciaTecnica) return { ...relatorio.assistenciaTecnica };
+    const fonte = relatorio && typeof relatorio === 'object' ? relatorio : {};
+    if (fonte.assistenciaTecnica) return { ...fonte.assistenciaTecnica };
 
     return {
-        ...(relatorio.clienteAplicacao || {}),
-        ...(relatorio.produtoQueixa || {}),
-        ...(relatorio.preparoAplicacao || {}),
-        ...(relatorio.verificacao || {}),
-        fotosSelecionadas: Array.isArray(relatorio?.evidencias?.fotos) ? relatorio.evidencias.fotos : [],
-        acoesDefinidas: relatorio?.fechamento?.acoesDefinidas || '',
-        conclusaoTecnica: relatorio?.fechamento?.conclusaoTecnica || '',
-        resultado: relatorio?.fechamento?.resultado || '',
-        proximoPasso: relatorio?.fechamento?.proximoPasso || ''
+        ...(fonte.clienteAplicacao || {}),
+        ...(fonte.produtoQueixa || {}),
+        ...(fonte.preparoAplicacao || {}),
+        ...(fonte.verificacao || {}),
+        fotosSelecionadas: Array.isArray(fonte.evidencias?.fotos) ? fonte.evidencias.fotos : [],
+        acoesDefinidas: fonte.fechamento?.acoesDefinidas || '',
+        conclusaoTecnica: fonte.fechamento?.conclusaoTecnica || '',
+        resultado: fonte.fechamento?.resultado || '',
+        proximoPasso: fonte.fechamento?.proximoPasso || ''
     };
 }
 
@@ -586,13 +587,13 @@ function preencherFormularioAssistencia(dados = {}) {
 }
 
 function normalizarAssistenciaComparacao(dados = {}) {
-    const copia = { ...dados };
-    delete copia.fotosSelecionadas;
-    delete copia.acoesDefinidas;
-    delete copia.conclusaoTecnica;
-    delete copia.resultado;
-    delete copia.proximoPasso;
-    return copia;
+    const secoes = secoesAssistenciaParaDocumento(dados && typeof dados === 'object' ? dados : {});
+    return {
+        clienteAplicacao: secoes.clienteAplicacao,
+        produtoQueixa: secoes.produtoQueixa,
+        preparoAplicacao: secoes.preparoAplicacao,
+        verificacao: secoes.verificacao
+    };
 }
 
 function gerarResumoAssistenciaTecnica(dados = {}) {
@@ -2718,34 +2719,56 @@ function atualizarInterfaceVisitaAtual() {
     const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio');
     const btnEncerrar = document.getElementById('btn-encerrar-visita-inicio');
 
-    const acaoAbrirRelatorio = () => {
-        if (operacaoEmCurso) return;
-        mostrarApenasTela('tela-relatorio');
-        const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
-        const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
-        let codigoRelatorio = '';
+    const acaoAbrirRelatorio = async () => {
+        if (operacaoEmCurso || !atividadeSelecionadaId) return;
 
-        if (objetoRelatorioGlobal) {
-            codigoRelatorio = objetoRelatorioGlobal.codigo || '#' + atividadeSelecionadaId;
-            document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || '';
-        } else {
-            const dataPura = new Date();
-            codigoRelatorio = '#' + dataPura.getFullYear() + String(dataPura.getMonth() + 1).padStart(2, '0') + String(dataPura.getDate()).padStart(2, '0') + obterIniciais(nomeUsuarioLogado || 'TEC') + '-' + atividadeSelecionadaId;
-            document.getElementById('rel-texto').value = '';
+        try {
+            const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeSelecionadaId));
+            if (atividadeSnap.exists()) {
+                objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            }
+            if (!objetoAtividadeGlobal) throw new Error('Visita não encontrada.');
+
+            if (objetoAtividadeGlobal.clienteId) {
+                const cliente = await obterCliente(objetoAtividadeGlobal.clienteId);
+                if (cliente?.nome) {
+                    clienteSelecionadoId = objetoAtividadeGlobal.clienteId;
+                    clienteSelecionadoNome = cliente.nome;
+                }
+            }
+
+            const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
+            const formatoData = formatarDataHoraPT(chegada);
+            const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
+            const nomeCliente = clienteSelecionadoNome || 'Cliente não encontrado';
+            let codigoRelatorio = '';
+
+            if (objetoRelatorioGlobal) {
+                codigoRelatorio = objetoRelatorioGlobal.codigo || '#' + atividadeSelecionadaId;
+                document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || '';
+            } else {
+                const dataPura = new Date();
+                codigoRelatorio = '#' + dataPura.getFullYear() + String(dataPura.getMonth() + 1).padStart(2, '0') + String(dataPura.getDate()).padStart(2, '0') + obterIniciais(nomeUsuarioLogado || 'TEC') + '-' + atividadeSelecionadaId;
+                document.getElementById('rel-texto').value = '';
+            }
+
+            mostrarEditorRelatorioPorTipo(tipo);
+            if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+                preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
+            }
+
+            document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + nomeCliente;
+            document.getElementById('rel-opcao-cliente').textContent = nomeCliente;
+            document.getElementById('rel-data').value = formatoData.data;
+            document.getElementById('rel-hora').value = formatoData.hora;
+            document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio;
+
+            mostrarApenasTela('tela-relatorio');
+            document.getElementById('rel-texto')?.blur();
+            window.scrollTo(0, 0);
+        } catch (erro) {
+            informarErro('Não foi possível abrir o relatório', erro);
         }
-
-        mostrarEditorRelatorioPorTipo(tipo);
-        if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-            preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
-        }
-
-        document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + clienteSelecionadoNome;
-        document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
-        document.getElementById('rel-data').value = formatoData.data;
-        document.getElementById('rel-hora').value = formatoData.hora;
-        document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio;
-        document.getElementById('rel-texto')?.blur();
-        window.scrollTo(0, 0);
     };
 
     if (btnEscrever) btnEscrever.addEventListener('click', acaoAbrirRelatorio);
@@ -3070,12 +3093,21 @@ function configurarEventosGlobais() {
 
             if (ehAssistencia) {
                 assistenciaTecnica = lerFormularioAssistencia();
-                if (!assistenciaTecnica.produto) throw new Error('Informe o produto verificado.');
-                if (!assistenciaTecnica.queixa) throw new Error('Informe a queixa da assistência técnica.');
-                if (!assistenciaTecnica.constatacoes) throw new Error('Registre as constatações técnicas.');
+                const obrigatoriosPreenchidos =
+                    assistenciaTecnica.produto &&
+                    assistenciaTecnica.queixa &&
+                    assistenciaTecnica.constatacoes;
+
+                if (!obrigatoriosPreenchidos) {
+                    window.mostrarAlerta('Atenção', 'Há informações obrigatórias não preenchidas.');
+                    return;
+                }
             } else {
                 texto = document.getElementById('rel-texto').value.trim();
-                if (!texto) throw new Error('Escreva um resumo antes de salvar.');
+                if (!texto) {
+                    window.mostrarAlerta('Atenção', 'Há informações obrigatórias não preenchidas.');
+                    return;
+                }
                 if (texto.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
             }
 
