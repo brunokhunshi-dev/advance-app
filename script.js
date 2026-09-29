@@ -456,7 +456,13 @@ function preencherCheckout(atividade, relatorio, saida) {
         if (radio) radio.checked = true;
     }
 
+    const textoSection = document.getElementById('checkout-relatorio-texto-section');
+    const assistenciaPreview = document.getElementById('checkout-assistencia-preview');
+    if (textoSection) textoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
+    if (assistenciaPreview) assistenciaPreview.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
     document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
+    if (tipo === ASSISTENCIA_TECNICA_TIPO) atualizarPreviewCheckoutAssistencia();
+
     mostrarApenasTela('tela-checkout');
     window.scrollTo(0, 0);
 }
