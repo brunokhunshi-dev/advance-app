@@ -1015,16 +1015,10 @@ async function carregarAtividadesPendentes() {
 
         if (atividade.status === 'Em andamento' && atividade.relatorioId) {
 
-            const registro = await getDoc(doc(db,'relatorios',atividade.relatorioId));
+            relatorio = await carregarRelatorioDaAtividade(atividade);
 
-            if (registro.exists()) {
-
-                const dados = registro.data();
-
-                if (dados.atividadeId !== atividade.id || dados.ptvId !== sessao.id) throw new Error('O relatório associado não corresponde a esta visita.');
-
-                relatorio = { ...dados, id: registro.id };
-
+            if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
+                throw new Error('O relatório associado não corresponde a esta visita.');
             }
 
         }
@@ -1756,17 +1750,15 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
         if (atividade.ptvId !== sessao.id) throw new Error('Esta visita não pertence ao usuário conectado.');
 
-        const [cliente, relatorioSnap] = await Promise.all([
+        const [cliente, relatorio] = await Promise.all([
             atividade.clienteId ? obterCliente(atividade.clienteId) : Promise.resolve(null),
-            atividade.relatorioId ? getDoc(doc(db, 'relatorios', atividade.relatorioId)) : Promise.resolve(null)
+            atividade.relatorioId ? carregarRelatorioDaAtividade(atividade) : Promise.resolve(null)
         ]);
 
         exigirSessao(sessao);
 
-        let relatorio = null;
-        if (relatorioSnap?.exists()) {
-            relatorio = { ...relatorioSnap.data(), id: relatorioSnap.id };
-            if (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id) throw new Error('O relatório associado não corresponde a esta visita.');
+        if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
+            throw new Error('O relatório associado não corresponde a esta visita.');
         }
 
         // Mantém os dados da visita atual disponíveis para ações do visualizador,
