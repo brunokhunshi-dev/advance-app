@@ -5,3 +5,6 @@ exports/
 .env
 service-account*.json
 *-service-account*.json
+.firebase-emulator-data/
+firebase-debug.log
+*-debug.log
