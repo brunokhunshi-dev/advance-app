@@ -140,7 +140,7 @@ function gerarSufixoId() {
 }
 
 function gerarIdAtividade(tipoVisita, data, nomeTecnico) {
-    const prefixo = tipoVisita === 'Treinamento' ? 'TR' : 'VT';
+    const prefixo = tipoVisita === 'Treinamento' ? 'TR' : (tipoVisita === 'Assistência técnica' ? 'AT' : 'VC');
     return prefixo + '-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
 }
 
@@ -279,10 +279,116 @@ function obterCliente(clienteId) {
 }
 
 function normalizarTipoVisita(atividade) {
-    if (atividade?.tipoVisita === 'Treinamento') return 'Treinamento';
-    if (atividade?.tipoVisita === 'Visita técnica') return 'Visita técnica';
-    if (atividade?.objetivo === 'Treinamento') return 'Treinamento';
-    return 'Visita técnica';
+    const tipo = String(atividade?.tipoVisita || '').trim().toLowerCase();
+    if (tipo === 'treinamento' || atividade?.objetivo === 'Treinamento') return 'Treinamento';
+    if (tipo === 'assistência técnica' || tipo === 'assistencia tecnica' || tipo === 'visita de assistência técnica' || tipo === 'visita de assistencia tecnica') return 'Assistência técnica';
+    // Compatibilidade com registros antigos: "Visita técnica" passa a ser exibida como comercial.
+    if (tipo === 'visita comercial' || tipo === 'visita técnica' || tipo === 'visita tecnica') return 'Visita comercial';
+    return 'Visita comercial';
+}
+
+const COLECOES_RELATORIO = Object.freeze({
+    'Visita comercial': 'relatorios_comerciais',
+    'Treinamento': 'relatorios_treinamentos',
+    'Assistência técnica': 'relatorios_assistencia_tecnica'
+});
+
+function colecaoRelatorioPorTipo(tipoOuAtividade) {
+    const tipo = typeof tipoOuAtividade === 'string' ? normalizarTipoVisita({ tipoVisita: tipoOuAtividade }) : normalizarTipoVisita(tipoOuAtividade || {});
+    return COLECOES_RELATORIO[tipo] || 'relatorios_comerciais';
+}
+
+function colecaoRelatorioDaAtividade(atividade, paraNovo = false) {
+    const explicita = String(atividade?.relatorioColecao || '').trim();
+    if (explicita) return explicita;
+    // Registros antigos já vinculados continuam na coleção histórica.
+    if (atividade?.relatorioId && !paraNovo) return 'relatorios';
+    return colecaoRelatorioPorTipo(atividade);
+}
+
+function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, paraNovo = false) {
+    if (!relatorioId) return null;
+    return doc(db, colecaoRelatorioDaAtividade(atividade, paraNovo), relatorioId);
+}
+
+async function carregarRelatorioDaAtividade(atividade) {
+    if (!atividade?.relatorioId) return null;
+    const ref = referenciaRelatorio(atividade);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
+}
+
+function dadosAssistenciaDoRelatorio(relatorio = {}) {
+    if (relatorio?.assistenciaTecnica) return { ...relatorio.assistenciaTecnica };
+
+    return {
+        ...(relatorio.clienteAplicacao || {}),
+        ...(relatorio.produtoQueixa || {}),
+        ...(relatorio.preparoAplicacao || {}),
+        ...(relatorio.verificacao || {}),
+        fotosSelecionadas: Array.isArray(relatorio?.evidencias?.fotos) ? relatorio.evidencias.fotos : [],
+        acoesDefinidas: relatorio?.fechamento?.acoesDefinidas || '',
+        conclusaoTecnica: relatorio?.fechamento?.conclusaoTecnica || '',
+        resultado: relatorio?.fechamento?.resultado || '',
+        proximoPasso: relatorio?.fechamento?.proximoPasso || ''
+    };
+}
+
+function secoesAssistenciaParaDocumento(dados = {}) {
+    return {
+        clienteAplicacao: {
+            clienteFinal: dados.clienteFinal || '',
+            contato: dados.contato || '',
+            setor: dados.setor || '',
+            enderecoAplicacao: dados.enderecoAplicacao || '',
+            empresaAplicacao: dados.empresaAplicacao || '',
+            responsavelEmpresa: dados.responsavelEmpresa || '',
+            acompanhadoPor: dados.acompanhadoPor || '',
+            superficie: dados.superficie || '',
+            dataAplicacao: dados.dataAplicacao || '',
+            houveEspecificacao: dados.houveEspecificacao || '',
+            numeroEspecificacao: dados.numeroEspecificacao || ''
+        },
+        produtoQueixa: {
+            produto: dados.produto || '',
+            lote: dados.lote || '',
+            cor: dados.cor || '',
+            queixa: dados.queixa || '',
+            esquemaPintura: dados.esquemaPintura || ''
+        },
+        preparoAplicacao: {
+            preparoSuperficie: dados.preparoSuperficie || '',
+            metodosLimpeza: Array.isArray(dados.metodosLimpeza) ? dados.metodosLimpeza : [],
+            impactoClimatico: dados.impactoClimatico || '',
+            impactoClimaticoDetalhe: dados.impactoClimaticoDetalhe || '',
+            ferramentasAplicacao: Array.isArray(dados.ferramentasAplicacao) ? dados.ferramentasAplicacao : []
+        },
+        verificacao: {
+            itensVerificados: Array.isArray(dados.itensVerificados) ? dados.itensVerificados : [],
+            umidade: dados.umidade || '',
+            umidadeReferencia: dados.umidadeReferencia || '',
+            constatacoes: dados.constatacoes || ''
+        },
+        evidencias: {
+            fotos: Array.isArray(dados.fotosSelecionadas) ? dados.fotosSelecionadas : []
+        },
+        fechamento: {
+            acoesDefinidas: dados.acoesDefinidas || '',
+            conclusaoTecnica: dados.conclusaoTecnica || '',
+            resultado: dados.resultado || '',
+            proximoPasso: dados.proximoPasso || ''
+        }
+    };
+}
+
+function relatorioValidoParaCheckout(relatorio, tipo) {
+    if (!relatorio) return false;
+    if (tipo === 'Assistência técnica') {
+        const dados = dadosAssistenciaDoRelatorio(relatorio);
+        return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());
+    }
+    return Boolean(String(relatorio.textoAtual || '').trim());
 }
 
 function formatarDataCheckout(valor) {
@@ -309,9 +415,9 @@ function formatarDuracaoVisita(inicio, fim) {
 }
 
 function limparFormularioCheckout() {
-    ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico','checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['checkout-cliente','checkout-chegada-data','checkout-chegada-hora','checkout-saida-data','checkout-saida-hora','checkout-duracao','checkout-relatorio-final'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
-    document.querySelectorAll('input[name="checkoutOportunidade"]').forEach(radio => { radio.checked = false; });
+    document.querySelectorAll('input[name="checkoutOportunidade"], input[name="checkoutAtResultado"]').forEach(radio => { radio.checked = false; });
 }
 
 function preencherCheckout(atividade, relatorio, saida) {
@@ -323,20 +429,313 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-saida-data').textContent = formatarDataCheckout(saida.dataHora);
     document.getElementById('checkout-saida-hora').textContent = formatarHoraCheckout(saida.dataHora);
     document.getElementById('checkout-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, saida.dataHora);
+
     const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('checkout-tecnico-section').style.display = tipo === 'Treinamento' ? 'none' : 'block';
+    document.getElementById('checkout-tecnico-section').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
     document.getElementById('checkout-treinamento-section').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+    document.getElementById('checkout-assistencia-section').style.display = tipo === 'Assistência técnica' ? 'block' : 'none';
     document.getElementById('checkout-tipo-titulo').textContent = tipo;
+
     document.getElementById('checkout-objetivo').value = atividade.objetivo || '';
     const oportunidade = atividade.oportunidadeIdentificada;
-    if (oportunidade === 'Sim' || oportunidade === 'Não') { const radio = document.querySelector('input[name="checkoutOportunidade"][value="' + oportunidade + '"]'); if (radio) radio.checked = true; }
+    if (oportunidade === 'Sim' || oportunidade === 'Não') {
+        const radio = document.querySelector('input[name="checkoutOportunidade"][value="' + oportunidade + '"]');
+        if (radio) radio.checked = true;
+    }
+
     document.getElementById('checkout-categoria').value = atividade.categoriaTreinamento || '';
     document.getElementById('checkout-participantes').value = atividade.quantidadeParticipantes ?? '';
     document.getElementById('checkout-publico').value = atividade.publicoAtendido || '';
+
+    const assistencia = dadosAssistenciaDoRelatorio(relatorio);
+    document.getElementById('checkout-at-acoes').value = assistencia.acoesDefinidas || '';
+    document.getElementById('checkout-at-conclusao').value = assistencia.conclusaoTecnica || '';
+    document.getElementById('checkout-at-proximo-passo').value = assistencia.proximoPasso || '';
+    if (assistencia.resultado) {
+        const radio = document.querySelector('input[name="checkoutAtResultado"][value="' + CSS.escape(String(assistencia.resultado)) + '"]');
+        if (radio) radio.checked = true;
+    }
+
+    const textoSection = document.getElementById('checkout-relatorio-texto-section');
+    const assistenciaPreview = document.getElementById('checkout-assistencia-preview');
+    if (textoSection) textoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
+    if (assistenciaPreview) assistenciaPreview.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
     document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
+    if (tipo === ASSISTENCIA_TECNICA_TIPO) atualizarPreviewCheckoutAssistencia();
+
     mostrarApenasTela('tela-checkout');
     window.scrollTo(0, 0);
 }
+
+const ASSISTENCIA_TECNICA_TIPO = 'Assistência técnica';
+
+function valorCampoAssistencia(id) {
+    return String(document.getElementById(id)?.value || '').trim();
+}
+
+function valoresMarcadosAssistencia(name) {
+    return [...document.querySelectorAll('input[name="' + name + '"]:checked')].map(input => input.value);
+}
+
+function radioAssistencia(name) {
+    return document.querySelector('input[name="' + name + '"]:checked')?.value || '';
+}
+
+function marcarRadioAssistencia(name, value) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(input => {
+        input.checked = String(input.value) === String(value || '');
+    });
+}
+
+function marcarChecksAssistencia(name, values) {
+    const set = new Set(Array.isArray(values) ? values.map(String) : []);
+    document.querySelectorAll('input[name="' + name + '"]').forEach(input => {
+        input.checked = set.has(String(input.value));
+    });
+}
+
+function limparFormularioAssistencia() {
+    [
+        'at-cliente-final','at-contato','at-setor','at-endereco-aplicacao','at-empresa-aplicacao',
+        'at-responsavel-empresa','at-acompanhado-por','at-superficie','at-data-aplicacao',
+        'at-numero-especificacao','at-produto','at-lote','at-cor','at-queixa','at-esquema-pintura',
+        'at-preparo-superficie','at-impacto-detalhe','at-umidade','at-umidade-referencia','at-constatacoes'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['atEspecificacao','atImpactoClimatico','atLimpeza','atFerramenta','atVerificado'].forEach(name => {
+        document.querySelectorAll('input[name="' + name + '"]').forEach(input => { input.checked = false; });
+    });
+    const fotos = document.getElementById('at-fotos');
+    if (fotos) fotos.value = '';
+    const status = document.getElementById('at-fotos-status');
+    if (status) status.textContent = 'Use a câmera ou selecione imagens do aparelho';
+    document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display','none');
+    document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display','none');
+}
+
+function lerFormularioAssistencia() {
+    const novasFotos = [...(document.getElementById('at-fotos')?.files || [])].map(file => ({
+        nome: file.name,
+        tipo: file.type || '',
+        tamanho: Number(file.size || 0),
+        alteradoEm: Number(file.lastModified || 0)
+    }));
+    const fotosSalvas = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas;
+    const fotos = novasFotos.length ? novasFotos : (Array.isArray(fotosSalvas) ? fotosSalvas : []);
+
+    return {
+        clienteFinal: valorCampoAssistencia('at-cliente-final'),
+        contato: valorCampoAssistencia('at-contato'),
+        setor: valorCampoAssistencia('at-setor'),
+        enderecoAplicacao: valorCampoAssistencia('at-endereco-aplicacao'),
+        empresaAplicacao: valorCampoAssistencia('at-empresa-aplicacao'),
+        responsavelEmpresa: valorCampoAssistencia('at-responsavel-empresa'),
+        acompanhadoPor: valorCampoAssistencia('at-acompanhado-por'),
+        superficie: valorCampoAssistencia('at-superficie'),
+        dataAplicacao: valorCampoAssistencia('at-data-aplicacao'),
+        houveEspecificacao: radioAssistencia('atEspecificacao'),
+        numeroEspecificacao: valorCampoAssistencia('at-numero-especificacao'),
+        produto: valorCampoAssistencia('at-produto'),
+        lote: valorCampoAssistencia('at-lote'),
+        cor: valorCampoAssistencia('at-cor'),
+        queixa: valorCampoAssistencia('at-queixa'),
+        esquemaPintura: valorCampoAssistencia('at-esquema-pintura'),
+        preparoSuperficie: valorCampoAssistencia('at-preparo-superficie'),
+        metodosLimpeza: valoresMarcadosAssistencia('atLimpeza'),
+        impactoClimatico: radioAssistencia('atImpactoClimatico'),
+        impactoClimaticoDetalhe: valorCampoAssistencia('at-impacto-detalhe'),
+        ferramentasAplicacao: valoresMarcadosAssistencia('atFerramenta'),
+        itensVerificados: valoresMarcadosAssistencia('atVerificado'),
+        umidade: valorCampoAssistencia('at-umidade'),
+        umidadeReferencia: valorCampoAssistencia('at-umidade-referencia'),
+        constatacoes: valorCampoAssistencia('at-constatacoes'),
+        fotosSelecionadas: fotos
+    };
+}
+
+function preencherFormularioAssistencia(dados = {}) {
+    limparFormularioAssistencia();
+    const mapa = {
+        'at-cliente-final':'clienteFinal','at-contato':'contato','at-setor':'setor',
+        'at-endereco-aplicacao':'enderecoAplicacao','at-empresa-aplicacao':'empresaAplicacao',
+        'at-responsavel-empresa':'responsavelEmpresa','at-acompanhado-por':'acompanhadoPor',
+        'at-superficie':'superficie','at-data-aplicacao':'dataAplicacao',
+        'at-numero-especificacao':'numeroEspecificacao','at-produto':'produto','at-lote':'lote',
+        'at-cor':'cor','at-queixa':'queixa','at-esquema-pintura':'esquemaPintura',
+        'at-preparo-superficie':'preparoSuperficie','at-impacto-detalhe':'impactoClimaticoDetalhe',
+        'at-umidade':'umidade','at-umidade-referencia':'umidadeReferencia','at-constatacoes':'constatacoes'
+    };
+    Object.entries(mapa).forEach(([id,key]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = dados?.[key] ?? '';
+    });
+    marcarRadioAssistencia('atEspecificacao', dados?.houveEspecificacao);
+    marcarRadioAssistencia('atImpactoClimatico', dados?.impactoClimatico);
+    marcarChecksAssistencia('atLimpeza', dados?.metodosLimpeza);
+    marcarChecksAssistencia('atFerramenta', dados?.ferramentasAplicacao);
+    marcarChecksAssistencia('atVerificado', dados?.itensVerificados);
+
+    document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display', dados?.houveEspecificacao === 'Sim' ? 'block' : 'none');
+    document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display', dados?.impactoClimatico === 'Sim' ? 'block' : 'none');
+
+    const antigas = Array.isArray(dados?.fotosSelecionadas) ? dados.fotosSelecionadas : [];
+    const status = document.getElementById('at-fotos-status');
+    if (status && antigas.length) status.textContent = antigas.length + (antigas.length === 1 ? ' foto registrada na última edição' : ' fotos registradas na última edição');
+}
+
+function normalizarAssistenciaComparacao(dados = {}) {
+    const copia = { ...dados };
+    delete copia.fotosSelecionadas;
+    delete copia.acoesDefinidas;
+    delete copia.conclusaoTecnica;
+    delete copia.resultado;
+    delete copia.proximoPasso;
+    return copia;
+}
+
+function gerarResumoAssistenciaTecnica(dados = {}) {
+    const linha = (rotulo, valor) => {
+        if (valor == null || String(valor).trim() === '') return null;
+        return rotulo + ': ' + String(valor).trim();
+    };
+    const lista = (rotulo, valores) => Array.isArray(valores) && valores.length ? rotulo + ': ' + valores.join(', ') : null;
+
+    return [
+        'RELATÓRIO DE ASSISTÊNCIA TÉCNICA',
+        linha('Cliente final', dados.clienteFinal),
+        linha('Contato / setor', [dados.contato, dados.setor].filter(Boolean).join(' / ')),
+        linha('Endereço de aplicação', dados.enderecoAplicacao),
+        linha('Empresa de aplicação', dados.empresaAplicacao),
+        linha('Responsável da empresa', dados.responsavelEmpresa),
+        linha('Acompanhado por', dados.acompanhadoPor),
+        linha('Equipamento / superfície', dados.superficie),
+        linha('Data da aplicação', dados.dataAplicacao),
+        linha('Houve especificação', dados.houveEspecificacao),
+        linha('Nº da especificação', dados.numeroEspecificacao),
+        '',
+        linha('Produto', dados.produto),
+        linha('Lote', dados.lote),
+        linha('Cor', dados.cor),
+        linha('Queixa', dados.queixa),
+        linha('Esquema de pintura', dados.esquemaPintura),
+        '',
+        linha('Preparo da superfície', dados.preparoSuperficie),
+        lista('Métodos de limpeza', dados.metodosLimpeza),
+        linha('Impacto climático / intempéries', dados.impactoClimatico),
+        linha('Detalhes das condições', dados.impactoClimaticoDetalhe),
+        lista('Ferramentas de aplicação', dados.ferramentasAplicacao),
+        '',
+        lista('Itens verificados', dados.itensVerificados),
+        linha('Umidade medida', dados.umidade),
+        linha('Referência / limite', dados.umidadeReferencia),
+        linha('Constatações técnicas', dados.constatacoes),
+        '',
+        linha('Ações definidas', dados.acoesDefinidas),
+        linha('Conclusão técnica', dados.conclusaoTecnica),
+        linha('Resultado da assistência', dados.resultado),
+        linha('Próximo passo', dados.proximoPasso)
+    ].filter(item => item !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function valorVisualAssistencia(valor, fallback = 'Não informado') {
+    const texto = String(valor ?? '').trim();
+    return texto ? escaparHtml(texto) : fallback;
+}
+
+function listaVisualAssistencia(valores) {
+    const lista = Array.isArray(valores) ? valores.filter(Boolean) : [];
+    return lista.length ? lista.map(escaparHtml).join(', ') : 'Não informado';
+}
+
+function renderFichaAssistencia(dados = {}, opcoes = {}) {
+    const campo = (rotulo, valor) =>
+        '<div class="visualizador-info"><label>' + escaparHtml(rotulo) + '</label><div class="visualizador-value">' + valorVisualAssistencia(valor) + '</div></div>';
+
+    const secao = (titulo, conteudo) =>
+        '<div class="assistencia-form-view-section"><h3>' + escaparHtml(titulo) + '</h3>' + conteudo + '</div>';
+
+    const especificacao = dados.houveEspecificacao === 'Sim'
+        ? 'Sim' + (dados.numeroEspecificacao ? ' · ' + dados.numeroEspecificacao : '')
+        : (dados.houveEspecificacao || 'Não informado');
+
+    const clima = dados.impactoClimatico === 'Sim'
+        ? 'Sim' + (dados.impactoClimaticoDetalhe ? ' · ' + dados.impactoClimaticoDetalhe : '')
+        : (dados.impactoClimatico || 'Não informado');
+
+    let html = '';
+
+    html += secao('Cliente e aplicação',
+        campo('Cliente final', dados.clienteFinal) +
+        campo('Contato / setor', [dados.contato, dados.setor].filter(Boolean).join(' / ')) +
+        campo('Endereço de aplicação', dados.enderecoAplicacao) +
+        campo('Empresa de aplicação', dados.empresaAplicacao) +
+        campo('Responsável da empresa', dados.responsavelEmpresa) +
+        campo('Acompanhado por', dados.acompanhadoPor) +
+        campo('Equipamento / superfície', dados.superficie) +
+        campo('Data da aplicação', dados.dataAplicacao) +
+        campo('Especificação', especificacao)
+    );
+
+    html += secao('Produto e queixa',
+        campo('Produto', dados.produto) +
+        campo('Lote', dados.lote) +
+        campo('Cor', dados.cor) +
+        campo('Queixa', dados.queixa) +
+        campo('Esquema de pintura', dados.esquemaPintura)
+    );
+
+    html += secao('Preparo e condições de aplicação',
+        campo('Preparo da superfície', dados.preparoSuperficie) +
+        campo('Métodos de limpeza', listaVisualAssistencia(dados.metodosLimpeza)) +
+        campo('Impacto climático / intempéries', clima) +
+        campo('Ferramenta de aplicação', listaVisualAssistencia(dados.ferramentasAplicacao))
+    );
+
+    html += secao('O que foi verificado',
+        campo('Itens verificados', listaVisualAssistencia(dados.itensVerificados)) +
+        campo('Umidade medida', dados.umidade) +
+        campo('Referência / limite', dados.umidadeReferencia) +
+        campo('Constatações técnicas', dados.constatacoes)
+    );
+
+    if (!opcoes.omitirFechamento) {
+        html += secao('Fechamento',
+            campo('Ações definidas', dados.acoesDefinidas) +
+            campo('Conclusão técnica', dados.conclusaoTecnica) +
+            campo('Resultado da assistência', dados.resultado) +
+            campo('Próximo passo', dados.proximoPasso)
+        );
+    }
+
+    return html;
+}
+
+function dadosAssistenciaCheckoutAtual() {
+    return {
+        ...dadosAssistenciaDoRelatorio(objetoRelatorioGlobal),
+        acoesDefinidas: String(document.getElementById('checkout-at-acoes')?.value || '').trim(),
+        conclusaoTecnica: String(document.getElementById('checkout-at-conclusao')?.value || '').trim(),
+        resultado: document.querySelector('input[name="checkoutAtResultado"]:checked')?.value || '',
+        proximoPasso: String(document.getElementById('checkout-at-proximo-passo')?.value || '').trim()
+    };
+}
+
+function atualizarPreviewCheckoutAssistencia() {
+    const container = document.getElementById('checkout-at-preview');
+    if (!container) return;
+    container.innerHTML = renderFichaAssistencia(dadosAssistenciaCheckoutAtual());
+}
+
+function mostrarEditorRelatorioPorTipo(tipo) {
+    const assistencia = tipo === ASSISTENCIA_TECNICA_TIPO;
+    const padrao = document.getElementById('relatorio-editor-padrao');
+    const personalizado = document.getElementById('relatorio-assistencia-section');
+    if (padrao) padrao.style.display = assistencia ? 'none' : 'block';
+    if (personalizado) personalizado.style.display = assistencia ? 'block' : 'none';
+}
+
 class ErroCheckoutLocalizacao extends Error {}
 
 function validarPrecisaoGps(pos) {
@@ -775,16 +1174,10 @@ async function carregarAtividadesPendentes() {
 
         if (atividade.status === 'Em andamento' && atividade.relatorioId) {
 
-            const registro = await getDoc(doc(db,'relatorios',atividade.relatorioId));
+            relatorio = await carregarRelatorioDaAtividade(atividade);
 
-            if (registro.exists()) {
-
-                const dados = registro.data();
-
-                if (dados.atividadeId !== atividade.id || dados.ptvId !== sessao.id) throw new Error('O relatório associado não corresponde a esta visita.');
-
-                relatorio = { ...dados, id: registro.id };
-
+            if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
+                throw new Error('O relatório associado não corresponde a esta visita.');
             }
 
         }
@@ -908,7 +1301,7 @@ async function carregarAgenda() {
 
                     <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escaparHtml(atividade.enderecoCompleto)}</div>
 
-                    <div class="agenda-motivo">${escaparHtml(atividade.tipoVisita || (atividade.objetivo === "Treinamento" ? "Treinamento" : "Visita técnica"))}</div>
+                    <div class="agenda-motivo">${escaparHtml(normalizarTipoVisita(atividade))}</div>
 
                     ${botaoGpsHTML}
 
@@ -1343,7 +1736,7 @@ function configurarTelaNovaVisita() {
 
                 countNota.textContent = '0/600';
 
-                document.querySelector('input[name="tipoVisita"][value="Visita técnica"]').checked = true;
+                document.querySelector('input[name="tipoVisita"][value="Visita comercial"]').checked = true;
 
                 window.mostrarAlerta('Sucesso', 'Visita agendada.');
 
@@ -1403,9 +1796,11 @@ function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
 
     const tecnica = document.getElementById('pdf-tecnica-table');
     const treinamento = document.getElementById('pdf-treinamento-table');
+    const assistencia = document.getElementById('pdf-assistencia-table');
 
-    tecnica.style.display = tipo === 'Treinamento' ? 'none' : 'table';
+    tecnica.style.display = tipo === 'Visita comercial' ? 'table' : 'none';
     treinamento.style.display = tipo === 'Treinamento' ? 'table' : 'none';
+    assistencia.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'table' : 'none';
 
     preencherCelulaPdf('pdf-objetivo', atividade.objetivo);
     preencherCelulaPdf('pdf-oportunidade', atividade.oportunidadeIdentificada);
@@ -1413,8 +1808,19 @@ function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
     preencherCelulaPdf('pdf-participantes', atividade.quantidadeParticipantes);
     preencherCelulaPdf('pdf-publico', atividade.publicoAtendido);
 
+    const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
+    preencherCelulaPdf('pdf-at-cliente-final', dadosAssistencia.clienteFinal);
+    preencherCelulaPdf('pdf-at-produto', dadosAssistencia.produto);
+    preencherCelulaPdf('pdf-at-lote', dadosAssistencia.lote);
+    preencherCelulaPdf('pdf-at-queixa', dadosAssistencia.queixa);
+    preencherCelulaPdf('pdf-at-constatacoes', dadosAssistencia.constatacoes);
+    preencherCelulaPdf('pdf-at-conclusao', dadosAssistencia.conclusaoTecnica);
+    preencherCelulaPdf('pdf-at-resultado', dadosAssistencia.resultado);
+
     preencherCelulaPdf('pdf-nota', atividade.nota);
     preencherCelulaPdf('pdf-relatorio', relatorio?.textoAtual);
+    const relatorioTextoTable = document.getElementById('pdf-relatorio-texto-table');
+    if (relatorioTextoTable) relatorioTextoTable.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'table';
 
     const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
     const manualTable = document.getElementById('pdf-manual-table');
@@ -1452,14 +1858,26 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     if (enderecoCliente) enderecoCliente.textContent = cliente?.enderecoCompleto || 'Endereço não informado';
 
     const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('visu-tecnica').style.display = tipo === 'Treinamento' ? 'none' : 'block';
+    document.getElementById('visu-tecnica').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
     document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+    document.getElementById('visu-assistencia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
 
     preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
     preencherCampoVisualizador('visu-oportunidade', atividade.oportunidadeIdentificada);
     preencherCampoVisualizador('visu-categoria', atividade.categoriaTreinamento);
     preencherCampoVisualizador('visu-participantes', atividade.quantidadeParticipantes);
     preencherCampoVisualizador('visu-publico', atividade.publicoAtendido);
+
+    const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
+    const relatorioTextoSection = document.getElementById('visu-relatorio-section');
+    if (relatorioTextoSection) relatorioTextoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
+
+    if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+        const visual = document.getElementById('visu-at-relatorio-visual');
+        if (visual) visual.innerHTML = renderFichaAssistencia(dadosAssistencia);
+
+    }
+
     preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
     preencherCampoVisualizador('visu-relatorio', relatorio?.textoAtual, 'Nenhum relatório registrado.');
 
@@ -1497,17 +1915,15 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
         if (atividade.ptvId !== sessao.id) throw new Error('Esta visita não pertence ao usuário conectado.');
 
-        const [cliente, relatorioSnap] = await Promise.all([
+        const [cliente, relatorio] = await Promise.all([
             atividade.clienteId ? obterCliente(atividade.clienteId) : Promise.resolve(null),
-            atividade.relatorioId ? getDoc(doc(db, 'relatorios', atividade.relatorioId)) : Promise.resolve(null)
+            atividade.relatorioId ? carregarRelatorioDaAtividade(atividade) : Promise.resolve(null)
         ]);
 
         exigirSessao(sessao);
 
-        let relatorio = null;
-        if (relatorioSnap?.exists()) {
-            relatorio = { ...relatorioSnap.data(), id: relatorioSnap.id };
-            if (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id) throw new Error('O relatório associado não corresponde a esta visita.');
+        if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
+            throw new Error('O relatório associado não corresponde a esta visita.');
         }
 
         // Mantém os dados da visita atual disponíveis para ações do visualizador,
@@ -2214,12 +2630,11 @@ async function encerrarVisita(id, btn) {
 
         const endereco = await obterEnderecoPorCoords(lat, lng);
         exigirSessao(sessao);
-        const relSnap = await getDoc(doc(db, 'relatorios', atividade.relatorioId));
-        if (!relSnap.exists() || relSnap.data().atividadeId !== id || relSnap.data().ptvId !== sessao.id || !String(relSnap.data().textoAtual || '').trim()) {
+        const relatorio = await carregarRelatorioDaAtividade(atividade);
+        const tipo = normalizarTipoVisita(atividade);
+        if (!relatorio || relatorio.atividadeId !== id || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, tipo)) {
             throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
         }
-
-        const relatorio = { ...relSnap.data(), id: relSnap.id };
         const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
         objetoAtividadeGlobal = atividade;
         objetoRelatorioGlobal = relatorio;
@@ -2238,7 +2653,8 @@ function atualizarInterfaceVisitaAtual() {
 
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
     const areaVisitas = document.getElementById('area-visitas');
-    const temRelatorio = !!(objetoRelatorioGlobal && String(objetoRelatorioGlobal.textoAtual || '').trim());
+    const tipoAtual = normalizarTipoVisita(objetoAtividadeGlobal);
+    const temRelatorio = relatorioValidoParaCheckout(objetoRelatorioGlobal, tipoAtual);
 
     const etapas = [{
         titulo: 'Check-in',
@@ -2247,17 +2663,23 @@ function atualizarInterfaceVisitaAtual() {
     }];
 
     if (temRelatorio) {
-        const historico = Array.isArray(objetoRelatorioGlobal.historico) && objetoRelatorioGlobal.historico.length
-            ? objetoRelatorioGlobal.historico
+        const revisoesFonte = tipoAtual === ASSISTENCIA_TECNICA_TIPO
+            ? objetoRelatorioGlobal.revisoes
+            : objetoRelatorioGlobal.historico;
+        const revisoes = Array.isArray(revisoesFonte) && revisoesFonte.length
+            ? revisoesFonte
             : [{ salvoEm: objetoRelatorioGlobal.atualizadoEm }];
 
-        historico.forEach((registro, index) => {
+        revisoes.forEach((registro, index) => {
             const horaReg = formatarDataHoraPT(registro.salvoEm).hora;
             etapas.push({
                 titulo: index === 0 ? 'Relatório adicionado' : 'Relatório atualizado',
                 hora: horaReg,
-                descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' ' + (index === 0 ? 'escreveu um relatório.' : 'atualizou o relatório.'),
-                relatorioAtual: index === historico.length - 1
+                descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' ' +
+                    (tipoAtual === ASSISTENCIA_TECNICA_TIPO
+                        ? (index === 0 ? 'preencheu o relatório técnico.' : 'atualizou o relatório técnico.')
+                        : (index === 0 ? 'escreveu um relatório.' : 'atualizou o relatório.')),
+                relatorioAtual: index === revisoes.length - 1
             });
         });
     }
@@ -2300,6 +2722,7 @@ function atualizarInterfaceVisitaAtual() {
         if (operacaoEmCurso) return;
         mostrarApenasTela('tela-relatorio');
         const formatoData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
+        const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
         let codigoRelatorio = '';
 
         if (objetoRelatorioGlobal) {
@@ -2311,7 +2734,12 @@ function atualizarInterfaceVisitaAtual() {
             document.getElementById('rel-texto').value = '';
         }
 
-        document.getElementById('rel-titulo-cliente').textContent = 'Relatório - ' + clienteSelecionadoNome;
+        mostrarEditorRelatorioPorTipo(tipo);
+        if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+            preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
+        }
+
+        document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + clienteSelecionadoNome;
         document.getElementById('rel-opcao-cliente').textContent = clienteSelecionadoNome;
         document.getElementById('rel-data').value = formatoData.data;
         document.getElementById('rel-hora').value = formatoData.hora;
@@ -2369,11 +2797,11 @@ async function enviarFechamentoManual() {
             if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
             if (!atividade.relatorioId) throw new Error('O relatório precisa estar salvo antes do fechamento manual.');
 
-            const relRef = doc(db, 'relatorios', atividade.relatorioId);
+            const relRef = referenciaRelatorio(atividade);
             const relSnap = await tx.get(relRef);
             if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
             const relatorio = relSnap.data();
-            if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !String(relatorio.textoAtual || '').trim()) throw new Error('O relatório não está válido.');
+            if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, normalizarTipoVisita(atividade))) throw new Error('O relatório não está válido.');
 
             const agora = new Date();
             const manual = {
@@ -2455,28 +2883,40 @@ function configurarEventosGlobais() {
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
         if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;
+
         const btn = document.getElementById('btn-concluir-checkout');
         const atividadeId = checkoutPendenteGlobal.atividadeId;
         const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+
         const objetivo = document.getElementById('checkout-objetivo').value.trim();
         const oportunidade = document.querySelector('input[name="checkoutOportunidade"]:checked')?.value || '';
         const categoria = document.getElementById('checkout-categoria').value.trim();
         const participantesTexto = document.getElementById('checkout-participantes').value.trim();
         const publico = document.getElementById('checkout-publico').value.trim();
 
+        const atAcoes = document.getElementById('checkout-at-acoes').value.trim();
+        const atConclusao = document.getElementById('checkout-at-conclusao').value.trim();
+        const atResultado = document.querySelector('input[name="checkoutAtResultado"]:checked')?.value || '';
+        const atProximoPasso = document.getElementById('checkout-at-proximo-passo').value.trim();
+
         if (tipo === 'Treinamento') {
             if (!categoria) return window.mostrarAlerta('Atenção', 'Selecione a categoria do treinamento.');
             const participantes = Number(participantesTexto);
             if (!Number.isInteger(participantes) || participantes < 1 || participantes > 10000) return window.mostrarAlerta('Atenção', 'Informe uma quantidade válida de participantes.');
             if (!publico) return window.mostrarAlerta('Atenção', 'Selecione o público atendido.');
+        } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+            if (!atAcoes) return window.mostrarAlerta('Atenção', 'Informe as ações definidas.');
+            if (!atConclusao) return window.mostrarAlerta('Atenção', 'Informe a conclusão técnica.');
+            if (!atResultado) return window.mostrarAlerta('Atenção', 'Selecione o resultado da assistência.');
         } else {
-            if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita.');
+            if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita comercial.');
             if (!oportunidade) return window.mostrarAlerta('Atenção', 'Informe se houve oportunidade identificada.');
         }
 
         operacaoEmCurso = true;
         btn.disabled = true;
         btn.textContent = 'Concluindo...';
+
         try {
             const sessao = sessaoAtual();
             const saida = checkoutPendenteGlobal.posicao;
@@ -2486,17 +2926,21 @@ function configurarEventosGlobais() {
                 const atvRef = doc(db, 'atividades', atividadeId);
                 const atvSnap = await tx.get(atvRef);
                 if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
+
                 const atividade = atvSnap.data();
                 validarResponsavel(atividade, sessao);
                 if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
                 if (normalizarTipoVisita(atividade) !== tipo) throw new Error('A visita foi alterada. Volte e abra o check-out novamente.');
                 if (!atividade.relatorioId) throw new Error('O relatório não está vinculado à visita.');
 
-                const relRef = doc(db, 'relatorios', atividade.relatorioId);
+                const relRef = referenciaRelatorio(atividade);
                 const relSnap = await tx.get(relRef);
                 if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
+
                 const relatorioAtual = relSnap.data();
-                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !String(relatorioAtual.textoAtual || '').trim()) throw new Error('O relatório não está válido.');
+                if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorioAtual, tipo)) {
+                    throw new Error('O relatório não está válido.');
+                }
 
                 const agora = new Date();
                 const dadosCheckout = {
@@ -2507,17 +2951,49 @@ function configurarEventosGlobais() {
                     checkoutEndereco: saida.endereco
                 };
 
+                let atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
+
                 if (tipo === 'Treinamento') {
                     dadosCheckout.categoriaTreinamento = categoria;
                     dadosCheckout.quantidadeParticipantes = Number(participantesTexto);
                     dadosCheckout.publicoAtendido = publico;
+                    atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
+                } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+                    const dadosAssistencia = {
+                        ...dadosAssistenciaDoRelatorio(relatorioAtual),
+                        acoesDefinidas: atAcoes,
+                        conclusaoTecnica: atConclusao,
+                        resultado: atResultado,
+                        proximoPasso: atProximoPasso
+                    };
+                    const secoes = secoesAssistenciaParaDocumento(dadosAssistencia);
+                    const revisoes = Array.isArray(relatorioAtual.revisoes) ? [...relatorioAtual.revisoes] : [];
+                    revisoes.push({
+                        fechamento: secoes.fechamento,
+                        etapa: 'checkout',
+                        salvoEm: agora
+                    });
+
+                    dadosCheckout.resultado = atResultado;
+                    dadosCheckout.resultadoAssistencia = atResultado;
+                    dadosCheckout.acoesDefinidas = atAcoes;
+                    dadosCheckout.conclusaoTecnica = atConclusao;
+                    dadosCheckout.proximoPasso = atProximoPasso;
+                    dadosCheckout.proximoPassoAssistencia = atProximoPasso;
+                    atualizacaoRelatorio = {
+                        ...dadosCheckout,
+                        fechamento: secoes.fechamento,
+                        revisoes,
+                        atualizadoEm: agora
+                    };
                 } else {
                     dadosCheckout.objetivo = objetivo;
                     dadosCheckout.oportunidadeIdentificada = oportunidade;
+                    atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
                 }
 
                 tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora });
-                tx.update(relRef, { ...dadosCheckout, atualizadoEm: agora });
+                tx.update(relRef, atualizacaoRelatorio);
             });
 
             if (!sessaoValida(sessao)) return;
@@ -2530,7 +3006,7 @@ function configurarEventosGlobais() {
             limparEstadoVisita();
             mostrarApenasTela('tela-historico');
             await carregarHistoricoVisitas();
-            window.mostrarAlerta('Sucesso', 'Visita concluída.');
+            window.mostrarAlerta('Sucesso', tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica concluída.' : 'Visita concluída.');
         } catch (erro) {
             informarErro('Erro ao concluir visita', erro);
         } finally {
@@ -2541,106 +3017,187 @@ function configurarEventosGlobais() {
     });
 
 
-    document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="atEspecificacao"]').forEach(input => input.addEventListener('change', () => {
+        document.getElementById('at-especificacao-numero-wrap').style.display = radioAssistencia('atEspecificacao') === 'Sim' ? 'block' : 'none';
+    }));
+    document.querySelectorAll('input[name="atImpactoClimatico"]').forEach(input => input.addEventListener('change', () => {
+        document.getElementById('at-impacto-detalhe-wrap').style.display = radioAssistencia('atImpactoClimatico') === 'Sim' ? 'block' : 'none';
+    }));
+    document.getElementById('at-fotos')?.addEventListener('change', event => {
+        const total = event.target.files?.length || 0;
+        document.getElementById('at-fotos-status').textContent = total ? total + (total === 1 ? ' foto selecionada' : ' fotos selecionadas') : 'Use a câmera ou selecione imagens do aparelho';
+    });
 
+    ['checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', atualizarPreviewCheckoutAssistencia);
+    });
+    document.querySelectorAll('input[name="checkoutAtResultado"]').forEach(input => {
+        input.addEventListener('change', atualizarPreviewCheckoutAssistencia);
+    });
+
+    document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
 
-        const atual = document.getElementById('rel-texto').value.trim();
+        const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+        let alterado = false;
+        if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+            const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
+            const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
+            alterado = JSON.stringify(atual) !== JSON.stringify(salvo);
+        } else {
+            alterado = document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
+        }
 
-        if (atual !== String(objetoRelatorioGlobal?.textoAtual || '').trim()) {
+        if (alterado) {
             window.mostrarConfirmacaoDescarteRelatorio(() => mostrarApenasTela('tela-inicio'));
             return;
         }
-
         mostrarApenasTela('tela-inicio');
-
     });
 
     document.getElementById('btn-salvar-relatorio')?.addEventListener('click', async () => {
-
         if (operacaoEmCurso) return;
-
         const btn = document.getElementById('btn-salvar-relatorio');
 
         try {
-
             const sessao = sessaoAtual(), atividadeId = atividadeSelecionadaId;
+            if (!atividadeId || !objetoAtividadeGlobal) throw new Error('Abra uma visita em andamento antes de preencher o relatório.');
 
-            const texto = document.getElementById('rel-texto').value.trim();
+            const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
+            const ehAssistencia = tipo === ASSISTENCIA_TECNICA_TIPO;
+            let assistenciaTecnica = null;
+            let texto = '';
 
-            if (!texto) throw new Error('Escreva um resumo antes de salvar.');
-
-            if (!atividadeId || !objetoAtividadeGlobal) throw new Error('Abra uma visita em andamento antes de escrever o relatório.');
-
-            // Mantém o documento abaixo do limite mesmo com histórico. Para históricos
-
-            // extensos, migrar as revisões para uma subcoleção.
-
-            if (texto.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
+            if (ehAssistencia) {
+                assistenciaTecnica = lerFormularioAssistencia();
+                if (!assistenciaTecnica.produto) throw new Error('Informe o produto verificado.');
+                if (!assistenciaTecnica.queixa) throw new Error('Informe a queixa da assistência técnica.');
+                if (!assistenciaTecnica.constatacoes) throw new Error('Registre as constatações técnicas.');
+            } else {
+                texto = document.getElementById('rel-texto').value.trim();
+                if (!texto) throw new Error('Escreva um resumo antes de salvar.');
+                if (texto.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
+            }
 
             const codigo = document.getElementById('rel-codigo-gerado').textContent;
-
             const textoBase = objetoRelatorioGlobal?.textoAtual ?? null;
-
+            const estruturaBase = ehAssistencia
+                ? normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal))
+                : null;
             const novoIdRelatorio = gerarIdRelatorio(new Date(), nomeUsuarioLogado);
-            const novoRef = doc(db, 'relatorios', novoIdRelatorio);
 
-            operacaoEmCurso = true; btn.disabled = true; btn.textContent = 'Salvando...';
+            operacaoEmCurso = true;
+            btn.disabled = true;
+            btn.textContent = 'Salvando...';
 
             const salvo = await runTransaction(db, async tx => {
-
-                const atvRef = doc(db,'atividades',atividadeId), snap = await tx.get(atvRef);
-
+                const atvRef = doc(db,'atividades',atividadeId);
+                const snap = await tx.get(atvRef);
                 if (!snap.exists()) throw new Error('Visita não encontrada.');
 
-                const atv = snap.data(); validarResponsavel(atv,sessao);
-
+                const atv = snap.data();
+                validarResponsavel(atv,sessao);
                 if (atv.status !== 'Em andamento') throw new Error('Só é possível salvar relatório de visita em andamento.');
+                if (normalizarTipoVisita(atv) !== tipo) throw new Error('O tipo da visita foi alterado. Reabra o relatório.');
 
-                const ref = atv.relatorioId ? doc(db,'relatorios',atv.relatorioId) : novoRef;
-
+                const colecaoRelatorio = atv.relatorioId ? colecaoRelatorioDaAtividade(atv) : colecaoRelatorioPorTipo(tipo);
+                const ref = doc(db, colecaoRelatorio, atv.relatorioId || novoIdRelatorio);
                 const anterior = await tx.get(ref);
-
                 const dados = anterior.exists() ? anterior.data() : null;
 
-                if (dados && (dados.atividadeId !== atividadeId || dados.ptvId !== sessao.id)) throw new Error('O relatório não corresponde a esta visita.');
-
-                if (dados && dados.textoAtual !== textoBase && dados.textoAtual !== texto) throw new Error('O relatório foi alterado em outra sessão. Copie seu texto, volte ao Início e reabra o relatório antes de salvar.');
+                if (dados && (dados.atividadeId !== atividadeId || dados.ptvId !== sessao.id)) {
+                    throw new Error('O relatório não corresponde a esta visita.');
+                }
 
                 const agora = new Date();
+                const baseComum = {
+                    id: ref.id,
+                    atividadeId,
+                    clienteId: atv.clienteId,
+                    ptvId: sessao.id,
+                    tipoVisita: tipo,
+                    codigo: dados?.codigo || codigo || '#' + atividadeId,
+                    criadoEm: dados?.criadoEm || agora,
+                    atualizadoEm: agora
+                };
 
-                const historico = Array.isArray(dados?.historico) ? [...dados.historico] : [];
+                let resultado;
 
-                if (!dados || dados.textoAtual !== texto) historico.push({ texto, salvoEm: agora });
+                if (ehAssistencia) {
+                    const estruturaBanco = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(dados));
+                    const estruturaNova = normalizarAssistenciaComparacao(assistenciaTecnica);
 
-                const resultado = { ...dados, id:ref.id, atividadeId, clienteId:atv.clienteId, ptvId:sessao.id,
+                    if (dados &&
+                        JSON.stringify(estruturaBanco) !== JSON.stringify(estruturaBase) &&
+                        JSON.stringify(estruturaBanco) !== JSON.stringify(estruturaNova)) {
+                        throw new Error('O relatório foi alterado em outra sessão. Volte ao Início e reabra o relatório antes de salvar.');
+                    }
 
-                    codigo:dados?.codigo || codigo || `#${atividadeId}`, textoAtual:texto, historico,
+                    const secoes = secoesAssistenciaParaDocumento(assistenciaTecnica);
+                    const revisoes = Array.isArray(dados?.revisoes) ? [...dados.revisoes] : [];
+                    if (!dados || JSON.stringify(estruturaBanco) !== JSON.stringify(estruturaNova)) {
+                        revisoes.push({
+                            clienteAplicacao: secoes.clienteAplicacao,
+                            produtoQueixa: secoes.produtoQueixa,
+                            preparoAplicacao: secoes.preparoAplicacao,
+                            verificacao: secoes.verificacao,
+                            evidencias: secoes.evidencias,
+                            salvoEm: agora
+                        });
+                    }
 
-                    criadoEm:dados?.criadoEm || agora, atualizadoEm:agora };
+                    resultado = {
+                        ...dados,
+                        ...baseComum,
+                        ...secoes,
+                        revisoes
+                    };
+                    delete resultado.assistenciaTecnica;
+                    delete resultado.textoAtual;
+                    delete resultado.historico;
+                } else {
+                    if (dados && dados.textoAtual !== textoBase && dados.textoAtual !== texto) {
+                        throw new Error('O relatório foi alterado em outra sessão. Volte ao Início e reabra o relatório antes de salvar.');
+                    }
 
-                if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) throw new Error('O histórico deste relatório está muito grande. Solicite o arquivamento das revisões antes de continuar.');
+                    const historico = Array.isArray(dados?.historico) ? [...dados.historico] : [];
+                    if (!dados || dados.textoAtual !== texto) historico.push({ texto, salvoEm: agora });
+
+                    resultado = {
+                        ...dados,
+                        ...baseComum,
+                        textoAtual: texto,
+                        historico
+                    };
+                }
+
+                if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) {
+                    throw new Error('O histórico deste relatório está muito grande. Solicite o arquivamento das revisões antes de continuar.');
+                }
 
                 tx.set(ref, resultado);
+                tx.update(atvRef, {
+                    relatorioId: ref.id,
+                    relatorioColecao: ref.parent.id,
+                    atualizadoEm: agora
+                });
 
-                tx.update(atvRef, { relatorioId:ref.id, atualizadoEm:agora });
-
-                return resultado;
-
+                return { ...resultado, colecao: ref.parent.id };
             });
 
             if (!sessaoValida(sessao)) return;
 
-            // Só altera a memória após a confirmação de ambas as gravações.
-
-            objetoRelatorioGlobal = salvo; objetoAtividadeGlobal.relatorioId = salvo.id;
-
-            mostrarApenasTela('tela-inicio'); atualizarInterfaceVisitaAtual();
-
-        } catch (erro) { informarErro('Erro ao salvar relatório', erro); }
-
-        finally { operacaoEmCurso = false; btn.disabled = false; btn.textContent = 'Salvar relatório'; }
-
+            objetoRelatorioGlobal = salvo;
+            objetoAtividadeGlobal.relatorioId = salvo.id;
+            objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
+            mostrarApenasTela('tela-inicio');
+            atualizarInterfaceVisitaAtual();
+        } catch (erro) {
+            informarErro('Erro ao salvar relatório', erro);
+        } finally {
+            operacaoEmCurso = false;
+            btn.disabled = false;
+            btn.textContent = 'Salvar relatório';
+        }
     });
-
 }

@@ -16,8 +16,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="pwa-mobile.css">
+    <link rel="stylesheet" href="styles.css?v=assistencia-4">
+    <link rel="stylesheet" href="pwa-mobile.css?v=assistencia-4">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
@@ -151,14 +151,19 @@
                 <label>Tipo da visita</label>
                 <div class="radio-group">
                     <label class="radio-label">
-                        <input type="radio" name="tipoVisita" value="Visita técnica" checked>
+                        <input type="radio" name="tipoVisita" value="Visita comercial" checked>
                         <span class="radio-custom"></span>
-                        Visita técnica
+                        Visita comercial
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="tipoVisita" value="Treinamento">
                         <span class="radio-custom"></span>
                         Treinamento
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="tipoVisita" value="Assistência técnica">
+                        <span class="radio-custom"></span>
+                        Assistência técnica
                     </label>
                 </div>
             </div>
@@ -212,7 +217,7 @@
             </section>
 
             <section class="visualizador-tipo-section" id="visu-tecnica">
-                <h2>Visita técnica</h2>
+                <h2>Visita comercial</h2>
 
                 <div class="visualizador-info">
                     <label>Objetivo da visita</label>
@@ -244,12 +249,17 @@
                 </div>
             </section>
 
+            <section class="visualizador-tipo-section" id="visu-assistencia" style="display:none;">
+                <h2>Assistência técnica</h2>
+                <div id="visu-at-relatorio-visual"></div>
+            </section>
+
             <section class="visualizador-section">
                 <label>Nota da visita</label>
                 <div id="visu-nota" class="visualizador-texto-box">Nenhuma nota registrada.</div>
             </section>
 
-            <section class="visualizador-section">
+            <section class="visualizador-section" id="visu-relatorio-section">
                 <label>Relatório final</label>
                 <div id="visu-relatorio" class="visualizador-texto-box visualizador-relatorio-box">Nenhum relatório registrado.</div>
             </section>
@@ -326,7 +336,7 @@
                 </table>
 
                 <table class="pdf-sheet-table" id="pdf-tecnica-table">
-                    <thead><tr><th colspan="4">VISITA TÉCNICA</th></tr></thead>
+                    <thead><tr><th colspan="4">VISITA COMERCIAL</th></tr></thead>
                     <tbody>
                         <tr><th>Objetivo da visita</th><td id="pdf-objetivo" colspan="3">—</td></tr>
                         <tr><th>Oportunidade identificada</th><td id="pdf-oportunidade" colspan="3">—</td></tr>
@@ -342,12 +352,24 @@
                     </tbody>
                 </table>
 
+                <table class="pdf-sheet-table" id="pdf-assistencia-table" style="display:none;">
+                    <thead><tr><th colspan="4">ASSISTÊNCIA TÉCNICA</th></tr></thead>
+                    <tbody>
+                        <tr><th>Cliente final</th><td id="pdf-at-cliente-final" colspan="3">—</td></tr>
+                        <tr><th>Produto</th><td id="pdf-at-produto">—</td><th>Lote</th><td id="pdf-at-lote">—</td></tr>
+                        <tr><th>Queixa</th><td id="pdf-at-queixa" colspan="3">—</td></tr>
+                        <tr><th>Constatações</th><td id="pdf-at-constatacoes" colspan="3">—</td></tr>
+                        <tr><th>Conclusão</th><td id="pdf-at-conclusao" colspan="3">—</td></tr>
+                        <tr><th>Resultado</th><td id="pdf-at-resultado" colspan="3">—</td></tr>
+                    </tbody>
+                </table>
+
                 <table class="pdf-sheet-table pdf-long-table">
                     <thead><tr><th>NOTA DA VISITA</th></tr></thead>
                     <tbody><tr><td id="pdf-nota">—</td></tr></tbody>
                 </table>
 
-                <table class="pdf-sheet-table pdf-long-table">
+                <table class="pdf-sheet-table pdf-long-table" id="pdf-relatorio-texto-table">
                     <thead><tr><th>RELATÓRIO FINAL</th></tr></thead>
                     <tbody><tr><td id="pdf-relatorio">—</td></tr></tbody>
                 </table>
@@ -429,14 +451,19 @@
                 <label>Tipo da visita</label>
                 <div class="radio-group">
                     <label class="radio-label">
-                        <input type="radio" name="detTipoVisita" value="Visita técnica">
+                        <input type="radio" name="detTipoVisita" value="Visita comercial">
                         <span class="radio-custom"></span>
-                        Visita técnica
+                        Visita comercial
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="detTipoVisita" value="Treinamento">
                         <span class="radio-custom"></span>
                         Treinamento
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="detTipoVisita" value="Assistência técnica">
+                        <span class="radio-custom"></span>
+                        Assistência técnica
                     </label>
                 </div>
             </div>
@@ -571,8 +598,180 @@
                 </div>
             </div>
 
-            <div class="relatorio-editor-section">
+            <div class="relatorio-editor-section" id="relatorio-editor-padrao">
                 <textarea id="rel-texto" class="textarea-box-full" placeholder="Comece a escrever..."></textarea>
+            </div>
+
+            <div class="relatorio-assistencia-section" id="relatorio-assistencia-section" style="display:none;">
+                <section class="assistencia-form-card">
+                    <span class="assistencia-kicker">CLIENTE E APLICAÇÃO</span>
+                    <div class="form-group">
+                        <label for="at-cliente-final">Cliente final</label>
+                        <input id="at-cliente-final" class="input-box box-cinza" type="text" placeholder="Ex.: Colégio São José">
+                    </div>
+                    <div class="row-inputs assistencia-row">
+                        <div class="form-group">
+                            <label for="at-contato">Contato</label>
+                            <input id="at-contato" class="input-box box-cinza" type="text" placeholder="Ex.: Artur">
+                        </div>
+                        <div class="form-group">
+                            <label for="at-setor">Setor / função</label>
+                            <input id="at-setor" class="input-box box-cinza" type="text" placeholder="Ex.: Gerente Televendas">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="at-empresa-aplicacao">Empresa de aplicação</label>
+                        <input id="at-empresa-aplicacao" class="input-box box-cinza" type="text" placeholder="Ex.: CMZ Pinturas">
+                    </div>
+                    <div class="row-inputs assistencia-row">
+                        <div class="form-group">
+                            <label for="at-responsavel-empresa">Responsável da empresa</label>
+                            <input id="at-responsavel-empresa" class="input-box box-cinza" type="text" placeholder="Ex.: Celso">
+                        </div>
+                        <div class="form-group">
+                            <label for="at-acompanhado-por">Acompanhado por</label>
+                            <input id="at-acompanhado-por" class="input-box box-cinza" type="text" placeholder="Ex.: Celso, Artur">
+                        </div>
+                    </div>
+                    <div class="row-inputs assistencia-row">
+                        <div class="form-group">
+                            <label for="at-superficie">Equipamento / superfície</label>
+                            <input id="at-superficie" class="input-box box-cinza" type="text" placeholder="Ex.: Quadra poliesportiva">
+                        </div>
+                        <div class="form-group">
+                            <label for="at-data-aplicacao">Data da aplicação</label>
+                            <input id="at-data-aplicacao" class="input-box box-cinza" type="date">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Houve especificação?</label>
+                        <div class="checkout-radio-group">
+                            <label class="checkout-radio-label"><input type="radio" name="atEspecificacao" value="Sim"><span class="checkout-radio-custom"></span>Sim</label>
+                            <label class="checkout-radio-label"><input type="radio" name="atEspecificacao" value="Não"><span class="checkout-radio-custom"></span>Não</label>
+                        </div>
+                    </div>
+                    <div class="form-group" id="at-especificacao-numero-wrap" style="display:none;">
+                        <label for="at-numero-especificacao">Nº da especificação</label>
+                        <input id="at-numero-especificacao" class="input-box box-cinza" type="text" placeholder="Ex.: 26.22">
+                    </div>
+                </section>
+
+                <section class="assistencia-form-card">
+                    <span class="assistencia-kicker">PRODUTO E QUEIXA</span>
+                    <div class="row-inputs assistencia-row">
+                        <div class="form-group">
+                            <label for="at-produto">Produto</label>
+                            <input id="at-produto" class="input-box box-cinza" type="text" placeholder="Ex.: Adepoxi 2012">
+                        </div>
+                        <div class="form-group">
+                            <label for="at-lote">Lote</label>
+                            <input id="at-lote" class="input-box box-cinza" type="text">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="at-cor">Cor</label>
+                        <input id="at-cor" class="input-box box-cinza" type="text">
+                    </div>
+                    <div class="form-group">
+                        <label for="at-endereco-aplicacao">Endereço de aplicação</label>
+                        <input id="at-endereco-aplicacao" class="input-box box-cinza" type="text" placeholder="Rua, número, bairro, cidade e UF">
+                    </div>
+                    <div class="form-group">
+                        <label for="at-queixa">Queixa</label>
+                        <textarea id="at-queixa" class="input-box box-cinza textarea-box" placeholder="Descreva a ocorrência relatada"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="at-esquema-pintura">Esquema de pintura</label>
+                        <textarea id="at-esquema-pintura" class="input-box box-cinza textarea-box" placeholder="Produtos, sequência, demãos e diluentes utilizados"></textarea>
+                    </div>
+                </section>
+
+                <section class="assistencia-form-card">
+                    <span class="assistencia-kicker">PREPARO E CONDIÇÕES DE APLICAÇÃO</span>
+                    <div class="form-group">
+                        <label for="at-preparo-superficie">Preparo da superfície <span class="assistencia-label-note">(relato do aplicador)</span></label>
+                        <textarea id="at-preparo-superficie" class="input-box box-cinza textarea-box" placeholder="Ex.: lixamento e limpeza"></textarea>
+                    </div>
+                    <div class="assistencia-subtitle">Métodos de limpeza</div>
+                    <div class="assistencia-check-grid">
+                        <label><input type="checkbox" name="atLimpeza" value="Aspiração">Aspiração</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Thinner">Thinner</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Desengraxante">Desengraxante</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Água corrente">Água corrente</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Alta pressão (WAP)">Alta pressão (WAP)</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Detergente">Detergente</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Ácido muriático">Ácido muriático</label>
+                        <label><input type="checkbox" name="atLimpeza" value="Outro">Outro</label>
+                    </div>
+
+                    <div class="assistencia-subtitle">Condição do local</div>
+                    <div class="form-group">
+                        <label>Impacto relativo a questões climáticas e de intempéries?</label>
+                        <div class="checkout-radio-group">
+                            <label class="checkout-radio-label"><input type="radio" name="atImpactoClimatico" value="Sim"><span class="checkout-radio-custom"></span>Sim</label>
+                            <label class="checkout-radio-label"><input type="radio" name="atImpactoClimatico" value="Não"><span class="checkout-radio-custom"></span>Não</label>
+                        </div>
+                    </div>
+                    <div class="form-group" id="at-impacto-detalhe-wrap" style="display:none;">
+                        <label for="at-impacto-detalhe">Especifique</label>
+                        <input id="at-impacto-detalhe" class="input-box box-cinza" type="text" placeholder="Ex.: vento forte e poeira">
+                    </div>
+
+                    <div class="assistencia-subtitle">Ferramenta de aplicação</div>
+                    <div class="assistencia-check-grid">
+                        <label><input type="checkbox" name="atFerramenta" value="Pistola">Pistola</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Flooding">Flooding</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Rolo">Rolo</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Airless">Airless</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Trincha">Trincha</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Desempenadeira dentada">Desempenadeira dentada</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Imersão">Imersão</label>
+                        <label><input type="checkbox" name="atFerramenta" value="Espátula">Espátula</label>
+                    </div>
+                </section>
+
+                <section class="assistencia-form-card">
+                    <span class="assistencia-kicker">O QUE FOI VERIFICADO</span>
+                    <div class="assistencia-check-grid">
+                        <label><input type="checkbox" name="atVerificado" value="Aderência">Aderência</label>
+                        <label><input type="checkbox" name="atVerificado" value="Aspecto visual">Aspecto visual</label>
+                        <label><input type="checkbox" name="atVerificado" value="Bolha">Bolha</label>
+                        <label><input type="checkbox" name="atVerificado" value="Brilho">Brilho</label>
+                        <label><input type="checkbox" name="atVerificado" value="Cobertura">Cobertura</label>
+                        <label><input type="checkbox" name="atVerificado" value="Condições de aplicação">Condições de aplicação</label>
+                        <label><input type="checkbox" name="atVerificado" value="Diluição">Diluição</label>
+                        <label><input type="checkbox" name="atVerificado" value="Equipamento de pintura">Equipamento de pintura</label>
+                        <label><input type="checkbox" name="atVerificado" value="Espessura">Espessura</label>
+                        <label><input type="checkbox" name="atVerificado" value="Preparo da superfície">Preparo da superfície</label>
+                        <label><input type="checkbox" name="atVerificado" value="Secagem">Secagem</label>
+                        <label><input type="checkbox" name="atVerificado" value="Treinamento da equipe">Treinamento da equipe</label>
+                        <label><input type="checkbox" name="atVerificado" value="Umidade">Umidade</label>
+                        <label><input type="checkbox" name="atVerificado" value="Outro">Outro</label>
+                    </div>
+                    <div class="row-inputs assistencia-row assistencia-measure-row">
+                        <div class="form-group">
+                            <label for="at-umidade">Umidade medida</label>
+                            <input id="at-umidade" class="input-box box-cinza" type="number" step="0.1" placeholder="Ex.: 4.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="at-umidade-referencia">Referência / limite</label>
+                            <input id="at-umidade-referencia" class="input-box box-cinza" type="text" placeholder="Ex.: acima do indicado">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="at-constatacoes">Constatações técnicas</label>
+                        <textarea id="at-constatacoes" class="input-box box-cinza textarea-box assistencia-textarea-long" placeholder="Descreva o que foi observado em campo e a relação com a ocorrência"></textarea>
+                    </div>
+                </section>
+
+                <section class="assistencia-form-card">
+                    <span class="assistencia-kicker">REGISTROS FOTOGRÁFICOS</span>
+                    <label class="assistencia-photo-input">
+                        <input id="at-fotos" type="file" accept="image/*" capture="environment" multiple>
+                        <span class="assistencia-photo-icon"><svg viewBox="0 0 24 24"><path d="M4 7h4l2-2h4l2 2h4v12H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span>
+                        <span><strong>Adicionar fotos</strong><small id="at-fotos-status">Use a câmera ou selecione imagens do aparelho</small></span>
+                    </label>
+                </section>
             </div>
 
             <div class="relatorio-acoes">
@@ -670,7 +869,7 @@
             </div>
 
             <section class="checkout-tipo-section" id="checkout-tecnico-section">
-                <h2 id="checkout-tipo-titulo">Visita técnica</h2>
+                <h2 id="checkout-tipo-titulo">Visita comercial</h2>
 
                 <div class="checkout-campo">
                     <label for="checkout-objetivo">Objetivo da visita</label>
@@ -745,9 +944,39 @@
                 </div>
             </section>
 
-            <section class="checkout-relatorio-section">
+            <section class="checkout-tipo-section" id="checkout-assistencia-section" style="display:none;">
+                <h2>Assistência técnica</h2>
+                <div class="checkout-campo">
+                    <label for="checkout-at-acoes">Ações definidas</label>
+                    <textarea id="checkout-at-acoes" class="input-box textarea-box" placeholder="O que será feito, por quem e quando"></textarea>
+                </div>
+                <div class="checkout-campo">
+                    <label for="checkout-at-conclusao">Conclusão técnica</label>
+                    <textarea id="checkout-at-conclusao" class="input-box textarea-box" placeholder="Conclusão final da assistência técnica"></textarea>
+                </div>
+                <div class="checkout-campo">
+                    <label>Resultado da assistência</label>
+                    <div class="assistencia-checkout-resultados">
+                        <label><input type="radio" name="checkoutAtResultado" value="Resolvido"><span>Resolvido</span></label>
+                        <label><input type="radio" name="checkoutAtResultado" value="Acompanhar"><span>Acompanhar</span></label>
+                        <label><input type="radio" name="checkoutAtResultado" value="Nova visita"><span>Nova visita</span></label>
+                        <label><input type="radio" name="checkoutAtResultado" value="Aguardando cliente"><span>Aguardando cliente</span></label>
+                    </div>
+                </div>
+                <div class="checkout-campo">
+                    <label for="checkout-at-proximo-passo">Próximo passo</label>
+                    <input id="checkout-at-proximo-passo" class="input-box" type="text" placeholder="Ex.: demonstração técnica em 29/08">
+                </div>
+            </section>
+
+            <section class="checkout-relatorio-section" id="checkout-relatorio-texto-section">
                 <label>Relatório final</label>
                 <div class="checkout-relatorio-box" id="checkout-relatorio-final">Nenhum relatório salvo.</div>
+            </section>
+
+            <section class="checkout-relatorio-section" id="checkout-assistencia-preview" style="display:none;">
+                <label>Relatório preenchido</label>
+                <div id="checkout-at-preview"></div>
             </section>
 
             <div class="checkout-acoes">
@@ -824,7 +1053,7 @@
 
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=assistencia-4"></script>
     <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {
