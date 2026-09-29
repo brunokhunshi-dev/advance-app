@@ -508,7 +508,19 @@ function inicializarAplicativo() {
 
                 if (versao !== versaoSessao) return;
 
-                if (!snap.empty) { perfil = { id: snap.docs[0].id, nome: snap.docs[0].data().nome || 'Profissional', tipo: nome }; break; }
+                if (!snap.empty) {
+                    const dadosPerfil = snap.docs[0].data() || {};
+                    if (dadosPerfil.ativo === false || dadosPerfil.permissoes?.acessoApp === false) {
+                        throw new Error('Seu acesso ao Advance Check está desativado. Procure seu gestor.');
+                    }
+                    perfil = {
+                        id: snap.docs[0].id,
+                        nome: dadosPerfil.nome || 'Profissional',
+                        tipo: nome,
+                        permissoes: dadosPerfil.permissoes || {}
+                    };
+                    break;
+                }
 
             }
 
