@@ -573,6 +573,19 @@
 
             <div class="relatorio-editor-section">
                 <textarea id="rel-texto" class="textarea-box-full" placeholder="Comece a escrever..."></textarea>
+
+                <section class="relatorio-anexos" aria-labelledby="rel-anexos-titulo">
+                    <div class="relatorio-anexos-topo">
+                        <div>
+                            <h2 id="rel-anexos-titulo">Fotos do relatório</h2>
+                            <p>As imagens são reduzidas para até 1600 px e convertidas para WebP antes do envio.</p>
+                        </div>
+                        <label class="relatorio-anexos-botao" for="rel-arquivos">Adicionar fotos</label>
+                        <input id="rel-arquivos" class="relatorio-anexos-input" type="file" accept="image/*" multiple>
+                    </div>
+                    <div id="rel-anexos-resumo" class="relatorio-anexos-resumo">Nenhuma foto adicionada.</div>
+                    <div id="rel-anexos-grid" class="relatorio-anexos-grid"></div>
+                </section>
             </div>
 
             <div class="relatorio-acoes">
