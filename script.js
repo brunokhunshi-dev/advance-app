@@ -140,7 +140,7 @@ function gerarSufixoId() {
 }
 
 function gerarIdAtividade(tipoVisita, data, nomeTecnico) {
-    const prefixo = tipoVisita === 'Treinamento' ? 'TR' : 'VT';
+    const prefixo = tipoVisita === 'Treinamento' ? 'TR' : (tipoVisita === 'Assistência técnica' ? 'AT' : 'VC');
     return prefixo + '-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
 }
 
@@ -279,10 +279,12 @@ function obterCliente(clienteId) {
 }
 
 function normalizarTipoVisita(atividade) {
-    if (atividade?.tipoVisita === 'Treinamento') return 'Treinamento';
-    if (atividade?.tipoVisita === 'Visita técnica') return 'Visita técnica';
-    if (atividade?.objetivo === 'Treinamento') return 'Treinamento';
-    return 'Visita técnica';
+    const tipo = String(atividade?.tipoVisita || '').trim().toLowerCase();
+    if (tipo === 'treinamento' || atividade?.objetivo === 'Treinamento') return 'Treinamento';
+    if (tipo === 'assistência técnica' || tipo === 'assistencia tecnica' || tipo === 'visita de assistência técnica' || tipo === 'visita de assistencia tecnica') return 'Assistência técnica';
+    // Compatibilidade com registros antigos: "Visita técnica" passa a ser exibida como comercial.
+    if (tipo === 'visita comercial' || tipo === 'visita técnica' || tipo === 'visita tecnica') return 'Visita comercial';
+    return 'Visita comercial';
 }
 
 function formatarDataCheckout(valor) {
@@ -309,9 +311,9 @@ function formatarDuracaoVisita(inicio, fim) {
 }
 
 function limparFormularioCheckout() {
-    ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico','checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['checkout-cliente','checkout-chegada-data','checkout-chegada-hora','checkout-saida-data','checkout-saida-hora','checkout-duracao','checkout-relatorio-final'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
-    document.querySelectorAll('input[name="checkoutOportunidade"]').forEach(radio => { radio.checked = false; });
+    document.querySelectorAll('input[name="checkoutOportunidade"], input[name="checkoutAtResultado"]').forEach(radio => { radio.checked = false; });
 }
 
 function preencherCheckout(atividade, relatorio, saida) {
@@ -323,16 +325,33 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-saida-data').textContent = formatarDataCheckout(saida.dataHora);
     document.getElementById('checkout-saida-hora').textContent = formatarHoraCheckout(saida.dataHora);
     document.getElementById('checkout-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, saida.dataHora);
+
     const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('checkout-tecnico-section').style.display = tipo === 'Treinamento' ? 'none' : 'block';
+    document.getElementById('checkout-tecnico-section').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
     document.getElementById('checkout-treinamento-section').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+    document.getElementById('checkout-assistencia-section').style.display = tipo === 'Assistência técnica' ? 'block' : 'none';
     document.getElementById('checkout-tipo-titulo').textContent = tipo;
+
     document.getElementById('checkout-objetivo').value = atividade.objetivo || '';
     const oportunidade = atividade.oportunidadeIdentificada;
-    if (oportunidade === 'Sim' || oportunidade === 'Não') { const radio = document.querySelector('input[name="checkoutOportunidade"][value="' + oportunidade + '"]'); if (radio) radio.checked = true; }
+    if (oportunidade === 'Sim' || oportunidade === 'Não') {
+        const radio = document.querySelector('input[name="checkoutOportunidade"][value="' + oportunidade + '"]');
+        if (radio) radio.checked = true;
+    }
+
     document.getElementById('checkout-categoria').value = atividade.categoriaTreinamento || '';
     document.getElementById('checkout-participantes').value = atividade.quantidadeParticipantes ?? '';
     document.getElementById('checkout-publico').value = atividade.publicoAtendido || '';
+
+    const assistencia = relatorio?.assistenciaTecnica || {};
+    document.getElementById('checkout-at-acoes').value = assistencia.acoesDefinidas || '';
+    document.getElementById('checkout-at-conclusao').value = assistencia.conclusaoTecnica || '';
+    document.getElementById('checkout-at-proximo-passo').value = assistencia.proximoPasso || '';
+    if (assistencia.resultado) {
+        const radio = document.querySelector('input[name="checkoutAtResultado"][value="' + CSS.escape(String(assistencia.resultado)) + '"]');
+        if (radio) radio.checked = true;
+    }
+
     document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
     mostrarApenasTela('tela-checkout');
     window.scrollTo(0, 0);
@@ -1343,7 +1362,7 @@ function configurarTelaNovaVisita() {
 
                 countNota.textContent = '0/600';
 
-                document.querySelector('input[name="tipoVisita"][value="Visita técnica"]').checked = true;
+                document.querySelector('input[name="tipoVisita"][value="Visita comercial"]').checked = true;
 
                 window.mostrarAlerta('Sucesso', 'Visita agendada.');
 
