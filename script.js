@@ -5,6 +5,7 @@ import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from
 import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
+import { uploadReportImage, getReportImageUrl, isStorageEmulatorActive } from './storage-service.js';
 
 
 
@@ -38,7 +39,9 @@ let objetoAtividadeGlobal = null;
 
 let objetoRelatorioGlobal = null;
 let checkoutPendenteGlobal = null;
-let fechamentoManualPendente = null; 
+let fechamentoManualPendente = null;
+let arquivosRelatorioPendentes = [];
+let urlsPreviewRelatorio = []; 
 
 
 
@@ -2052,6 +2055,168 @@ function configurarNavegacao() {
 
 
 
+
+function liberarUrlsPreviewRelatorio() {
+    urlsPreviewRelatorio.forEach(url => URL.revokeObjectURL(url));
+    urlsPreviewRelatorio = [];
+}
+
+function formatarBytesRelatorio(bytes) {
+    const valor = Number(bytes) || 0;
+    if (valor < 1024) return valor + ' B';
+    if (valor < 1024 * 1024) return (valor / 1024).toFixed(0) + ' KB';
+    return (valor / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function renderizarAnexosRelatorio() {
+    const grid = document.getElementById('rel-anexos-grid');
+    const resumo = document.getElementById('rel-anexos-resumo');
+    if (!grid || !resumo) return;
+
+    liberarUrlsPreviewRelatorio();
+    grid.innerHTML = '';
+
+    const existentes = Array.isArray(objetoRelatorioGlobal?.anexos) ? objetoRelatorioGlobal.anexos : [];
+    const total = existentes.length + arquivosRelatorioPendentes.length;
+    resumo.textContent = total
+        ? total + (total === 1 ? ' foto no relatório.' : ' fotos no relatório.')
+        : 'Nenhuma foto adicionada.';
+
+    for (const anexo of existentes) {
+        const card = document.createElement('article');
+        card.className = 'relatorio-anexo-card relatorio-anexo-existente';
+
+        const img = document.createElement('img');
+        img.alt = anexo.nome || 'Foto do relatório';
+        img.loading = 'lazy';
+
+        const meta = document.createElement('div');
+        meta.className = 'relatorio-anexo-meta';
+        meta.innerHTML = '<strong>' + escaparHtml(anexo.nome || 'foto.webp') + '</strong><span>' +
+            escaparHtml(formatarBytesRelatorio(anexo.tamanho)) + '</span>';
+
+        card.append(img, meta);
+        grid.appendChild(card);
+
+        try {
+            img.src = await getReportImageUrl({ app, path: anexo.path });
+        } catch (erro) {
+            card.classList.add('relatorio-anexo-indisponivel');
+            img.remove();
+            const aviso = document.createElement('div');
+            aviso.className = 'relatorio-anexo-aviso';
+            aviso.textContent = isStorageEmulatorActive()
+                ? 'Arquivo não está nesta sessão do emulador.'
+                : 'Imagem indisponível.';
+            card.prepend(aviso);
+        }
+    }
+
+    arquivosRelatorioPendentes.forEach((file, index) => {
+        const card = document.createElement('article');
+        card.className = 'relatorio-anexo-card relatorio-anexo-pendente';
+
+        const url = URL.createObjectURL(file);
+        urlsPreviewRelatorio.push(url);
+
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = file.name || 'Nova foto';
+
+        const remover = document.createElement('button');
+        remover.type = 'button';
+        remover.className = 'relatorio-anexo-remover';
+        remover.setAttribute('aria-label', 'Remover foto');
+        remover.textContent = '×';
+        remover.addEventListener('click', () => {
+            arquivosRelatorioPendentes.splice(index, 1);
+            renderizarAnexosRelatorio();
+        });
+
+        const meta = document.createElement('div');
+        meta.className = 'relatorio-anexo-meta';
+        meta.innerHTML = '<strong>Nova foto</strong><span>' +
+            escaparHtml(formatarBytesRelatorio(file.size)) + ' antes da compressão</span>';
+
+        card.append(img, remover, meta);
+        grid.appendChild(card);
+    });
+}
+
+function configurarAnexosRelatorio() {
+    const input = document.getElementById('rel-arquivos');
+    if (!input) return;
+
+    input.addEventListener('change', () => {
+        const novos = [...(input.files || [])].filter(file => file.type.startsWith('image/'));
+        if (!novos.length) {
+            input.value = '';
+            return;
+        }
+
+        const limite = 12;
+        const existentes = Array.isArray(objetoRelatorioGlobal?.anexos) ? objetoRelatorioGlobal.anexos.length : 0;
+        const disponiveis = Math.max(0, limite - arquivosRelatorioPendentes.length - existentes);
+
+        if (disponiveis <= 0) {
+            input.value = '';
+            return window.mostrarAlerta('Limite de fotos', 'Este relatório já atingiu o limite de 12 fotos.');
+        }
+
+        arquivosRelatorioPendentes.push(...novos.slice(0, disponiveis));
+        if (novos.length > disponiveis) {
+            window.mostrarAlerta('Limite de fotos', 'Foram adicionadas somente as primeiras ' + disponiveis + ' fotos. O limite é 12 por relatório.');
+        }
+
+        input.value = '';
+        renderizarAnexosRelatorio();
+    });
+}
+
+async function enviarFotosPendentesRelatorio(relatorio) {
+    if (!arquivosRelatorioPendentes.length) return relatorio;
+
+    const anexos = Array.isArray(relatorio.anexos) ? [...relatorio.anexos] : [];
+    const fila = [...arquivosRelatorioPendentes];
+    const btn = document.getElementById('btn-salvar-relatorio');
+
+    for (let i = 0; i < fila.length; i++) {
+        const file = fila[i];
+        btn.textContent = 'Enviando foto ' + (i + 1) + '/' + fila.length + '...';
+
+        const enviado = await uploadReportImage({
+            app,
+            relatorioId: relatorio.id,
+            file,
+            onProgress: progresso => {
+                btn.textContent = 'Enviando foto ' + (i + 1) + '/' + fila.length + ' • ' + progresso + '%';
+            }
+        });
+
+        const anexo = {
+            nome: enviado.nome,
+            path: enviado.path,
+            tamanhoOriginal: enviado.tamanhoOriginal,
+            tamanho: enviado.tamanho,
+            mimeType: enviado.mimeType,
+            criadoEm: new Date(),
+            ambiente: isStorageEmulatorActive() ? 'emulator' : 'production'
+        };
+
+        anexos.push(anexo);
+        await setDoc(doc(db, 'relatorios', relatorio.id), {
+            anexos,
+            atualizadoEm: new Date()
+        }, { merge: true });
+
+        relatorio = { ...relatorio, anexos };
+    }
+
+    arquivosRelatorioPendentes = [];
+    await renderizarAnexosRelatorio();
+    return relatorio;
+}
+
 // === CHECK-IN ===
 
 window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
@@ -2316,6 +2481,9 @@ function atualizarInterfaceVisitaAtual() {
         document.getElementById('rel-data').value = formatoData.data;
         document.getElementById('rel-hora').value = formatoData.hora;
         document.getElementById('rel-codigo-gerado').textContent = codigoRelatorio;
+        arquivosRelatorioPendentes = [];
+        document.getElementById('rel-arquivos').value = '';
+        renderizarAnexosRelatorio();
         document.getElementById('rel-texto')?.blur();
         window.scrollTo(0, 0);
     };
@@ -2407,6 +2575,7 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
+    configurarAnexosRelatorio();
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
         mostrarApenasTela('tela-historico');
@@ -2547,8 +2716,12 @@ function configurarEventosGlobais() {
 
         const atual = document.getElementById('rel-texto').value.trim();
 
-        if (atual !== String(objetoRelatorioGlobal?.textoAtual || '').trim()) {
-            window.mostrarConfirmacaoDescarteRelatorio(() => mostrarApenasTela('tela-inicio'));
+        if (atual !== String(objetoRelatorioGlobal?.textoAtual || '').trim() || arquivosRelatorioPendentes.length) {
+            window.mostrarConfirmacaoDescarteRelatorio(() => {
+                arquivosRelatorioPendentes = [];
+                liberarUrlsPreviewRelatorio();
+                mostrarApenasTela('tela-inicio');
+            });
             return;
         }
 
@@ -2633,9 +2806,16 @@ function configurarEventosGlobais() {
 
             // Só altera a memória após a confirmação de ambas as gravações.
 
-            objetoRelatorioGlobal = salvo; objetoAtividadeGlobal.relatorioId = salvo.id;
+            objetoRelatorioGlobal = salvo;
+            objetoAtividadeGlobal.relatorioId = salvo.id;
 
-            mostrarApenasTela('tela-inicio'); atualizarInterfaceVisitaAtual();
+            if (arquivosRelatorioPendentes.length) {
+                objetoRelatorioGlobal = await enviarFotosPendentesRelatorio(objetoRelatorioGlobal);
+            }
+
+            liberarUrlsPreviewRelatorio();
+            mostrarApenasTela('tela-inicio');
+            atualizarInterfaceVisitaAtual();
 
         } catch (erro) { informarErro('Erro ao salvar relatório', erro); }
 
