@@ -3,9 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "export:firestore": "node tools/export-firestore.mjs"
+    "export:firestore": "node tools/export-firestore.mjs",
+    "emulators:storage": "firebase emulators:start --only storage",
+    "emulators:storage:save": "firebase emulators:start --only storage --import=.firebase-emulator-data --export-on-exit=.firebase-emulator-data"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "^14.0.0"
   }
 }
