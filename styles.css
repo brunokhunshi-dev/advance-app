@@ -1079,3 +1079,126 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     font-weight: 700;
     letter-spacing: -0.01em;
 }
+
+
+/* === Relatório: anexos de fotos === */
+.relatorio-anexos {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #ececf1;
+}
+.relatorio-anexos-topo {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.relatorio-anexos-topo h2 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    color: var(--color-dark);
+}
+.relatorio-anexos-topo p {
+    margin: 0;
+    max-width: 520px;
+    color: #777784;
+    font-size: .82rem;
+    line-height: 1.45;
+}
+.relatorio-anexos-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+.relatorio-anexos-botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: #f1f1f5;
+    color: var(--color-dark);
+    font-size: .86rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.relatorio-anexos-resumo {
+    margin: 14px 0 10px;
+    color: #777784;
+    font-size: .8rem;
+}
+.relatorio-anexos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+.relatorio-anexo-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 120px;
+    border-radius: 14px;
+    background: #f2f2f5;
+}
+.relatorio-anexo-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+.relatorio-anexo-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px 10px;
+    background: #fff;
+}
+.relatorio-anexo-meta strong,
+.relatorio-anexo-meta span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.relatorio-anexo-meta strong {
+    color: var(--color-dark);
+    font-size: .76rem;
+}
+.relatorio-anexo-meta span {
+    color: #8b8b96;
+    font-size: .68rem;
+}
+.relatorio-anexo-remover {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(4, 4, 56, .82);
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+.relatorio-anexo-aviso {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    padding: 16px;
+    color: #777784;
+    text-align: center;
+    font-size: .75rem;
+}
+@media (max-width: 640px) {
+    .relatorio-anexos-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .relatorio-anexos-botao {
+        width: 100%;
+    }
+}
