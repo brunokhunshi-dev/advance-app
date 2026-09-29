@@ -3053,27 +3053,29 @@ function configurarEventosGlobais() {
 
         try {
             const sessao = sessaoAtual(), atividadeId = atividadeSelecionadaId;
-            if (!atividadeId || !objetoAtividadeGlobal) throw new Error('Abra uma visita em andamento antes de escrever o relatório.');
+            if (!atividadeId || !objetoAtividadeGlobal) throw new Error('Abra uma visita em andamento antes de preencher o relatório.');
 
             const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
+            const ehAssistencia = tipo === ASSISTENCIA_TECNICA_TIPO;
             let assistenciaTecnica = null;
             let texto = '';
 
-            if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+            if (ehAssistencia) {
                 assistenciaTecnica = lerFormularioAssistencia();
                 if (!assistenciaTecnica.produto) throw new Error('Informe o produto verificado.');
                 if (!assistenciaTecnica.queixa) throw new Error('Informe a queixa da assistência técnica.');
                 if (!assistenciaTecnica.constatacoes) throw new Error('Registre as constatações técnicas.');
-                texto = gerarResumoAssistenciaTecnica(assistenciaTecnica);
             } else {
                 texto = document.getElementById('rel-texto').value.trim();
                 if (!texto) throw new Error('Escreva um resumo antes de salvar.');
+                if (texto.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
             }
-
-            if (texto.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
 
             const codigo = document.getElementById('rel-codigo-gerado').textContent;
             const textoBase = objetoRelatorioGlobal?.textoAtual ?? null;
+            const estruturaBase = ehAssistencia
+                ? normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal))
+                : null;
             const novoIdRelatorio = gerarIdRelatorio(new Date(), nomeUsuarioLogado);
 
             operacaoEmCurso = true;
@@ -3081,7 +3083,8 @@ function configurarEventosGlobais() {
             btn.textContent = 'Salvando...';
 
             const salvo = await runTransaction(db, async tx => {
-                const atvRef = doc(db,'atividades',atividadeId), snap = await tx.get(atvRef);
+                const atvRef = doc(db,'atividades',atividadeId);
+                const snap = await tx.get(atvRef);
                 if (!snap.exists()) throw new Error('Visita não encontrada.');
 
                 const atv = snap.data();
@@ -3094,43 +3097,83 @@ function configurarEventosGlobais() {
                 const anterior = await tx.get(ref);
                 const dados = anterior.exists() ? anterior.data() : null;
 
-                if (dados && (dados.atividadeId !== atividadeId || dados.ptvId !== sessao.id)) throw new Error('O relatório não corresponde a esta visita.');
-                if (dados && dados.textoAtual !== textoBase && dados.textoAtual !== texto) throw new Error('O relatório foi alterado em outra sessão. Volte ao Início e reabra o relatório antes de salvar.');
-
-                const agora = new Date();
-                const historico = Array.isArray(dados?.historico) ? [...dados.historico] : [];
-
-                const mudouTexto = !dados || dados.textoAtual !== texto;
-                const mudouEstrutura = tipo === ASSISTENCIA_TECNICA_TIPO &&
-                    JSON.stringify(normalizarAssistenciaComparacao(dados?.assistenciaTecnica || {})) !== JSON.stringify(normalizarAssistenciaComparacao(assistenciaTecnica));
-
-                if (mudouTexto || mudouEstrutura) {
-                    historico.push({
-                        texto,
-                        ...(tipo === ASSISTENCIA_TECNICA_TIPO ? { assistenciaTecnica } : {}),
-                        salvoEm: agora
-                    });
+                if (dados && (dados.atividadeId !== atividadeId || dados.ptvId !== sessao.id)) {
+                    throw new Error('O relatório não corresponde a esta visita.');
                 }
 
-                const resultado = {
-                    ...dados,
-                    id:ref.id,
+                const agora = new Date();
+                const baseComum = {
+                    id: ref.id,
                     atividadeId,
-                    clienteId:atv.clienteId,
-                    ptvId:sessao.id,
-                    tipoVisita:tipo,
-                    codigo:dados?.codigo || codigo || '#' + atividadeId,
-                    textoAtual:texto,
-                    historico,
-                    ...(tipo === ASSISTENCIA_TECNICA_TIPO ? { assistenciaTecnica } : {}),
-                    criadoEm:dados?.criadoEm || agora,
-                    atualizadoEm:agora
+                    clienteId: atv.clienteId,
+                    ptvId: sessao.id,
+                    tipoVisita: tipo,
+                    codigo: dados?.codigo || codigo || '#' + atividadeId,
+                    criadoEm: dados?.criadoEm || agora,
+                    atualizadoEm: agora
                 };
 
-                if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) throw new Error('O histórico deste relatório está muito grande. Solicite o arquivamento das revisões antes de continuar.');
+                let resultado;
+
+                if (ehAssistencia) {
+                    const estruturaBanco = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(dados));
+                    const estruturaNova = normalizarAssistenciaComparacao(assistenciaTecnica);
+
+                    if (dados &&
+                        JSON.stringify(estruturaBanco) !== JSON.stringify(estruturaBase) &&
+                        JSON.stringify(estruturaBanco) !== JSON.stringify(estruturaNova)) {
+                        throw new Error('O relatório foi alterado em outra sessão. Volte ao Início e reabra o relatório antes de salvar.');
+                    }
+
+                    const secoes = secoesAssistenciaParaDocumento(assistenciaTecnica);
+                    const revisoes = Array.isArray(dados?.revisoes) ? [...dados.revisoes] : [];
+                    if (!dados || JSON.stringify(estruturaBanco) !== JSON.stringify(estruturaNova)) {
+                        revisoes.push({
+                            clienteAplicacao: secoes.clienteAplicacao,
+                            produtoQueixa: secoes.produtoQueixa,
+                            preparoAplicacao: secoes.preparoAplicacao,
+                            verificacao: secoes.verificacao,
+                            evidencias: secoes.evidencias,
+                            salvoEm: agora
+                        });
+                    }
+
+                    resultado = {
+                        ...dados,
+                        ...baseComum,
+                        ...secoes,
+                        revisoes
+                    };
+                    delete resultado.assistenciaTecnica;
+                    delete resultado.textoAtual;
+                    delete resultado.historico;
+                } else {
+                    if (dados && dados.textoAtual !== textoBase && dados.textoAtual !== texto) {
+                        throw new Error('O relatório foi alterado em outra sessão. Volte ao Início e reabra o relatório antes de salvar.');
+                    }
+
+                    const historico = Array.isArray(dados?.historico) ? [...dados.historico] : [];
+                    if (!dados || dados.textoAtual !== texto) historico.push({ texto, salvoEm: agora });
+
+                    resultado = {
+                        ...dados,
+                        ...baseComum,
+                        textoAtual: texto,
+                        historico
+                    };
+                }
+
+                if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) {
+                    throw new Error('O histórico deste relatório está muito grande. Solicite o arquivamento das revisões antes de continuar.');
+                }
 
                 tx.set(ref, resultado);
-                tx.update(atvRef, { relatorioId:ref.id, relatorioColecao:ref.parent.id, atualizadoEm:agora });
+                tx.update(atvRef, {
+                    relatorioId: ref.id,
+                    relatorioColecao: ref.parent.id,
+                    atualizadoEm: agora
+                });
+
                 return { ...resultado, colecao: ref.parent.id };
             });
 
