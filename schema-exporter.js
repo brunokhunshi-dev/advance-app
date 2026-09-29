@@ -157,7 +157,7 @@ const ADVANCE_SCHEMA = {
                 },
                 criadoEm: { type: "timestamp", required: true },
                 atualizadoEm: { type: "timestamp", required: true },
-                tipoVisita: { type: "string", required: false, conditional: "após check-out", enum: ["Visita comercial", "Treinamento"] },
+                tipoVisita: { type: "string", required: false, conditional: "após check-out", enum: ["Visita comercial", "Treinamento", "Assistência técnica"] },
                 checkoutDataHora: { type: "timestamp", required: false, conditional: "após check-out ou fechamento manual" },
                 checkoutGps: { type: "string", required: false, conditional: "após check-out validado" },
                 checkoutGpsAccuracy: { type: "number", required: false, conditional: "após check-out validado" },
