@@ -856,6 +856,12 @@ export class TechnicalReportEditor {
                 attempt.uploaded.push(block.id);
             }
 
+            for (const block of this.blocks) {
+                if (block?.kind === 'media' && block.storage === 'r2') {
+                    block.catalogVersion = 1;
+                }
+            }
+
             return {
                 blocks: structuredClone(this.blocks),
                 attempt
