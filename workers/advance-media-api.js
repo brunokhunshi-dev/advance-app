@@ -307,11 +307,24 @@ async function authenticate(
     );
   }
 
+  let claims = {};
+  try {
+    claims =
+      firebaseUser.customAttributes
+        ? JSON.parse(
+            firebaseUser.customAttributes
+          )
+        : {};
+  } catch {
+    claims = {};
+  }
+
   return {
     uid: firebaseUser.localId,
     email:
       firebaseUser.email || "",
     idToken,
+    claims,
   };
 }
 
@@ -491,9 +504,28 @@ function isManagementProfile(
     return true;
   }
 
+  const claims =
+    user?.claims || {};
+
+  if (
+    claims.admin === true ||
+    claims.gestor === true ||
+    claims.manager === true
+  ) {
+    return true;
+  }
+
   const role =
     normalizeAccessText(
-      profile.role
+      [
+        profile.role,
+        claims.role,
+        claims.perfil,
+        claims.cargo,
+        claims.tipoAcesso,
+      ]
+        .filter(Boolean)
+        .join(" ")
     );
 
   return [
