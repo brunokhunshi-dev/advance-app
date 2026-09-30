@@ -436,9 +436,14 @@ async function flushThumbnailQueue() {
             return { entry, url: result.url };
         }));
 
-        fallback.forEach(result => {
-            if (result.status === "fulfilled") applyThumbnail(result.value.entry.card, result.value.url);
-            else applyThumbnail(null, null);
+        fallback.forEach((result, index) => {
+            if (result.status === "fulfilled") {
+                applyThumbnail(result.value.entry.card, result.value.url);
+            } else {
+                const card = valid[index]?.card;
+                const placeholder = card?.querySelector(".media-card-placeholder");
+                if (placeholder) placeholder.textContent = "Prévia indisponível";
+            }
         });
     }
 
@@ -724,6 +729,7 @@ async function backfillExistingMedia() {
         await commitBatches(operations);
         state.cursor = null;
         state.hasMore = true;
+        setLoading(false);
         await loadCatalog({ reset: true });
         showToast(`${operations.length} mídia(s) catalogada(s).`, "success");
     } catch (error) {
