@@ -454,7 +454,10 @@ export class TechnicalReportEditor {
             if (files.some(file => !/^(image\/(jpeg|png|gif|webp|avif|heic|heif)|video\/|audio\/)/i.test(file.type))) {
                 throw new Error('Selecione fotos, imagens, vídeos ou áudios compatíveis.');
             }
-            if (files.some(file => file.size > 100 * 1024 * 1024)) {
+            if (files.some(file => file.type.startsWith('video/') && file.size > 5 * 1024 * 1024)) {
+                throw new Error('Cada vídeo deve ter no máximo 5 MB.');
+            }
+            if (files.some(file => !file.type.startsWith('video/') && file.size > 100 * 1024 * 1024)) {
                 throw new Error('Cada arquivo deve ter até 100 MB.');
             }
             if (this.blocks.filter(block => block.kind === 'media').length + files.length > 20) {
