@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#040438">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Gerenciador de Mídias | Advance Tintas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./dashboard.css">
+    <link rel="stylesheet" href="./midias.css">
+</head>
+<body>
+    <section id="media-login" class="login-screen" aria-labelledby="media-login-title">
+        <div class="login-card">
+            <div class="brand brand-login" aria-label="Advance Tintas">ADVANCE<span>TINTAS</span></div>
+            <p class="login-eyebrow">Gestão de arquivos</p>
+            <h1 id="media-login-title">Mídias</h1>
+            <p class="login-description">Acesse com a mesma conta do dashboard de gestão.</p>
+            <form id="media-login-form" novalidate>
+                <label class="field-label" for="media-email">E-mail</label>
+                <input id="media-email" class="field-control" type="email" autocomplete="email" required placeholder="seu.email@advancetintas.com.br">
+                <label class="field-label" for="media-senha">Senha</label>
+                <input id="media-senha" class="field-control" type="password" autocomplete="current-password" required placeholder="Sua senha">
+                <button id="media-btn-entrar" class="button button-primary button-block" type="submit">Entrar</button>
+                <p id="media-login-erro" class="form-error" role="alert" hidden></p>
+            </form>
+        </div>
+    </section>
+
+    <div id="media-shell" class="dashboard-shell" hidden>
+        <header class="topbar">
+            <div class="topbar-brand-group">
+                <div class="brand">ADVANCE<span>TINTAS</span></div>
+                <div>
+                    <p class="topbar-eyebrow">Gestão de arquivos</p>
+                    <h1>Gerenciador de mídias</h1>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <div class="sync-status" aria-live="polite">
+                    <span id="media-sync-dot" class="sync-dot"></span>
+                    <span id="media-sync-text">Preparando dados...</span>
+                </div>
+                <div class="user-summary">
+                    <span id="media-user-name">Usuário</span>
+                    <small id="media-user-role">Gestão</small>
+                </div>
+                <a class="button button-secondary media-top-link" href="./">Dashboard</a>
+                <button id="media-btn-atualizar" class="icon-button" type="button" title="Atualizar" aria-label="Atualizar">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"></path></svg>
+                </button>
+                <button id="media-btn-sair" class="button button-secondary" type="button">Sair</button>
+            </div>
+        </header>
+
+        <main class="dashboard-main media-main">
+            <section class="media-storage-grid" aria-label="Resumo do armazenamento">
+                <article class="panel media-storage-card media-storage-primary">
+                    <div class="section-heading compact-heading">
+                        <div>
+                            <p class="section-eyebrow">Armazenamento R2</p>
+                            <h2>Uso do bucket</h2>
+                        </div>
+                        <span id="media-storage-percent" class="media-storage-percent">--%</span>
+                    </div>
+                    <div class="media-storage-value">
+                        <strong id="media-storage-used">--</strong>
+                        <span>de 10 GB de referência gratuita</span>
+                    </div>
+                    <div class="media-progress" aria-hidden="true"><span id="media-storage-bar"></span></div>
+                    <div class="media-storage-meta">
+                        <span id="media-storage-originals">-- imagens</span>
+                        <span id="media-storage-objects">-- objetos R2</span>
+                        <span id="media-storage-cache">Atualização pendente</span>
+                    </div>
+                </article>
+
+                <article class="panel media-mini-card">
+                    <span>Catalogadas</span>
+                    <strong id="media-count">0</strong>
+                    <small>imagens no índice</small>
+                </article>
+                <article class="panel media-mini-card">
+                    <span>Tamanho médio</span>
+                    <strong id="media-average">--</strong>
+                    <small>arquivo comprimido</small>
+                </article>
+                <article class="panel media-mini-card">
+                    <span>Economia média</span>
+                    <strong id="media-savings">--</strong>
+                    <small>vs. arquivo original</small>
+                </article>
+            </section>
+
+            <section class="panel media-toolbar">
+                <div class="media-toolbar-copy">
+                    <p class="section-eyebrow">Biblioteca</p>
+                    <h2>Imagens dos relatórios</h2>
+                    <p>O grid usa apenas o índice do Firestore. As thumbnails são carregadas sob demanda.</p>
+                </div>
+                <div class="media-toolbar-actions">
+                    <label class="media-search">
+                        <span class="sr-only">Buscar mídia</span>
+                        <input id="media-search" type="search" placeholder="Cliente, técnico ou arquivo">
+                    </label>
+                    <button id="media-btn-indexar" class="button button-secondary" type="button">Indexar existentes</button>
+                </div>
+            </section>
+
+            <section id="media-grid" class="media-grid" aria-live="polite"></section>
+            <div id="media-empty" class="panel media-empty" hidden>
+                <strong>Nenhuma mídia catalogada</strong>
+                <p>Novas fotos entram aqui automaticamente. Para trazer fotos já existentes, use “Indexar existentes”.</p>
+            </div>
+            <div class="media-load-more">
+                <button id="media-btn-mais" class="button button-secondary" type="button" hidden>Carregar mais</button>
+            </div>
+        </main>
+    </div>
+
+    <dialog id="media-viewer" class="media-viewer">
+        <div class="media-viewer-card">
+            <div class="media-viewer-header">
+                <div>
+                    <p class="section-eyebrow">Arquivo</p>
+                    <h2 id="media-viewer-title">Imagem</h2>
+                </div>
+                <button id="media-viewer-close" class="icon-button" type="button" aria-label="Fechar">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="media-viewer-body">
+                <div class="media-viewer-image-wrap">
+                    <span id="media-viewer-loading" class="media-image-loading">Carregando imagem...</span>
+                    <img id="media-viewer-image" alt="" hidden>
+                </div>
+                <dl id="media-viewer-meta" class="media-viewer-meta"></dl>
+            </div>
+            <div class="media-viewer-actions">
+                <a id="media-viewer-download" class="button button-primary" href="#" target="_blank" rel="noopener">Abrir / baixar</a>
+                <button id="media-viewer-delete" class="button media-danger-button" type="button">Excluir mídia</button>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="media-confirm" class="media-confirm">
+        <div class="media-confirm-card">
+            <p class="section-eyebrow">Confirmar exclusão</p>
+            <h2>Excluir esta imagem?</h2>
+            <p>Ela será removida do relatório e do armazenamento. Esta ação não pode ser desfeita.</p>
+            <div class="media-confirm-actions">
+                <button id="media-confirm-cancel" class="button button-secondary" type="button">Cancelar</button>
+                <button id="media-confirm-delete" class="button media-danger-button" type="button">Excluir</button>
+            </div>
+        </div>
+    </dialog>
+
+    <div id="media-loading" class="loading-overlay" hidden>
+        <div class="loading-card" role="status" aria-live="polite">
+            <span class="spinner"></span>
+            <strong id="media-loading-text">Carregando mídias...</strong>
+        </div>
+    </div>
+    <div id="media-toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="./midias.js"></script>
+</body>
+</html>
