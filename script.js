@@ -4,7 +4,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebas
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, runTransaction, writeBatch, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
 
@@ -363,6 +363,87 @@ function serializarEstavel(valor) {
         ).join(',') + '}';
     }
     return JSON.stringify(valor);
+}
+
+function blocosMidiaRelatorio(blocos) {
+    return (Array.isArray(blocos) ? blocos : [])
+        .filter(bloco => bloco?.kind === 'media' && bloco.id && bloco.storage === 'r2');
+}
+
+async function sincronizarIndiceMidias({
+    antes,
+    depois,
+    relatorio,
+    atividade,
+    ptvId,
+    ptvNome,
+    clienteNome
+}) {
+    const anteriores = new Map(blocosMidiaRelatorio(antes).map(bloco => [bloco.id, bloco]));
+    const atuais = new Map(blocosMidiaRelatorio(depois).map(bloco => [bloco.id, bloco]));
+
+    const paraIndexar = [...atuais.values()].filter(bloco => {
+        const anterior = anteriores.get(bloco.id);
+        return !anterior || Number(anterior.catalogVersion || 0) < 1;
+    });
+    const removidos = [...anteriores.values()].filter(bloco =>
+        Number(bloco.catalogVersion || 0) >= 1 && !atuais.has(bloco.id)
+    );
+
+    if (!paraIndexar.length && !removidos.length) return;
+
+    const lote = writeBatch(db);
+    const agora = new Date();
+    const activityId = atividade?.id || relatorio?.atividadeId || '';
+    const reportId = relatorio?.id || '';
+    const reportCollection = relatorio?.colecao || colecaoRelatorioDaAtividade(atividade || {});
+    const tipoVisita = relatorio?.tipoVisita || normalizarTipoVisita(atividade || {});
+    const resolvedClientName = String(
+        clienteNome ||
+        atividade?.clienteNome ||
+        relatorio?.clienteNome ||
+        ''
+    ).trim();
+
+    paraIndexar.forEach(bloco => {
+        const criadoEm = obterData(bloco.createdAt) || obterData(relatorio?.criadoEm) || agora;
+        lote.set(doc(db, 'media_index', bloco.id), {
+            mediaId: bloco.id,
+            activityId,
+            reportId,
+            reportCollection,
+            reportCode: relatorio?.codigo || '',
+            clienteId: atividade?.clienteId || relatorio?.clienteId || '',
+            clienteNome: resolvedClientName,
+            ptvId: ptvId || relatorio?.ptvId || '',
+            ptvNome: ptvNome || '',
+            tipoVisita,
+            name: bloco.name || '',
+            originalName: bloco.originalName || bloco.name || '',
+            type: bloco.type || 'image/webp',
+            size: Number(bloco.size) || 0,
+            originalSize: Number(bloco.originalSize) || 0,
+            width: Number(bloco.width) || 0,
+            height: Number(bloco.height) || 0,
+            key: bloco.key || '',
+            thumbnailKey: bloco.thumbnailKey || '',
+            thumbnailSize: Number(bloco.thumbnailSize) || 0,
+            criadoEm,
+            atualizadoEm: agora,
+            ativo: true,
+            catalogVersion: 1
+        }, { merge: true });
+    });
+
+    removidos.forEach(bloco => {
+        lote.set(doc(db, 'media_index', bloco.id), {
+            ativo: false,
+            removidoEm: agora,
+            atualizadoEm: agora
+        }, { merge: true });
+    });
+
+    await lote.commit();
 }
 
 function dadosAssistenciaDoRelatorio(relatorio = {}) {
@@ -3338,6 +3419,7 @@ function configurarEventosGlobais() {
             }
 
             const codigo = document.getElementById('rel-codigo-gerado').textContent;
+            const blocosCatalogoAntes = blocosPersistidosRelatorio(objetoRelatorioGlobal) || [];
             const textoBase = objetoRelatorioGlobal?.textoAtual ?? null;
             const estruturaBase = ehAssistencia
                 ? normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal))
@@ -3464,6 +3546,20 @@ function configurarEventosGlobais() {
 
             firestoreSaved = true;
             if (!sessaoValida(sessao)) return;
+
+            try {
+                await sincronizarIndiceMidias({
+                    antes: blocosCatalogoAntes,
+                    depois: mediaSave.blocks,
+                    relatorio: salvo,
+                    atividade: { ...objetoAtividadeGlobal, id: atividadeId },
+                    ptvId: sessao.id,
+                    ptvNome: nomeUsuarioLogado,
+                    clienteNome: clienteSelecionadoNome
+                });
+            } catch (catalogError) {
+                console.warn('Relatório salvo, mas o índice de mídias não foi atualizado:', catalogError);
+            }
 
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
