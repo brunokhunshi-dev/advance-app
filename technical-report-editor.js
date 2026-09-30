@@ -74,21 +74,26 @@ export const mediaStore = {
             size: file.size
         });
 
-        let originalUploaded = false;
         try {
-            await uploadSigned(signed.original.uploadUrl, file, file.type);
-            originalUploaded = true;
+            const uploads = [
+                uploadSigned(signed.original.uploadUrl, file, file.type)
+            ];
             if (thumbnail && signed.thumbnail?.uploadUrl) {
-                await uploadSigned(signed.thumbnail.uploadUrl, thumbnail, 'image/jpeg');
+                uploads.push(uploadSigned(signed.thumbnail.uploadUrl, thumbnail, 'image/jpeg'));
             }
+
+            // Original e thumbnail não dependem um do outro. Enviar em paralelo
+            // reduz o tempo de salvamento, principalmente em conexões móveis.
+            await Promise.all(uploads);
+
             return {
                 key: signed.original.key,
                 thumbnailKey: thumbnail ? (signed.thumbnail?.key || null) : null
             };
         } catch (error) {
-            if (originalUploaded) {
-                try { await mediaStore.delete(activityId, id); } catch {}
-            }
+            // A exclusão é idempotente para o nosso fluxo e limpa qualquer PUT
+            // que tenha terminado antes da outra requisição falhar.
+            try { await mediaStore.delete(activityId, id); } catch {}
             throw error;
         }
     },
