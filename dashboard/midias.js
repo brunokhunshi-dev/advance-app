@@ -12,6 +12,9 @@ import {
     getDoc,
     getDocs,
     getFirestore,
+    getAggregateFromServer,
+    count,
+    sum,
     limit as queryLimit,
     orderBy,
     query,
@@ -471,23 +474,63 @@ function applyThumbnail(card, url) {
 
 async function loadStorageStats() {
     try {
-        const stats = await mediaApi("/v1/media/storage-stats");
-        state.storageStats = stats;
-        const totalBytes = Number(stats.totalBytes) || 0;
-        const imageCount = Number(stats.imageCount) || 0;
-        const objectCount = Number(stats.objectCount) || 0;
-        const pct = STORAGE_REFERENCE_BYTES ? (totalBytes / STORAGE_REFERENCE_BYTES) * 100 : 0;
+        const activeMedia = query(
+            collection(db, "media_index"),
+            where("ativo", "==", true)
+        );
+
+        const snapshot = await getAggregateFromServer(activeMedia, {
+            imageCount: count(),
+            imageBytes: sum("size"),
+            thumbnailBytes: sum("thumbnailSize"),
+            originalBytes: sum("originalSize")
+        });
+
+        const aggregate = snapshot.data() || {};
+        const imageCount = Number(aggregate.imageCount) || 0;
+        const imageBytes = Number(aggregate.imageBytes) || 0;
+        const thumbnailBytes = Number(aggregate.thumbnailBytes) || 0;
+        const originalBytes = Number(aggregate.originalBytes) || 0;
+        const totalBytes = imageBytes + thumbnailBytes;
+        const pct = STORAGE_REFERENCE_BYTES
+            ? (totalBytes / STORAGE_REFERENCE_BYTES) * 100
+            : 0;
+
+        state.storageStats = {
+            totalBytes,
+            imageCount,
+            imageBytes,
+            thumbnailBytes,
+            originalBytes
+        };
 
         $("media-storage-used").textContent = formatBytes(totalBytes);
         $("media-storage-percent").textContent = percent(pct);
         $("media-storage-bar").style.width = `${Math.min(100, Math.max(0, pct))}%`;
-        $("media-storage-originals").textContent = `${new Intl.NumberFormat("pt-BR").format(imageCount)} imagens`;
-        $("media-storage-objects").textContent = `${new Intl.NumberFormat("pt-BR").format(objectCount)} objetos R2`;
-        $("media-storage-cache").textContent = stats.cached ? "Métrica em cache" : "Métrica atualizada agora";
-        $("media-count").textContent = new Intl.NumberFormat("pt-BR").format(imageCount);
+        $("media-storage-originals").textContent =
+            `${new Intl.NumberFormat("pt-BR").format(imageCount)} imagens`;
+        $("media-storage-objects").textContent =
+            `${new Intl.NumberFormat("pt-BR").format(imageCount * 2)} arquivos catalogados`;
+        $("media-storage-cache").textContent = "Calculado pelo índice do Firestore";
+        $("media-count").textContent =
+            new Intl.NumberFormat("pt-BR").format(imageCount);
+
+        if (imageCount > 0) {
+            $("media-average").textContent = formatBytes(imageBytes / imageCount);
+        } else {
+            $("media-average").textContent = "--";
+        }
+
+        if (originalBytes > 0) {
+            const savings = ((originalBytes - imageBytes) / originalBytes) * 100;
+            $("media-savings").textContent = percent(savings);
+        } else {
+            $("media-savings").textContent = "--";
+        }
     } catch (error) {
-        console.warn("Estatísticas do R2 indisponíveis:", error);
-        $("media-storage-cache").textContent = "Métrica do R2 indisponível";
+        console.warn("Estatísticas de armazenamento indisponíveis:", error);
+        $("media-storage-cache").textContent = "Não foi possível calcular o armazenamento";
+        throw error;
     }
 }
 
