@@ -1306,6 +1306,13 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .technical-report-editor { flex: 1; min-height: 200px; border: 0; border-radius: 0; padding: 0; background: transparent; }
 .report-text-block { min-height: 1.6em; margin: 0; padding: 0; border: 0; outline: none; font: inherit; font-size: 16px; line-height: 1.6; color: var(--color-dark); white-space: pre-wrap; overflow-wrap: anywhere; }
 .report-text-block:empty::before { content: attr(data-placeholder); color: #777; pointer-events: none; }
+.report-text-block-media-gap {
+    display: none !important;
+}
+.report-media-block {
+    break-inside: avoid;
+}
+
 #at-media-status { font-size: 12px; line-height: 1.5; color: #a12331; margin: 8px 0 0; cursor: default; }
 #at-media-status:empty { display: none; }
 .report-add-media { align-self: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; border: 1px solid #ccd2dd; color: #062666; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
