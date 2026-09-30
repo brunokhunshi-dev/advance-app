@@ -1,4 +1,4 @@
-import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-10';
+import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-11';
 let technicalEditor;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
