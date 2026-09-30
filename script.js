@@ -1,10 +1,10 @@
-import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js';
+import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-4';
 let technicalEditor;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
 
@@ -340,10 +340,10 @@ function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, pa
     return doc(db, colecaoRelatorioDaAtividade(atividade, paraNovo), relatorioId);
 }
 
-async function carregarRelatorioDaAtividade(atividade) {
+async function carregarRelatorioDaAtividade(atividade, forcarServidor = false) {
     if (!atividade?.relatorioId) return null;
     const ref = referenciaRelatorio(atividade);
-    const snap = await getDoc(ref);
+    const snap = await (forcarServidor ? getDocFromServer(ref) : getDoc(ref));
     if (!snap.exists()) return null;
     return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
 }
@@ -353,6 +353,16 @@ function blocosPersistidosRelatorio(relatorio) {
     return conteudo?.versao === 1 && Array.isArray(conteudo.blocos)
         ? conteudo.blocos
         : null;
+}
+
+function serializarEstavel(valor) {
+    if (Array.isArray(valor)) return '[' + valor.map(serializarEstavel).join(',') + ']';
+    if (valor && typeof valor === 'object') {
+        return '{' + Object.keys(valor).sort().map(chave =>
+            JSON.stringify(chave) + ':' + serializarEstavel(valor[chave])
+        ).join(',') + '}';
+    }
+    return JSON.stringify(valor);
 }
 
 function dadosAssistenciaDoRelatorio(relatorio = {}) {
@@ -2928,11 +2938,27 @@ function atualizarInterfaceVisitaAtual() {
         if (operacaoEmCurso || !atividadeSelecionadaId) return;
 
         try {
-            const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeSelecionadaId));
-            if (atividadeSnap.exists()) {
-                objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            const sessao = sessaoAtual();
+            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeSelecionadaId));
+            exigirSessao(sessao);
+            if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
+
+            objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            validarResponsavel(objetoAtividadeGlobal, sessao);
+
+            // O estado da tela inicial pode ter sido carregado minutos antes ou em
+            // outro dispositivo. Recarrega o relatório do servidor imediatamente
+            // antes de editar para evitar conflito falso com uma cópia antiga.
+            objetoRelatorioGlobal = objetoAtividadeGlobal.relatorioId
+                ? await carregarRelatorioDaAtividade(objetoAtividadeGlobal, true)
+                : null;
+            exigirSessao(sessao);
+
+            if (objetoRelatorioGlobal &&
+                (objetoRelatorioGlobal.atividadeId !== atividadeSelecionadaId ||
+                 objetoRelatorioGlobal.ptvId !== sessao.id)) {
+                throw new Error('O relatório associado não corresponde a esta visita.');
             }
-            if (!objetoAtividadeGlobal) throw new Error('Visita não encontrada.');
 
             if (objetoAtividadeGlobal.clienteId) {
                 const cliente = await obterCliente(objetoAtividadeGlobal.clienteId);
@@ -3345,10 +3371,10 @@ function configurarEventosGlobais() {
                 const conteudoBanco = dados?.conteudoRelatorio || null;
                 if (
                     dados &&
-                    JSON.stringify(conteudoBanco) !== JSON.stringify(conteudoBase) &&
-                    JSON.stringify(conteudoBanco) !== JSON.stringify(conteudoRelatorio)
+                    serializarEstavel(conteudoBanco) !== serializarEstavel(conteudoBase) &&
+                    serializarEstavel(conteudoBanco) !== serializarEstavel(conteudoRelatorio)
                 ) {
-                    throw new Error('As mídias deste relatório foram alteradas em outra sessão. Reabra o relatório antes de salvar.');
+                    throw new Error('As mídias deste relatório foram alteradas depois que você abriu esta tela. Reabra o relatório antes de salvar.');
                 }
 
                 const agora = new Date();
