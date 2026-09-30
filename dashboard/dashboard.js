@@ -414,6 +414,8 @@ function showDashboard() {
 function resetStateForSession() {
     state.profile = null;
     state.canSeeAll = false;
+    const mediaLink = $("dashboard-link-midias");
+    if (mediaLink) mediaLink.hidden = true;
     state.professionals = [];
     state.professionalMap = new Map();
     state.clients = [];
@@ -1658,6 +1660,7 @@ async function handleAuthenticatedUser(user) {
 
         state.profile = access.profile;
         state.canSeeAll = access.canSeeAll;
+        $("dashboard-link-midias").hidden = !state.canSeeAll;
 
         $("dashboard-user-name").textContent = state.profile.name;
         $("dashboard-user-role").textContent = state.canSeeAll ? "Visão de gestão" : "Visão individual";
