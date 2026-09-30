@@ -1,19 +1,41 @@
-# Relatórios com mídias — front-end de teste
+# Relatórios com mídias — Cloudflare R2
 
 Branch: `teste/relatorio-tecnico-midias`.
 
-Visitas comerciais, treinamentos e assistência técnica usam a mesma seção aberta de escrita. O relatório técnico aparece depois das informações específicas da assistência, fora dos cards de formulário. Escreva, posicione o cursor e use o botão circular + ao lado de Salvar relatório para inserir imagens, vídeos ou áudios e continuar o texto abaixo.
+## Arquitetura atual
 
-As mídias aparecem em quadrados de 96 × 96 px, com X no canto superior direito para remover. Arquivos adicionados juntos ficam lado a lado quando há espaço. Para imagens e vídeos compatíveis, o navegador cria uma miniatura JPEG de 96 × 96 px com qualidade 0,25, armazenada separadamente. O original só é carregado no visualizador quando o usuário clica. Áudio e formatos sem prévia decodificável usam um ícone. O visualizador permite reprodução e download do original.
+Visitas comerciais, treinamentos e assistência técnica usam o editor em blocos. O texto continua compatível com os campos históricos do Firestore e a ordem completa de texto + mídias passa a ser persistida em `conteudoRelatorio.blocos`.
 
-O texto técnico continua em `verificacao.constatacoes`; os demais relatórios usam `textoAtual`. Nenhum arquivo ou blob URL é enviado ao Firestore. Os blocos ordenados e os arquivos ficam em IndexedDB no navegador de teste, separados por usuário e atividade. A leitura e o checkout exibem os blocos nos três tipos de visita. PDFs continuam textuais nesta etapa.
+Os arquivos originais e as miniaturas ficam no bucket privado `advance-app-media` do Cloudflare R2. O navegador nunca recebe as credenciais permanentes do bucket. O Worker `advance-media-api` valida o Firebase ID Token, valida a atividade do usuário e devolve URLs temporárias assinadas.
 
-Mídias não estão sincronizadas entre navegadores/dispositivos e serão perdidas ao limpar os dados do site. Se o texto remoto mudar, o editor prioriza o texto remoto em vez de exibir uma composição local desatualizada. Limites da versão de teste: 20 arquivos e 100 MB por arquivo, sujeitos à capacidade local disponível.
+Estrutura lógica de objetos:
 
-## Próxima etapa: R2
+```text
+v1/activities/{atividadeId}/media/{mediaId}/original
+v1/activities/{atividadeId}/media/{mediaId}/thumbnail.jpg
+```
 
-`mediaStore` em `technical-report-editor.js` isola originais e miniaturas. Substituir o adapter por upload autenticado e leitura do R2, salvar blocos e identificadores de objetos no servidor, validar permissões e limites de upload e implementar limpeza de arquivos. Credenciais R2 devem permanecer no servidor.
+Cada bloco de mídia salvo no Firestore contém apenas metadados e identificadores do objeto, por exemplo `id`, `name`, `type`, `size`, `storage: "r2"`, `key` e `thumbnailKey`. URLs assinadas nunca são persistidas.
 
-## Validação
+## Fluxo de gravação
 
-Testado em Chromium com viewport de 390 × 844 e uma simulação local do Firebase, sem acessar dados reais: nos três tipos de visita, inserção no cursor, dimensões e espaçamento, miniatura comprimida, abertura do original, salvamento e reabertura, leitura, checkout, remoção e detecção de alterações. Também conferidos digitação multilinha, miniatura de vídeo, reprodução de áudio/vídeo, anexos lado a lado e rejeição de arquivos incompatíveis. Sintaxe JS e `git diff --check` validados. O backend real e o R2 não fazem parte destes testes.
+Ao selecionar um arquivo ele permanece somente em memória no navegador e a miniatura 96 × 96 px é criada localmente. Ao salvar o relatório:
+
+1. o editor pede ao Worker uma URL assinada;
+2. original e miniatura são enviados diretamente do navegador ao R2;
+3. os blocos são gravados no mesmo documento do relatório no Firestore;
+4. após o Firestore confirmar a gravação, arquivos removidos do relatório são apagados do R2.
+
+Se a gravação do Firestore falhar, o editor tenta apagar do R2 os uploads feitos naquela tentativa e mantém os arquivos locais para nova tentativa.
+
+## Leitura
+
+O relatório recupera `conteudoRelatorio.blocos` do Firestore. Para mídias, a miniatura recebe uma URL assinada de leitura. O original só recebe uma URL assinada quando o usuário toca na thumbnail. Visitas concluídas continuam permitindo leitura, enquanto upload e exclusão ficam limitados a visitas em andamento.
+
+## Compatibilidade
+
+- Assistência técnica continua usando `verificacao.constatacoes` como texto técnico.
+- Visita comercial e treinamento continuam usando `textoAtual`.
+- Relatórios antigos sem `conteudoRelatorio` continuam sendo exibidos apenas como texto.
+- PDF continua textual nesta etapa.
+- Limite do editor: 20 arquivos por relatório e 100 MB por arquivo.
