@@ -598,10 +598,6 @@
                 </div>
             </div>
 
-            <div class="relatorio-editor-section" id="relatorio-editor-padrao">
-                <textarea id="rel-texto" class="textarea-box-full" placeholder="Comece a escrever..."></textarea>
-            </div>
-
             <div class="relatorio-assistencia-section" id="relatorio-assistencia-section" style="display:none;">
                 <section class="assistencia-form-card">
                     <span class="assistencia-kicker">CLIENTE E APLICAÇÃO</span>
@@ -759,19 +755,19 @@
                         </div>
                     </div>
                 </section>
-                <section class="assistencia-form-card">
-                    <label id="at-relatorio-label" class="assistencia-subtitle">Relatório técnico</label>
-                    <p class="report-editor-hint">Relate os acontecimentos e insira mídias entre os textos usando o botão +.</p>
-                    <textarea id="at-constatacoes" hidden></textarea>
-                    <div id="at-relatorio-editor" class="technical-report-editor" role="group" aria-labelledby="at-relatorio-label"></div>
-                    <p class="report-local-note">Versão de teste: mídias disponíveis somente neste navegador até a integração com o R2.</p>
-                    <p id="at-media-status" role="status" aria-live="polite"></p>
-                </section>
             </div>
+
+            <section class="relatorio-editor-section" id="relatorio-editor-padrao" aria-label="Conteúdo do relatório">
+                <h2 id="report-section-title" class="report-section-title" hidden>Relatório técnico</h2>
+                <textarea id="rel-texto" hidden></textarea>
+                <textarea id="at-constatacoes" hidden></textarea>
+                <div id="at-relatorio-editor" class="technical-report-editor" role="group" aria-label="Escrever relatório"></div>
+                <p id="at-media-status" role="status" aria-live="polite"></p>
+            </section>
 
             <div class="relatorio-acoes">
                 <input id="at-media-picker" type="file" accept="image/*,video/*,audio/*" multiple hidden>
-                <button type="button" id="btn-adicionar-midia" class="report-add-media" aria-label="Adicionar foto, imagem, vídeo ou áudio" title="Adicionar mídia" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+                <button type="button" id="btn-adicionar-midia" class="report-add-media" aria-label="Adicionar foto, imagem, vídeo ou áudio" title="Adicionar mídia"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
                 <button class="btn-checkin" id="btn-salvar-relatorio" style="flex: 1;">Salvar relatório</button>
             </div>
         </div>
@@ -1050,7 +1046,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=technical-media-1"></script>
+    <script type="module" src="script.js?v=compact-media-2"></script>
     <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {

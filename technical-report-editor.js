@@ -20,7 +20,9 @@ async function access(store, mode, key, value) {
 }
 export const mediaStore = {
     put: (id, file) => access('files', 'readwrite', id, file),
-    get: id => access('files', 'readonly', id)
+    get: id => access('files', 'readonly', id),
+    putThumbnail: (id, blob) => access('files', 'readwrite', id + ':thumbnail', blob),
+    getThumbnail: id => access('files', 'readonly', id + ':thumbnail')
 };
 const documents = new Map();
 export async function loadLocalReport(key) {
@@ -30,10 +32,49 @@ export async function loadLocalReport(key) {
 export function localReport(key) { return documents.get(key); }
 const escape = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const textBlock = text => ({ kind: 'text', text: text || '' });
+const mediaIcon = type => type.startsWith('audio/') ? '♫' : type.startsWith('video/') ? '▶' : '▧';
 export function reportMarkup(blocks) {
     return (blocks || []).map(block => block.kind === 'text'
-        ? `<p class="technical-report-paragraph">${escape(block.text)}</p>`
-        : `<button type="button" class="report-media-open" data-report-media="${escape(block.id)}" data-media-type="${escape(block.type)}" aria-label="Abrir ${escape(block.name)}"><span class="report-media-preview">${block.type.startsWith('audio/') ? '♫' : '▶'}</span><span class="report-media-caption">${escape(block.name)}<small>Clique para abrir o arquivo</small></span></button>`).join('');
+        ? (block.text ? `<p class="technical-report-paragraph">${escape(block.text)}</p>` : '')
+        : `<button type="button" class="report-media-open" data-report-media="${escape(block.id)}" data-media-type="${escape(block.type)}" data-media-name="${escape(block.name)}" aria-label="Abrir ${escape(block.name)}" title="${escape(block.name)}"><span class="report-media-preview" aria-hidden="true">${mediaIcon(block.type)}</span>${block.type.startsWith('video/') ? '<span class="report-media-play" aria-hidden="true">▶</span>' : ''}</button>`).join('');
+}
+// Only this 96px compressed image is decoded in the report; original files open on demand.
+export async function createThumbnail(file) {
+    if (!/^(image|video)\//.test(file.type)) return null;
+    const video = file.type.startsWith('video/');
+    const source = document.createElement(video ? 'video' : 'img');
+    const url = URL.createObjectURL(file);
+    let timeout;
+    try {
+        await new Promise((resolve, reject) => {
+            timeout = setTimeout(() => reject(new Error('Prévia indisponível')), 6000);
+            source.onerror = () => reject(new Error('Prévia indisponível'));
+            if (video) {
+                source.muted = true; source.playsInline = true; source.preload = 'auto';
+                source.onloadeddata = () => {
+                    if (source.duration > 0.1) source.currentTime = Math.min(0.1, source.duration / 2);
+                    else resolve();
+                };
+                source.onseeked = resolve;
+            } else source.onload = resolve;
+            source.src = url;
+        });
+        const width = video ? source.videoWidth : source.naturalWidth;
+        const height = video ? source.videoHeight : source.naturalHeight;
+        if (!width || !height) return null;
+        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 96;
+        const context = canvas.getContext('2d');
+        const side = Math.min(width, height);
+        context.fillStyle = '#edf0f5'; context.fillRect(0, 0, 96, 96);
+        context.drawImage(source, (width - side) / 2, (height - side) / 2, side, side, 0, 0, 96, 96);
+        return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.25));
+    } catch { return null; }
+    finally {
+        clearTimeout(timeout);
+        source.onload = source.onerror = source.onloadeddata = source.onseeked = null;
+        if (video) { source.pause(); source.removeAttribute('src'); source.load(); }
+        URL.revokeObjectURL(url);
+    }
 }
 let viewer;
 function openMedia(file, name) {
@@ -58,20 +99,38 @@ function openMedia(file, name) {
 function hydrate(root) {
     root.querySelectorAll('[data-report-media]:not([data-ready])').forEach(async button => {
         button.dataset.ready = 'true';
+        const id = button.dataset.reportMedia;
+        const name = button.dataset.mediaName;
+        button.onclick = async () => {
+            button.disabled = true;
+            try {
+                const file = await mediaStore.get(id);
+                if (file) openMedia(file, name);
+                else showMediaError('Arquivo indisponível neste navegador.');
+            } catch { showMediaError('Não foi possível abrir o arquivo.'); }
+            finally { button.disabled = false; }
+        };
+        if (!/^(image|video)\//.test(button.dataset.mediaType)) return;
         try {
-            const file = await mediaStore.get(button.dataset.reportMedia);
-            if (!file) { button.querySelector('small').textContent = 'Arquivo indisponível neste navegador'; return; }
-            if (!button.isConnected) return;
-            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-                const preview = document.createElement(file.type.startsWith('image/') ? 'img' : 'video');
-                const url = URL.createObjectURL(file);
-                preview.src = url; preview.alt = ''; preview.muted = true; preview.preload = 'metadata';
-                button.querySelector('.report-media-preview').replaceChildren(preview);
-                preview.dataset.objectUrl = url;
+            let thumbnail = await mediaStore.getThumbnail(id);
+            // Migrate previews for files created by the first front-end version.
+            if (thumbnail === undefined) {
+                const file = await mediaStore.get(id);
+                thumbnail = file ? await createThumbnail(file) : null;
+                await mediaStore.putThumbnail(id, thumbnail);
             }
-            button.onclick = () => openMedia(file, button.querySelector('.report-media-caption').firstChild.textContent);
-        } catch { button.querySelector('small').textContent = 'Não foi possível abrir o arquivo'; }
+            if (!thumbnail || !button.isConnected) return;
+            const preview = document.createElement('img');
+            preview.src = URL.createObjectURL(thumbnail); preview.alt = '';
+            preview.width = preview.height = 96;
+            preview.dataset.objectUrl = preview.src;
+            button.querySelector('.report-media-preview').replaceChildren(preview);
+        } catch { /* Keep the file-type icon when a thumbnail cannot be decoded. */ }
     });
+}
+function showMediaError(message) {
+    if (window.mostrarAlerta) window.mostrarAlerta('Arquivo', message);
+    else window.alert(message);
 }
 export function initializeMediaPreviews() {
     const observer = new MutationObserver(records => {
@@ -89,7 +148,10 @@ export class TechnicalReportEditor {
     constructor(root, input, button, picker, status) {
         Object.assign(this, { root, input, button, picker, status });
         this.blocks = [textBlock('')]; this.key = ''; this.busy = false;
-        button.addEventListener('click', () => picker.click());
+        button.addEventListener('click', () => { if (!this.locked && !this.busy) picker.click(); });
+        root.addEventListener('click', event => {
+            if (event.target === root) this.focusText(this.blocks.length - 1);
+        });
         picker.addEventListener('change', () => this.insertFiles([...picker.files]));
         this.render();
     }
@@ -100,8 +162,23 @@ export class TechnicalReportEditor {
         const saved = localReport(key);
         // The server text remains authoritative if edited on another device.
         this.blocks = saved && saved.text === text ? structuredClone(saved.blocks) : [textBlock(text)];
-        this.baseline = JSON.stringify(this.blocks); this.active = 0; this.caret = null;
+        this.baseline = JSON.stringify(this.blocks); this.active = 0; this.selection = null;
+        this.input.value = text || '';
         this.render();
+    }
+    setLocked(locked) {
+        this.locked = locked; this.root.inert = locked || this.busy;
+        this.button.disabled = locked || this.busy;
+    }
+    focusText(index, offset) {
+        const area = this.root.querySelector(`[data-text-index="${index}"]`);
+        if (!area) return;
+        area.focus();
+        const range = document.createRange();
+        range.selectNodeContents(area);
+        if (offset === 0) range.collapse(true);
+        else range.collapse(false);
+        const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
     }
     get dirty() { return JSON.stringify(this.blocks) !== this.baseline; }
     sync() {
@@ -112,36 +189,61 @@ export class TechnicalReportEditor {
         this.root.replaceChildren();
         this.blocks.forEach((block, index) => {
             if (block.kind === 'text') {
-                const area = document.createElement('textarea');
-                area.className = 'report-text-block'; area.value = block.text;
-                area.placeholder = 'Relate os acontecimentos, observações e procedimentos…';
-                area.setAttribute('aria-label', 'Texto do relatório técnico');
-                const remember = () => { this.active = index; this.caret = [area.selectionStart, area.selectionEnd]; };
-                area.addEventListener('input', () => { block.text = area.value; remember(); this.sync(); resize(); });
-                ['focus', 'click', 'keyup', 'select', 'blur'].forEach(event => area.addEventListener(event, remember));
-                const resize = () => { area.style.height = 'auto'; area.style.height = Math.max(110, area.scrollHeight) + 'px'; };
-                this.root.append(area); requestAnimationFrame(resize);
-                if (focusIndex === index) requestAnimationFrame(() => area.focus());
+                const area = document.createElement('div');
+                area.contentEditable = 'plaintext-only';
+                area.className = 'report-text-block'; area.textContent = block.text;
+                area.dataset.textIndex = index;
+                area.dataset.placeholder = this.blocks.length === 1 ? 'Comece a escrever...' : '';
+                area.setAttribute('role', 'textbox'); area.setAttribute('aria-multiline', 'true');
+                area.setAttribute('aria-label', 'Texto do relatório');
+                const remember = () => {
+                    const selection = window.getSelection();
+                    if (!selection.rangeCount || !area.contains(selection.anchorNode) || !area.contains(selection.focusNode)) return;
+                    const range = selection.getRangeAt(0);
+                    const before = range.cloneRange(); before.selectNodeContents(area); before.setEnd(range.startContainer, range.startOffset);
+                    const after = range.cloneRange(); after.selectNodeContents(area); after.setStart(range.endContainer, range.endOffset);
+                    this.active = index;
+                    // Keep DOM ranges until the file picker returns, preserving multiline selection.
+                    this.selection = { index, before, after };
+                };
+                area.addEventListener('input', () => {
+                    block.text = area.innerText.replace(/\r/g, '');
+                    if (block.text === '\n') { block.text = ''; area.replaceChildren(); }
+                    remember(); this.sync();
+                });
+                ['focus', 'pointerup', 'keyup', 'blur'].forEach(event => area.addEventListener(event, remember));
+                this.root.append(area);
             } else {
                 const figure = document.createElement('figure'); figure.className = 'report-media-block';
                 figure.innerHTML = reportMarkup([block]);
                 const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'report-media-remove';
-                remove.textContent = 'Remover'; remove.setAttribute('aria-label', 'Remover ' + block.name);
+                remove.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>'; remove.title = 'Remover ' + block.name; remove.setAttribute('aria-label', 'Remover ' + block.name);
                 remove.onclick = () => {
                     this.blocks.splice(index, 1);
                     if (this.blocks[index]?.kind === 'text' && this.blocks[index - 1]?.kind === 'text') {
                         this.blocks[index - 1].text += '\n' + this.blocks[index].text;
                         this.blocks.splice(index, 1);
                     }
-                    this.active = Math.max(0, index - 1); this.caret = null; this.sync(); this.render(this.active);
+                    this.active = this.blocks.findLastIndex(b => b.kind === 'text'); this.selection = null; this.sync(); this.render(this.active);
                 };
                 figure.append(remove); this.root.append(figure);
             }
         });
+        if (focusIndex !== undefined) this.focusText(focusIndex, 0);
     }
     async insertFiles(files) {
-        if (!files.length || this.busy) return;
-        const generation = this.generation, key = this.key, index = this.active || 0, caret = this.caret;
+        if (!files.length || this.busy || this.locked) return;
+        const generation = this.generation, key = this.key, index = this.active || 0;
+        const selection = this.selection;
+        const fragmentText = range => {
+            const container = document.createElement('div');
+            container.style.cssText = 'position:fixed;left:-10000px;white-space:pre-wrap';
+            container.append(range.cloneContents()); document.body.append(container);
+            const text = container.innerText; container.remove(); return text;
+        };
+        const block = this.blocks[index];
+        const before = selection?.index === index ? fragmentText(selection.before) : block.text;
+        const after = selection?.index === index ? fragmentText(selection.after) : '';
         this.busy = true; this.button.disabled = true;
         this.root.inert = true;
         try {
@@ -151,17 +253,17 @@ export class TechnicalReportEditor {
             const media = [];
             for (const file of files) {
                 const id = crypto.randomUUID(); await mediaStore.put(id, file);
+                await mediaStore.putThumbnail(id, await createThumbnail(file));
                 media.push({kind: 'media', id, name: file.name, type: file.type, size: file.size, storage: 'local'});
             }
             if (key !== this.key || generation !== this.generation) return;
-            const block = this.blocks[index];
-            const [start, end] = caret || [block.text.length, block.text.length];
-            this.blocks.splice(index, 1, textBlock(block.text.slice(0, start)), ...media, textBlock(block.text.slice(end)));
-            this.active = index + media.length + 1; this.caret = null;
+            this.blocks.splice(index, 1, textBlock(before), ...media, textBlock(after));
+            this.active = index + media.length + 1; this.selection = null;
+            this.root.inert = false;
             this.sync(); this.render(this.active);
-            this.status.textContent = 'Mídia adicionada. Clique na miniatura para abrir.';
+            this.status.textContent = '';
         } catch (error) { this.status.textContent = error.message; }
-        finally { this.busy = false; this.button.disabled = false; this.root.inert = false; this.picker.value = ''; }
+        finally { this.busy = false; this.setLocked(Boolean(this.locked)); this.picker.value = ''; }
     }
     async save() {
         const value = {blocks: structuredClone(this.blocks), text: this.input.value};

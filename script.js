@@ -445,6 +445,17 @@ function limparFormularioCheckout() {
     document.querySelectorAll('input[name="checkoutOportunidade"], input[name="checkoutAtResultado"]').forEach(radio => { radio.checked = false; });
 }
 
+function preencherConteudoRelatorio(id, relatorio, fallback) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    const local = localReport(localReportKey(relatorio));
+    if (local && local.text === (relatorio?.textoAtual || '')) {
+        element.innerHTML = reportMarkup(local.blocks);
+    } else {
+        element.textContent = relatorio?.textoAtual || fallback;
+    }
+}
+
 function preencherCheckout(atividade, relatorio, saida) {
     checkoutPendenteGlobal = { atividadeId: atividade.id, posicao: saida };
     limparFormularioCheckout();
@@ -485,7 +496,7 @@ function preencherCheckout(atividade, relatorio, saida) {
     const assistenciaPreview = document.getElementById('checkout-assistencia-preview');
     if (textoSection) textoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
     if (assistenciaPreview) assistenciaPreview.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
-    document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
+    preencherConteudoRelatorio('checkout-relatorio-final', relatorio, 'Nenhum relatório salvo.');
     if (tipo === ASSISTENCIA_TECNICA_TIPO) atualizarPreviewCheckoutAssistencia();
 
     navegarParaTela('tela-checkout', { carregar: false });
@@ -532,7 +543,6 @@ function limparFormularioAssistencia() {
     ['atEspecificacao','atImpactoClimatico','atLimpeza','atFerramenta','atVerificado'].forEach(name => {
         document.querySelectorAll('input[name="' + name + '"]').forEach(input => { input.checked = false; });
     });
-    technicalEditor?.reset(localReportKey(), '');
     document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display','none');
     document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display','none');
 }
@@ -595,7 +605,6 @@ function preencherFormularioAssistencia(dados = {}) {
     document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display', dados?.houveEspecificacao === 'Sim' ? 'block' : 'none');
     document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display', dados?.impactoClimatico === 'Sim' ? 'block' : 'none');
 
-    technicalEditor?.reset(localReportKey(), dados.constatacoes || '');
 
 }
 
@@ -750,7 +759,8 @@ function mostrarEditorRelatorioPorTipo(tipo) {
     const assistencia = tipo === ASSISTENCIA_TECNICA_TIPO;
     const padrao = document.getElementById('relatorio-editor-padrao');
     const personalizado = document.getElementById('relatorio-assistencia-section');
-    if (padrao) padrao.style.display = assistencia ? 'none' : 'block';
+    if (padrao) padrao.style.display = 'flex';
+    document.getElementById('report-section-title').hidden = !assistencia;
     if (personalizado) personalizado.style.display = assistencia ? 'block' : 'none';
 }
 
@@ -1243,7 +1253,7 @@ function relatorioPossuiAlteracoesNaoSalvas() {
         return technicalEditor?.dirty || JSON.stringify(atual) !== JSON.stringify(salvo);
     }
 
-    return document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
+    return technicalEditor?.dirty || document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
 }
 
 function voltarNavegacao(fallback = 'tela-inicio') {
@@ -2051,7 +2061,7 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     }
 
     preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
-    preencherCampoVisualizador('visu-relatorio', relatorio?.textoAtual, 'Nenhum relatório registrado.');
+    preencherConteudoRelatorio('visu-relatorio', relatorio, 'Nenhum relatório registrado.');
 
     const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
     document.getElementById('visu-manual').style.display = manual ? 'block' : 'none';
@@ -2931,11 +2941,12 @@ function atualizarInterfaceVisitaAtual() {
             }
 
             mostrarEditorRelatorioPorTipo(tipo);
-            document.getElementById('btn-adicionar-midia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'flex' : 'none';
             await loadLocalReport(localReportKey());
             if (tipo === ASSISTENCIA_TECNICA_TIPO) {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
+            technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
+            technicalEditor.reset(localReportKey(), technicalEditor.input.value);
 
             document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + nomeCliente;
             document.getElementById('rel-opcao-cliente').textContent = nomeCliente;
@@ -3249,8 +3260,8 @@ function configurarEventosGlobais() {
             let assistenciaTecnica = null;
             let texto = '';
 
+            if (technicalEditor.busy) throw new Error('Aguarde a adição dos arquivos antes de salvar.');
             if (ehAssistencia) {
-                if (technicalEditor.busy) throw new Error('Aguarde a adição dos arquivos antes de salvar.');
                 if (document.getElementById('at-constatacoes').value.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
                 assistenciaTecnica = lerFormularioAssistencia();
                 const obrigatoriosPreenchidos =
@@ -3281,6 +3292,7 @@ function configurarEventosGlobais() {
             operacaoEmCurso = true;
             btn.disabled = true;
             btn.textContent = 'Salvando...';
+            technicalEditor.setLocked(true);
 
             const salvo = await runTransaction(db, async tx => {
                 const atvRef = doc(db,'atividades',atividadeId);
@@ -3379,17 +3391,14 @@ function configurarEventosGlobais() {
 
             if (!sessaoValida(sessao)) return;
 
-            if (ehAssistencia) {
-                try { await technicalEditor.save(); }
-                catch (error) {
-                    objetoRelatorioGlobal = salvo;
-                    window.mostrarAlerta('Texto salvo', 'O texto foi salvo, mas as mídias não puderam ser salvas neste navegador. Mantenha o editor aberto e tente novamente.');
-                    return;
-                }
-            }
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
             objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
+            try { await technicalEditor.save(); }
+            catch (error) {
+                window.mostrarAlerta('Texto salvo', 'O texto foi salvo, mas as mídias não puderam ser salvas neste navegador. Mantenha o editor aberto e tente novamente.');
+                return;
+            }
             navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
@@ -3398,6 +3407,7 @@ function configurarEventosGlobais() {
             operacaoEmCurso = false;
             btn.disabled = false;
             btn.textContent = 'Salvar relatório';
+            technicalEditor.setLocked(false);
         }
     });
 }
