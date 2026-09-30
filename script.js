@@ -1,4 +1,4 @@
-import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-7';
+import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-9';
 let technicalEditor;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
@@ -3289,7 +3289,14 @@ function configurarEventosGlobais() {
     });
 
     initializeMediaPreviews();
-    technicalEditor = new TechnicalReportEditor(document.getElementById('at-relatorio-editor'), document.getElementById('at-constatacoes'), document.getElementById('btn-adicionar-midia'), document.getElementById('at-media-picker'), document.getElementById('at-media-status'));
+    technicalEditor = new TechnicalReportEditor(
+        document.getElementById('at-relatorio-editor'),
+        document.getElementById('at-constatacoes'),
+        document.getElementById('btn-adicionar-midia'),
+        document.getElementById('at-media-picker'),
+        document.getElementById('at-media-status'),
+        document.getElementById('at-camera-picker')
+    );
 
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
