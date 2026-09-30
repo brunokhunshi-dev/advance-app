@@ -474,23 +474,35 @@ function applyThumbnail(card, url) {
 
 async function loadStorageStats() {
     try {
-        const activeMedia = query(
-            collection(db, "media_index"),
-            where("ativo", "==", true)
-        );
+        const mediaCollection = collection(db, "media_index");
 
-        const snapshot = await getAggregateFromServer(activeMedia, {
-            imageCount: count(),
-            imageBytes: sum("size"),
-            thumbnailBytes: sum("thumbnailSize"),
-            originalBytes: sum("originalSize")
-        });
+        // Cada agregação usa apenas um campo. Isso aproveita os índices simples
+        // automáticos do Firestore e evita exigir um índice composto apenas
+        // para montar o resumo de armazenamento.
+        const [
+            countSnapshot,
+            sizeSnapshot,
+            thumbnailSnapshot,
+            originalSnapshot
+        ] = await Promise.all([
+            getAggregateFromServer(mediaCollection, {
+                imageCount: count()
+            }),
+            getAggregateFromServer(mediaCollection, {
+                imageBytes: sum("size")
+            }),
+            getAggregateFromServer(mediaCollection, {
+                thumbnailBytes: sum("thumbnailSize")
+            }),
+            getAggregateFromServer(mediaCollection, {
+                originalBytes: sum("originalSize")
+            })
+        ]);
 
-        const aggregate = snapshot.data() || {};
-        const imageCount = Number(aggregate.imageCount) || 0;
-        const imageBytes = Number(aggregate.imageBytes) || 0;
-        const thumbnailBytes = Number(aggregate.thumbnailBytes) || 0;
-        const originalBytes = Number(aggregate.originalBytes) || 0;
+        const imageCount = Number(countSnapshot.data()?.imageCount) || 0;
+        const imageBytes = Number(sizeSnapshot.data()?.imageBytes) || 0;
+        const thumbnailBytes = Number(thumbnailSnapshot.data()?.thumbnailBytes) || 0;
+        const originalBytes = Number(originalSnapshot.data()?.originalBytes) || 0;
         const totalBytes = imageBytes + thumbnailBytes;
         const pct = STORAGE_REFERENCE_BYTES
             ? (totalBytes / STORAGE_REFERENCE_BYTES) * 100
@@ -527,10 +539,17 @@ async function loadStorageStats() {
         } else {
             $("media-savings").textContent = "--";
         }
+
+        return true;
     } catch (error) {
         console.warn("Estatísticas de armazenamento indisponíveis:", error);
-        $("media-storage-cache").textContent = "Não foi possível calcular o armazenamento";
-        throw error;
+        $("media-storage-cache").textContent = "Resumo temporariamente indisponível";
+        $("media-storage-used").textContent = "--";
+        $("media-storage-percent").textContent = "--%";
+        $("media-storage-bar").style.width = "0%";
+        // Estatísticas são complementares: nunca devem impedir a entrada
+        // no gerenciador nem encerrar a sessão do usuário.
+        return false;
     }
 }
 
@@ -663,11 +682,7 @@ async function deleteCurrentMedia() {
                 });
             }
 
-            tx.set(indexRef, {
-                ativo: false,
-                removidoEm: new Date(),
-                atualizadoEm: new Date()
-            }, { merge: true });
+            tx.delete(indexRef);
         });
 
         firestoreUpdated = true;
