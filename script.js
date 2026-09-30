@@ -1,6 +1,5 @@
-import { TechnicalReportEditor, loadLocalReport, localReport, reportMarkup, initializeMediaPreviews } from './technical-report-editor.js';
+import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js';
 let technicalEditor;
-const localReportKey = report => `${report?.ptvId || idUsuarioLogado}:${report?.atividadeId || atividadeSelecionadaId}`;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
@@ -16,6 +15,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 const db = getFirestore(app);
+
+configureMediaApi({
+    baseUrl: 'https://advance-media-api.brunokhunshi.workers.dev',
+    getIdToken: async () => {
+        if (!auth.currentUser) throw new Error('Entre novamente para acessar os arquivos.');
+        return auth.currentUser.getIdToken();
+    }
+});
 
 
 
@@ -338,9 +345,14 @@ async function carregarRelatorioDaAtividade(atividade) {
     const ref = referenciaRelatorio(atividade);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    const report = { ...snap.data(), id: snap.id, colecao: ref.parent.id };
-    await loadLocalReport(localReportKey(report));
-    return report;
+    return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
+}
+
+function blocosPersistidosRelatorio(relatorio) {
+    const conteudo = relatorio?.conteudoRelatorio;
+    return conteudo?.versao === 1 && Array.isArray(conteudo.blocos)
+        ? conteudo.blocos
+        : null;
 }
 
 function dadosAssistenciaDoRelatorio(relatorio = {}) {
@@ -448,9 +460,9 @@ function limparFormularioCheckout() {
 function preencherConteudoRelatorio(id, relatorio, fallback) {
     const element = document.getElementById(id);
     if (!element) return;
-    const local = localReport(localReportKey(relatorio));
-    if (local && local.text === (relatorio?.textoAtual || '')) {
-        element.innerHTML = reportMarkup(local.blocks);
+    const blocks = blocosPersistidosRelatorio(relatorio);
+    if (blocks) {
+        element.innerHTML = reportMarkup(blocks, relatorio?.atividadeId || '');
     } else {
         element.textContent = relatorio?.textoAtual || fallback;
     }
@@ -732,9 +744,14 @@ function renderFichaAssistencia(dados = {}, opcoes = {}) {
         );
     }
 
-    const local = localReport(localReportKey(objetoRelatorioGlobal));
-    if (local && local.text === (dados.constatacoes || '')) {
-        html = html.replace(campo('Relatório técnico', dados.constatacoes), '<div class="report-read-content"><label>Relatório técnico</label>' + reportMarkup(local.blocks) + '</div>');
+    const blocks = blocosPersistidosRelatorio(objetoRelatorioGlobal);
+    if (blocks) {
+        html = html.replace(
+            campo('Relatório técnico', dados.constatacoes),
+            '<div class="report-read-content"><label>Relatório técnico</label>' +
+                reportMarkup(blocks, objetoRelatorioGlobal?.atividadeId || '') +
+            '</div>'
+        );
     }
     return html;
 }
@@ -2941,12 +2958,15 @@ function atualizarInterfaceVisitaAtual() {
             }
 
             mostrarEditorRelatorioPorTipo(tipo);
-            await loadLocalReport(localReportKey());
             if (tipo === ASSISTENCIA_TECNICA_TIPO) {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
             technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
-            technicalEditor.reset(localReportKey(), technicalEditor.input.value);
+            technicalEditor.reset({
+                activityId: atividadeSelecionadaId,
+                text: technicalEditor.input.value,
+                blocks: blocosPersistidosRelatorio(objetoRelatorioGlobal)
+            });
 
             document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + nomeCliente;
             document.getElementById('rel-opcao-cliente').textContent = nomeCliente;
@@ -3250,6 +3270,8 @@ function configurarEventosGlobais() {
     document.getElementById('btn-salvar-relatorio')?.addEventListener('click', async () => {
         if (operacaoEmCurso) return;
         const btn = document.getElementById('btn-salvar-relatorio');
+        let mediaSave = null;
+        let firestoreSaved = false;
 
         try {
             const sessao = sessaoAtual(), atividadeId = atividadeSelecionadaId;
@@ -3294,6 +3316,13 @@ function configurarEventosGlobais() {
             btn.textContent = 'Salvando...';
             technicalEditor.setLocked(true);
 
+            mediaSave = await technicalEditor.prepareSave();
+            const conteudoRelatorio = {
+                versao: 1,
+                blocos: mediaSave.blocks
+            };
+            const conteudoBase = objetoRelatorioGlobal?.conteudoRelatorio || null;
+
             const salvo = await runTransaction(db, async tx => {
                 const atvRef = doc(db,'atividades',atividadeId);
                 const snap = await tx.get(atvRef);
@@ -3311,6 +3340,15 @@ function configurarEventosGlobais() {
 
                 if (dados && (dados.atividadeId !== atividadeId || dados.ptvId !== sessao.id)) {
                     throw new Error('O relatório não corresponde a esta visita.');
+                }
+
+                const conteudoBanco = dados?.conteudoRelatorio || null;
+                if (
+                    dados &&
+                    JSON.stringify(conteudoBanco) !== JSON.stringify(conteudoBase) &&
+                    JSON.stringify(conteudoBanco) !== JSON.stringify(conteudoRelatorio)
+                ) {
+                    throw new Error('As mídias deste relatório foram alteradas em outra sessão. Reabra o relatório antes de salvar.');
                 }
 
                 const agora = new Date();
@@ -3354,7 +3392,8 @@ function configurarEventosGlobais() {
                         ...dados,
                         ...baseComum,
                         ...secoes,
-                        revisoes
+                        revisoes,
+                        conteudoRelatorio
                     };
                     delete resultado.assistenciaTecnica;
                     delete resultado.textoAtual;
@@ -3371,7 +3410,8 @@ function configurarEventosGlobais() {
                         ...dados,
                         ...baseComum,
                         textoAtual: texto,
-                        historico
+                        historico,
+                        conteudoRelatorio
                     };
                 }
 
@@ -3389,19 +3429,24 @@ function configurarEventosGlobais() {
                 return { ...resultado, colecao: ref.parent.id };
             });
 
+            firestoreSaved = true;
             if (!sessaoValida(sessao)) return;
 
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
             objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
-            try { await technicalEditor.save(); }
-            catch (error) {
-                window.mostrarAlerta('Texto salvo', 'O texto foi salvo, mas as mídias não puderam ser salvas neste navegador. Mantenha o editor aberto e tente novamente.');
-                return;
+            try {
+                await technicalEditor.commitSave(mediaSave);
+            } catch (error) {
+                window.mostrarAlerta('Relatório salvo', error.message || 'O relatório foi salvo, mas houve uma falha ao limpar arquivos removidos.');
             }
             navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
+            if (mediaSave && !firestoreSaved) {
+                try { await technicalEditor.rollbackSave(mediaSave); }
+                catch (cleanupError) { console.error('Falha ao limpar upload não confirmado:', cleanupError); }
+            }
             informarErro('Erro ao salvar relatório', erro);
         } finally {
             operacaoEmCurso = false;
