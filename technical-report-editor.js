@@ -131,43 +131,199 @@ export function reportMarkup(blocks, activityId = '') {
         : `<button type="button" class="report-media-open" data-report-media="${escape(block.id)}" data-report-activity="${escape(activityId)}" data-media-type="${escape(block.type)}" data-media-name="${escape(block.name)}" aria-label="Abrir ${escape(block.name)}" title="${escape(block.name)}"><span class="report-media-preview" aria-hidden="true">${mediaIcon(block.type)}</span>${block.type.startsWith('video/') ? '<span class="report-media-play" aria-hidden="true">▶</span>' : ''}</button>`).join('');
 }
 
-// Only this 96px compressed image is decoded in the report; originals are sent to R2 on save.
-export async function createThumbnail(file) {
-    if (!/^(image|video)\//.test(file.type)) return null;
-    const video = file.type.startsWith('video/');
-    const source = document.createElement(video ? 'video' : 'img');
+const IMAGE_TARGET_BYTES = 200 * 1024;
+const IMAGE_MAX_OUTPUT_BYTES = 300 * 1024;
+const IMAGE_MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+const IMAGE_MAX_DIMENSION = 1600;
+
+function webpName(name) {
+    const base = String(name || 'imagem').replace(/\.[^.]+$/, '') || 'imagem';
+    return base + '.webp';
+}
+
+async function decodeImage(file) {
+    if (typeof createImageBitmap === 'function') {
+        try {
+            const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            return {
+                width: bitmap.width,
+                height: bitmap.height,
+                draw(context, width, height) {
+                    context.drawImage(bitmap, 0, 0, width, height);
+                },
+                close() { bitmap.close?.(); }
+            };
+        } catch {}
+    }
+
+    const img = document.createElement('img');
     const url = URL.createObjectURL(file);
-    let timeout;
     try {
         await new Promise((resolve, reject) => {
-            timeout = setTimeout(() => reject(new Error('Prévia indisponível')), 6000);
-            source.onerror = () => reject(new Error('Prévia indisponível'));
-            if (video) {
-                source.muted = true; source.playsInline = true; source.preload = 'auto';
-                source.onloadeddata = () => {
-                    if (source.duration > 0.1) source.currentTime = Math.min(0.1, source.duration / 2);
-                    else resolve();
-                };
-                source.onseeked = resolve;
-            } else source.onload = resolve;
-            source.src = url;
+            img.onload = resolve;
+            img.onerror = () => reject(new Error('Este formato de imagem não pôde ser processado neste dispositivo.'));
+            img.src = url;
         });
-        const width = video ? source.videoWidth : source.naturalWidth;
-        const height = video ? source.videoHeight : source.naturalHeight;
-        if (!width || !height) return null;
-        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 96;
-        const context = canvas.getContext('2d');
-        const side = Math.min(width, height);
-        context.fillStyle = '#edf0f5'; context.fillRect(0, 0, 96, 96);
-        context.drawImage(source, (width - side) / 2, (height - side) / 2, side, side, 0, 0, 96, 96);
-        return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.25));
-    } catch { return null; }
-    finally {
-        clearTimeout(timeout);
-        source.onload = source.onerror = source.onloadeddata = source.onseeked = null;
-        if (video) { source.pause(); source.removeAttribute('src'); source.load(); }
+        return {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            draw(context, width, height) {
+                context.drawImage(img, 0, 0, width, height);
+            },
+            close() {
+                img.removeAttribute('src');
+                URL.revokeObjectURL(url);
+            }
+        };
+    } catch (error) {
         URL.revokeObjectURL(url);
+        throw error;
     }
+}
+
+function canvasBlob(canvas, type, quality) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+            if (!blob) return reject(new Error('Não foi possível comprimir a imagem.'));
+            resolve(blob);
+        }, type, quality);
+    });
+}
+
+export async function compressImage(file) {
+    if (!file?.type?.startsWith('image/')) throw new Error('Somente imagens são permitidas.');
+    if (file.size > IMAGE_MAX_SOURCE_BYTES) throw new Error('A imagem original deve ter no máximo 25 MB.');
+
+    const source = await decodeImage(file);
+    try {
+        if (!source.width || !source.height) throw new Error('A imagem não possui dimensões válidas.');
+
+        let scale = Math.min(1, IMAGE_MAX_DIMENSION / Math.max(source.width, source.height));
+        let width = Math.max(1, Math.round(source.width * scale));
+        let height = Math.max(1, Math.round(source.height * scale));
+        let best = null;
+
+        // Primeiro reduz qualidade; se a foto continuar muito detalhada, reduz
+        // levemente a resolução até ficar próxima do alvo de ~200 KB.
+        for (let resizePass = 0; resizePass < 5; resizePass++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d', { alpha: false });
+            if (!context) throw new Error('O navegador não conseguiu processar a imagem.');
+
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, width, height);
+            source.draw(context, width, height);
+
+            for (const quality of [0.82, 0.76, 0.70, 0.64, 0.58]) {
+                const blob = await canvasBlob(canvas, 'image/webp', quality);
+                if (!best || blob.size < best.size) best = blob;
+                if (blob.size <= IMAGE_TARGET_BYTES) {
+                    const compressed = new File([blob], webpName(file.name), {
+                        type: blob.type || 'image/webp',
+                        lastModified: Date.now()
+                    });
+                    return {
+                        file: compressed,
+                        originalName: file.name,
+                        originalSize: file.size,
+                        width,
+                        height
+                    };
+                }
+            }
+
+            if (best?.size <= IMAGE_MAX_OUTPUT_BYTES) break;
+            width = Math.max(800, Math.round(width * 0.86));
+            height = Math.max(800, Math.round(height * 0.86));
+        }
+
+        if (!best) throw new Error('Não foi possível comprimir a imagem.');
+
+        const compressed = new File([best], webpName(file.name), {
+            type: best.type || 'image/webp',
+            lastModified: Date.now()
+        });
+
+        return {
+            file: compressed,
+            originalName: file.name,
+            originalSize: file.size,
+            width,
+            height
+        };
+    } finally {
+        source.close?.();
+    }
+}
+
+// Only this 96px compressed image is decoded in the report.
+export async function createThumbnail(file) {
+    if (!file?.type?.startsWith('image/')) return null;
+    const source = await decodeImage(file);
+    try {
+        const width = source.width;
+        const height = source.height;
+        if (!width || !height) return null;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 96;
+        const context = canvas.getContext('2d');
+        if (!context) return null;
+
+        const side = Math.min(width, height);
+        const sx = (width - side) / 2;
+        const sy = (height - side) / 2;
+
+        // Draw to an intermediate square to keep the crop logic predictable.
+        const crop = document.createElement('canvas');
+        crop.width = crop.height = Math.max(1, Math.round(side));
+        const cropContext = crop.getContext('2d');
+        if (!cropContext) return null;
+        cropContext.drawImage(
+            sourceBitmapProxy(source, width, height),
+            sx, sy, side, side,
+            0, 0, crop.width, crop.height
+        );
+
+        context.fillStyle = '#edf0f5';
+        context.fillRect(0, 0, 96, 96);
+        context.drawImage(crop, 0, 0, 96, 96);
+        return await canvasBlob(canvas, 'image/jpeg', 0.32);
+    } catch {
+        // Fallback below handles browsers where the proxy canvas cannot be used.
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 96;
+        const context = canvas.getContext('2d');
+        if (!context) return null;
+
+        const scale = Math.max(96 / source.width, 96 / source.height);
+        const drawWidth = source.width * scale;
+        const drawHeight = source.height * scale;
+        const temp = document.createElement('canvas');
+        temp.width = Math.max(1, Math.round(drawWidth));
+        temp.height = Math.max(1, Math.round(drawHeight));
+        const tempContext = temp.getContext('2d');
+        if (!tempContext) return null;
+        source.draw(tempContext, temp.width, temp.height);
+
+        context.fillStyle = '#edf0f5';
+        context.fillRect(0, 0, 96, 96);
+        context.drawImage(temp, (96 - temp.width) / 2, (96 - temp.height) / 2);
+        return await canvasBlob(canvas, 'image/jpeg', 0.32);
+    } finally {
+        source.close?.();
+    }
+}
+
+function sourceBitmapProxy(source, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    source.draw(context, width, height);
+    return canvas;
 }
 
 let viewer;
@@ -451,31 +607,36 @@ export class TechnicalReportEditor {
 
         const stagedIds = [];
         try {
-            if (files.some(file => !/^(image\/(jpeg|png|gif|webp|avif|heic|heif)|video\/|audio\/)/i.test(file.type))) {
-                throw new Error('Selecione fotos, imagens, vídeos ou áudios compatíveis.');
+            if (files.some(file => !file.type?.startsWith('image/'))) {
+                throw new Error('Por enquanto, somente imagens são permitidas.');
             }
-            if (files.some(file => file.type.startsWith('video/') && file.size > 5 * 1024 * 1024)) {
-                throw new Error('Cada vídeo deve ter no máximo 5 MB.');
-            }
-            if (files.some(file => !file.type.startsWith('video/') && file.size > 100 * 1024 * 1024)) {
-                throw new Error('Cada arquivo deve ter até 100 MB.');
+            if (files.some(file => file.size > IMAGE_MAX_SOURCE_BYTES)) {
+                throw new Error('Cada imagem original deve ter no máximo 25 MB.');
             }
             if (this.blocks.filter(block => block.kind === 'media').length + files.length > 20) {
                 throw new Error('Adicione até 20 arquivos por relatório.');
             }
 
             const media = [];
-            for (const file of files) {
+            for (const sourceFile of files) {
+                this.status.textContent = 'Comprimindo imagem...';
+                const compressed = await compressImage(sourceFile);
+                const file = compressed.file;
                 const id = crypto.randomUUID();
                 const thumbnail = await createThumbnail(file);
+
                 mediaStore.stage(id, file, thumbnail);
                 stagedIds.push(id);
                 media.push({
                     kind: 'media',
                     id,
                     name: file.name,
+                    originalName: compressed.originalName,
                     type: file.type,
                     size: file.size,
+                    originalSize: compressed.originalSize,
+                    width: compressed.width,
+                    height: compressed.height,
                     storage: 'pending'
                 });
             }
