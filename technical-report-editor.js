@@ -136,6 +136,41 @@ const IMAGE_MAX_OUTPUT_BYTES = 300 * 1024;
 const IMAGE_MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 const IMAGE_MAX_DIMENSION = 1600;
 
+const IMAGE_TYPES_BY_EXTENSION = Object.freeze({
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    avif: 'image/avif',
+    heic: 'image/heic',
+    heif: 'image/heif'
+});
+
+function imageExtension(name) {
+    const match = String(name || '').toLowerCase().match(/\.([a-z0-9]+)$/);
+    return match?.[1] || '';
+}
+
+function isSupportedImageFile(file) {
+    if (!file) return false;
+    if (String(file.type || '').toLowerCase().startsWith('image/')) return true;
+    return Boolean(IMAGE_TYPES_BY_EXTENSION[imageExtension(file.name)]);
+}
+
+function normalizeImageFile(file) {
+    if (!isSupportedImageFile(file)) return file;
+    const currentType = String(file.type || '').toLowerCase();
+    if (currentType.startsWith('image/')) return file;
+
+    const inferredType = IMAGE_TYPES_BY_EXTENSION[imageExtension(file.name)];
+    if (!inferredType) return file;
+
+    return new File([file], file.name, {
+        type: inferredType,
+        lastModified: file.lastModified || Date.now()
+    });
+}
+
 function webpName(name) {
     const base = String(name || 'imagem').replace(/\.[^.]+$/, '') || 'imagem';
     return base + '.webp';
@@ -190,8 +225,9 @@ function canvasBlob(canvas, type, quality) {
     });
 }
 
-export async function compressImage(file) {
-    if (!file?.type?.startsWith('image/')) throw new Error('Somente imagens são permitidas.');
+export async function compressImage(inputFile) {
+    if (!isSupportedImageFile(inputFile)) throw new Error('Somente imagens compatíveis são permitidas.');
+    const file = normalizeImageFile(inputFile);
     if (file.size > IMAGE_MAX_SOURCE_BYTES) throw new Error('A imagem original deve ter no máximo 25 MB.');
 
     const source = await decodeImage(file);
@@ -607,8 +643,8 @@ export class TechnicalReportEditor {
 
         const stagedIds = [];
         try {
-            if (files.some(file => !file.type?.startsWith('image/'))) {
-                throw new Error('Por enquanto, somente imagens são permitidas.');
+            if (files.some(file => !isSupportedImageFile(file))) {
+                throw new Error('Por enquanto, somente imagens JPG, PNG, WebP, HEIC, HEIF ou AVIF são permitidas.');
             }
             if (files.some(file => file.size > IMAGE_MAX_SOURCE_BYTES)) {
                 throw new Error('Cada imagem original deve ter no máximo 25 MB.');
