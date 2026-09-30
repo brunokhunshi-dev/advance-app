@@ -356,11 +356,102 @@ async function firestoreFetch(
   });
 }
 
+async function profileFromDocument(
+  document,
+  collectionId
+) {
+  if (!document) {
+    return null;
+  }
+
+  const fields =
+    document.fields || {};
+
+  if (
+    fields.ativo
+      ?.booleanValue === false
+  ) {
+    return null;
+  }
+
+  if (
+    fields.permissoes
+      ?.mapValue
+      ?.fields
+      ?.acessoApp
+      ?.booleanValue === false
+  ) {
+    return null;
+  }
+
+  const stringValue =
+    name =>
+      fields[name]
+        ?.stringValue || "";
+
+  return {
+    id:
+      document.name
+        .split("/")
+        .pop(),
+    collection:
+      collectionId,
+    role: [
+      stringValue("cargo"),
+      stringValue("funcao"),
+      stringValue("perfil"),
+      stringValue("tipo"),
+      stringValue("tipoAcesso"),
+      stringValue("role"),
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
 async function findProfileInCollection(
   env,
   user,
   collectionId
 ) {
+  // Mesma ordem usada pelo dashboard:
+  // 1. documento cujo ID é o Firebase UID;
+  // 2. fallback por e-mail.
+  try {
+    const uidResponse =
+      await firestoreFetch(
+        firestoreBase(env) +
+          "/" +
+          encodeURIComponent(
+            collectionId
+          ) +
+          "/" +
+          encodeURIComponent(
+            user.uid
+          ),
+        user.idToken
+      );
+
+    if (uidResponse.ok) {
+      const uidDocument =
+        await uidResponse.json();
+
+      const uidProfile =
+        await profileFromDocument(
+          uidDocument,
+          collectionId
+        );
+
+      if (uidProfile) {
+        return uidProfile;
+      }
+    }
+  } catch {}
+
+  if (!user.email) {
+    return null;
+  }
+
   const response =
     await firestoreFetch(
       firestoreBase(env) +
@@ -410,55 +501,10 @@ async function findProfileInCollection(
       item => item.document
     )?.document;
 
-  if (!document) {
-    return null;
-  }
-
-  const fields =
-    document.fields || {};
-
-  if (
-    fields.ativo
-      ?.booleanValue === false
-  ) {
-    return null;
-  }
-
-  if (
-    fields.permissoes
-      ?.mapValue
-      ?.fields
-      ?.acessoApp
-      ?.booleanValue === false
-  ) {
-    return null;
-  }
-
-  const profileId =
-    document.name
-      .split("/")
-      .pop();
-
-  const stringValue =
-    name =>
-      fields[name]
-        ?.stringValue || "";
-
-  return {
-    id: profileId,
-    collection:
-      collectionId,
-    role: [
-      stringValue("cargo"),
-      stringValue("funcao"),
-      stringValue("perfil"),
-      stringValue("tipo"),
-      stringValue("tipoAcesso"),
-      stringValue("role"),
-    ]
-      .filter(Boolean)
-      .join(" "),
-  };
+  return profileFromDocument(
+    document,
+    collectionId
+  );
 }
 
 function normalizeAccessText(
