@@ -88,7 +88,8 @@ export const mediaStore = {
 
             return {
                 key: signed.original.key,
-                thumbnailKey: thumbnail ? (signed.thumbnail?.key || null) : null
+                thumbnailKey: thumbnail ? (signed.thumbnail?.key || null) : null,
+                thumbnailSize: thumbnail?.size || 0
             };
         } catch (error) {
             // A exclusão é idempotente para o nosso fluxo e limpa qualquer PUT
@@ -791,6 +792,7 @@ export class TechnicalReportEditor {
                     originalSize: compressed.originalSize,
                     width: compressed.width,
                     height: compressed.height,
+                    createdAt: new Date().toISOString(),
                     storage: 'pending'
                 });
             }
@@ -835,7 +837,8 @@ export class TechnicalReportEditor {
                     id: block.id,
                     storage: block.storage,
                     key: block.key,
-                    thumbnailKey: block.thumbnailKey
+                    thumbnailKey: block.thumbnailKey,
+                    thumbnailSize: block.thumbnailSize
                 });
 
                 const stored = await mediaStore.upload(
@@ -849,6 +852,7 @@ export class TechnicalReportEditor {
                 block.key = stored.key;
                 if (stored.thumbnailKey) block.thumbnailKey = stored.thumbnailKey;
                 else delete block.thumbnailKey;
+                block.thumbnailSize = Number(stored.thumbnailSize) || 0;
                 attempt.uploaded.push(block.id);
             }
 
@@ -876,6 +880,7 @@ export class TechnicalReportEditor {
             block.storage = previous.storage || 'pending';
             if (previous.key) block.key = previous.key; else delete block.key;
             if (previous.thumbnailKey) block.thumbnailKey = previous.thumbnailKey; else delete block.thumbnailKey;
+            if (previous.thumbnailSize) block.thumbnailSize = previous.thumbnailSize; else delete block.thumbnailSize;
         }
     }
 
