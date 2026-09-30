@@ -616,7 +616,7 @@ export class TechnicalReportEditor {
 
     focusText(index, offset) {
         const area = this.root.querySelector(`[data-text-index="${index}"]`);
-        if (!area) return;
+        if (!area || area.classList.contains('report-text-block-media-gap')) return;
         area.focus();
         const range = document.createRange();
         range.selectNodeContents(area);
@@ -646,6 +646,18 @@ export class TechnicalReportEditor {
                 area.className = 'report-text-block';
                 area.textContent = block.text;
                 area.dataset.textIndex = index;
+
+                const previousBlock = this.blocks[index - 1];
+                const nextBlock = this.blocks[index + 1];
+                if (
+                    !String(block.text || '').trim() &&
+                    previousBlock?.kind === 'media' &&
+                    nextBlock?.kind === 'media'
+                ) {
+                    area.classList.add('report-text-block-media-gap');
+                    area.setAttribute('aria-hidden', 'true');
+                    area.tabIndex = -1;
+                }
                 area.dataset.placeholder = this.blocks.length === 1 ? 'Comece a escrever...' : '';
                 area.setAttribute('role', 'textbox');
                 area.setAttribute('aria-multiline', 'true');
