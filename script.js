@@ -436,11 +436,7 @@ async function sincronizarIndiceMidias({
     });
 
     removidos.forEach(bloco => {
-        lote.set(doc(db, 'media_index', bloco.id), {
-            ativo: false,
-            removidoEm: agora,
-            atualizadoEm: agora
-        }, { merge: true });
+        lote.delete(doc(db, 'media_index', bloco.id));
     });
 
     await lote.commit();
