@@ -1,3 +1,6 @@
+import { TechnicalReportEditor, loadLocalReport, localReport, reportMarkup, initializeMediaPreviews } from './technical-report-editor.js';
+let technicalEditor;
+const localReportKey = report => `${report?.ptvId || idUsuarioLogado}:${report?.atividadeId || atividadeSelecionadaId}`;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
@@ -335,7 +338,9 @@ async function carregarRelatorioDaAtividade(atividade) {
     const ref = referenciaRelatorio(atividade);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
+    const report = { ...snap.data(), id: snap.id, colecao: ref.parent.id };
+    await loadLocalReport(localReportKey(report));
+    return report;
 }
 
 function dadosAssistenciaDoRelatorio(relatorio = {}) {
@@ -527,23 +532,13 @@ function limparFormularioAssistencia() {
     ['atEspecificacao','atImpactoClimatico','atLimpeza','atFerramenta','atVerificado'].forEach(name => {
         document.querySelectorAll('input[name="' + name + '"]').forEach(input => { input.checked = false; });
     });
-    const fotos = document.getElementById('at-fotos');
-    if (fotos) fotos.value = '';
-    const status = document.getElementById('at-fotos-status');
-    if (status) status.textContent = 'Use a câmera ou selecione imagens do aparelho';
+    technicalEditor?.reset(localReportKey(), '');
     document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display','none');
     document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display','none');
 }
 
 function lerFormularioAssistencia() {
-    const novasFotos = [...(document.getElementById('at-fotos')?.files || [])].map(file => ({
-        nome: file.name,
-        tipo: file.type || '',
-        tamanho: Number(file.size || 0),
-        alteradoEm: Number(file.lastModified || 0)
-    }));
-    const fotosSalvas = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas;
-    const fotos = novasFotos.length ? novasFotos : (Array.isArray(fotosSalvas) ? fotosSalvas : []);
+    const fotos = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas || [];
 
     return {
         clienteFinal: valorCampoAssistencia('at-cliente-final'),
@@ -600,9 +595,8 @@ function preencherFormularioAssistencia(dados = {}) {
     document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display', dados?.houveEspecificacao === 'Sim' ? 'block' : 'none');
     document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display', dados?.impactoClimatico === 'Sim' ? 'block' : 'none');
 
-    const antigas = Array.isArray(dados?.fotosSelecionadas) ? dados.fotosSelecionadas : [];
-    const status = document.getElementById('at-fotos-status');
-    if (status && antigas.length) status.textContent = antigas.length + (antigas.length === 1 ? ' foto registrada na última edição' : ' fotos registradas na última edição');
+    technicalEditor?.reset(localReportKey(), dados.constatacoes || '');
+
 }
 
 function normalizarAssistenciaComparacao(dados = {}) {
@@ -650,7 +644,7 @@ function gerarResumoAssistenciaTecnica(dados = {}) {
         lista('Itens verificados', dados.itensVerificados),
         linha('Umidade medida', dados.umidade),
         linha('Referência / limite', dados.umidadeReferencia),
-        linha('Constatações técnicas', dados.constatacoes),
+        linha('Relatório técnico', dados.constatacoes),
         '',
         linha('Ações definidas', dados.acoesDefinidas),
         linha('Conclusão técnica', dados.conclusaoTecnica),
@@ -717,7 +711,7 @@ function renderFichaAssistencia(dados = {}, opcoes = {}) {
         campo('Itens verificados', listaVisualAssistencia(dados.itensVerificados)) +
         campo('Umidade medida', dados.umidade) +
         campo('Referência / limite', dados.umidadeReferencia) +
-        campo('Constatações técnicas', dados.constatacoes)
+        campo('Relatório técnico', dados.constatacoes)
     );
 
     if (!opcoes.omitirFechamento) {
@@ -729,6 +723,10 @@ function renderFichaAssistencia(dados = {}, opcoes = {}) {
         );
     }
 
+    const local = localReport(localReportKey(objetoRelatorioGlobal));
+    if (local && local.text === (dados.constatacoes || '')) {
+        html = html.replace(campo('Relatório técnico', dados.constatacoes), '<div class="report-read-content"><label>Relatório técnico</label>' + reportMarkup(local.blocks) + '</div>');
+    }
     return html;
 }
 
@@ -1242,7 +1240,7 @@ function relatorioPossuiAlteracoesNaoSalvas() {
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
         const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
         const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
-        return JSON.stringify(atual) !== JSON.stringify(salvo);
+        return technicalEditor?.dirty || JSON.stringify(atual) !== JSON.stringify(salvo);
     }
 
     return document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
@@ -2933,6 +2931,8 @@ function atualizarInterfaceVisitaAtual() {
             }
 
             mostrarEditorRelatorioPorTipo(tipo);
+            document.getElementById('btn-adicionar-midia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'flex' : 'none';
+            await loadLocalReport(localReportKey());
             if (tipo === ASSISTENCIA_TECNICA_TIPO) {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
@@ -3222,10 +3222,7 @@ function configurarEventosGlobais() {
     document.querySelectorAll('input[name="atImpactoClimatico"]').forEach(input => input.addEventListener('change', () => {
         document.getElementById('at-impacto-detalhe-wrap').style.display = radioAssistencia('atImpactoClimatico') === 'Sim' ? 'block' : 'none';
     }));
-    document.getElementById('at-fotos')?.addEventListener('change', event => {
-        const total = event.target.files?.length || 0;
-        document.getElementById('at-fotos-status').textContent = total ? total + (total === 1 ? ' foto selecionada' : ' fotos selecionadas') : 'Use a câmera ou selecione imagens do aparelho';
-    });
+
 
     ['checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', atualizarPreviewCheckoutAssistencia);
@@ -3233,6 +3230,9 @@ function configurarEventosGlobais() {
     document.querySelectorAll('input[name="checkoutAtResultado"]').forEach(input => {
         input.addEventListener('change', atualizarPreviewCheckoutAssistencia);
     });
+
+    initializeMediaPreviews();
+    technicalEditor = new TechnicalReportEditor(document.getElementById('at-relatorio-editor'), document.getElementById('at-constatacoes'), document.getElementById('btn-adicionar-midia'), document.getElementById('at-media-picker'), document.getElementById('at-media-status'));
 
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
@@ -3250,6 +3250,8 @@ function configurarEventosGlobais() {
             let texto = '';
 
             if (ehAssistencia) {
+                if (technicalEditor.busy) throw new Error('Aguarde a adição dos arquivos antes de salvar.');
+                if (document.getElementById('at-constatacoes').value.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
                 assistenciaTecnica = lerFormularioAssistencia();
                 const obrigatoriosPreenchidos =
                     assistenciaTecnica.produto &&
@@ -3377,6 +3379,14 @@ function configurarEventosGlobais() {
 
             if (!sessaoValida(sessao)) return;
 
+            if (ehAssistencia) {
+                try { await technicalEditor.save(); }
+                catch (error) {
+                    objetoRelatorioGlobal = salvo;
+                    window.mostrarAlerta('Texto salvo', 'O texto foi salvo, mas as mídias não puderam ser salvas neste navegador. Mantenha o editor aberto e tente novamente.');
+                    return;
+                }
+            }
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
             objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);

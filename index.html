@@ -358,7 +358,7 @@
                         <tr><th>Cliente final</th><td id="pdf-at-cliente-final" colspan="3">—</td></tr>
                         <tr><th>Produto</th><td id="pdf-at-produto">—</td><th>Lote</th><td id="pdf-at-lote">—</td></tr>
                         <tr><th>Queixa</th><td id="pdf-at-queixa" colspan="3">—</td></tr>
-                        <tr><th>Constatações</th><td id="pdf-at-constatacoes" colspan="3">—</td></tr>
+                        <tr><th>Relatório técnico</th><td id="pdf-at-constatacoes" colspan="3">—</td></tr>
                         <tr><th>Conclusão</th><td id="pdf-at-conclusao" colspan="3">—</td></tr>
                         <tr><th>Resultado</th><td id="pdf-at-resultado" colspan="3">—</td></tr>
                     </tbody>
@@ -758,23 +758,20 @@
                             <input id="at-umidade-referencia" class="input-box box-cinza" type="text" placeholder="Ex.: acima do indicado">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="at-constatacoes">Constatações técnicas</label>
-                        <textarea id="at-constatacoes" class="input-box box-cinza textarea-box assistencia-textarea-long" placeholder="Descreva o que foi observado em campo e a relação com a ocorrência"></textarea>
-                    </div>
                 </section>
-
                 <section class="assistencia-form-card">
-                    <span class="assistencia-kicker">REGISTROS FOTOGRÁFICOS</span>
-                    <label class="assistencia-photo-input">
-                        <input id="at-fotos" type="file" accept="image/*" capture="environment" multiple>
-                        <span class="assistencia-photo-icon"><svg viewBox="0 0 24 24"><path d="M4 7h4l2-2h4l2 2h4v12H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span>
-                        <span><strong>Adicionar fotos</strong><small id="at-fotos-status">Use a câmera ou selecione imagens do aparelho</small></span>
-                    </label>
+                    <label id="at-relatorio-label" class="assistencia-subtitle">Relatório técnico</label>
+                    <p class="report-editor-hint">Relate os acontecimentos e insira mídias entre os textos usando o botão +.</p>
+                    <textarea id="at-constatacoes" hidden></textarea>
+                    <div id="at-relatorio-editor" class="technical-report-editor" role="group" aria-labelledby="at-relatorio-label"></div>
+                    <p class="report-local-note">Versão de teste: mídias disponíveis somente neste navegador até a integração com o R2.</p>
+                    <p id="at-media-status" role="status" aria-live="polite"></p>
                 </section>
             </div>
 
             <div class="relatorio-acoes">
+                <input id="at-media-picker" type="file" accept="image/*,video/*,audio/*" multiple hidden>
+                <button type="button" id="btn-adicionar-midia" class="report-add-media" aria-label="Adicionar foto, imagem, vídeo ou áudio" title="Adicionar mídia" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
                 <button class="btn-checkin" id="btn-salvar-relatorio" style="flex: 1;">Salvar relatório</button>
             </div>
         </div>
@@ -1053,7 +1050,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=nativeback-1"></script>
+    <script type="module" src="script.js?v=technical-media-1"></script>
     <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {

@@ -1299,3 +1299,27 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 #checkout-at-preview .assistencia-form-view-section{
     margin-bottom:32px;
 }
+
+/* Inline technical report editor */
+.technical-report-editor { background: #f6f7f9; border: 1px solid #e0e3e8; border-radius: 18px; padding: 14px; }
+.report-text-block { display: block; width: 100%; min-height: 110px; border: 0; resize: none; background: transparent; font: inherit; font-size: 15px; line-height: 1.65; color: #222; padding: 10px 4px; box-sizing: border-box; }
+.report-text-block:focus { outline: 2px solid #062666; outline-offset: 3px; border-radius: 8px; }
+.report-editor-hint, .report-local-note, #at-media-status { font-size: 12px; line-height: 1.5; color: #626a78; margin: 10px 0; }
+.report-add-media { align-self: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; border: 1px solid #ccd2dd; color: #062666; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.report-add-media svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; }
+.report-add-media:disabled { opacity: .5; }
+.report-media-block { margin: 12px auto; max-width: 340px; }
+.report-media-open { display: block; width: 100%; max-width: 340px; margin: 12px auto; padding: 0; border: 1px solid #dce1e9; border-radius: 14px; overflow: hidden; background: #fff; text-align: left; font: inherit; cursor: pointer; color: #062666; }
+.report-media-preview { display: flex; height: 180px; align-items: center; justify-content: center; background: #e9edf4; font-size: 40px; overflow: hidden; }
+.report-media-preview img, .report-media-preview video { width: 100%; height: 100%; object-fit: contain; }
+.report-media-caption { display: block; padding: 12px; font-size: 13px; overflow-wrap: anywhere; }
+.report-media-caption small { display: block; color: #626a78; margin-top: 5px; font-size: 11px; }
+.report-media-remove { display: block; margin-left: auto; padding: 7px 12px; background: transparent; border: 0; color: #ac2430; font: inherit; font-size: 12px; cursor: pointer; }
+.technical-report-paragraph { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.report-media-dialog { width: min(90vw, 800px); max-height: 90dvh; box-sizing: border-box; border: 0; border-radius: 20px; padding: 20px; }
+.report-media-dialog::backdrop { background: rgba(0,0,0,.75); }
+.report-media-dialog h2 { font-size: 16px; overflow-wrap: anywhere; margin: 12px 0; }
+.report-media-dialog img, .report-media-dialog video { display: block; max-width: 100%; max-height: 65dvh; margin: 16px auto; }
+.report-media-dialog audio { width: 100%; margin: 20px 0; }
+.report-media-close { display: block; margin-left: auto; padding: 10px 16px; background: #eef1f6; border: 0; border-radius: 20px; cursor: pointer; }
+.report-media-dialog a { display: inline-block; color: #062666; padding: 12px 0; }
