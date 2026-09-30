@@ -12,6 +12,8 @@ import {
     getDoc,
     getDocs,
     getFirestore,
+    limit,
+    orderBy,
     query,
     where
 } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
@@ -90,6 +92,7 @@ const state = {
     loading: false,
     activitiesLoading: false,
     sessionVersion: 0,
+    modalVersion: 0,
     toastTimer: null,
     autoRefreshTimer: null
 };
@@ -136,13 +139,21 @@ function toDate(value) {
 function parseInputDate(value, endOfDay = false) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
     const suffix = endOfDay ? "T23:59:59.999" : "T00:00:00.000";
-    const date = new Date(`${value}${suffix}`);
+    const date = new Date(`${value}${suffix}-03:00`);
     return Number.isFinite(date.getTime()) ? date : null;
 }
 
+const dateFormatters = new Map();
+function dateFormatter(locale, options) {
+    const key = JSON.stringify([locale, options]);
+    if (!dateFormatters.has(key)) dateFormatters.set(key, new Intl.DateTimeFormat(locale, options));
+    return dateFormatters.get(key);
+}
+const numberFormatter = new Intl.NumberFormat(DASHBOARD_CONFIG.locale);
+
 function dateInputValue(date) {
     const validDate = toDate(date) || new Date();
-    const parts = new Intl.DateTimeFormat("en-US", {
+    const parts = dateFormatter("en-US", {
         timeZone: DASHBOARD_CONFIG.timeZone,
         year: "numeric",
         month: "2-digit",
@@ -155,7 +166,7 @@ function dateInputValue(date) {
 function formatDate(value) {
     const date = toDate(value);
     if (!date) return "--/--/----";
-    return new Intl.DateTimeFormat(DASHBOARD_CONFIG.locale, {
+    return dateFormatter(DASHBOARD_CONFIG.locale, {
         timeZone: DASHBOARD_CONFIG.timeZone,
         day: "2-digit",
         month: "2-digit",
@@ -166,7 +177,7 @@ function formatDate(value) {
 function formatTime(value) {
     const date = toDate(value);
     if (!date) return "--:--";
-    return new Intl.DateTimeFormat(DASHBOARD_CONFIG.locale, {
+    return dateFormatter(DASHBOARD_CONFIG.locale, {
         timeZone: DASHBOARD_CONFIG.timeZone,
         hour: "2-digit",
         minute: "2-digit"
@@ -182,7 +193,7 @@ function formatDateTime(value) {
 function formatCompactDate(value) {
     const date = toDate(value);
     if (!date) return "--/--";
-    return new Intl.DateTimeFormat(DASHBOARD_CONFIG.locale, {
+    return dateFormatter(DASHBOARD_CONFIG.locale, {
         timeZone: DASHBOARD_CONFIG.timeZone,
         day: "2-digit",
         month: "2-digit"
@@ -205,7 +216,7 @@ function formatDuration(minutes) {
 }
 
 function formatNumber(value) {
-    return new Intl.NumberFormat(DASHBOARD_CONFIG.locale).format(Number(value) || 0);
+    return numberFormatter.format(Number(value) || 0);
 }
 
 function normalizeStatus(value) {
@@ -412,6 +423,8 @@ function showDashboard() {
 }
 
 function resetStateForSession() {
+    closeModal();
+    $("modal-content").replaceChildren();
     state.profile = null;
     state.canSeeAll = false;
     state.professionals = [];
@@ -650,7 +663,9 @@ async function loadActivities({ silent = false } = {}) {
             activityQuery = query(
                 collection(db, DASHBOARD_CONFIG.collections.activities),
                 where("data", ">=", range.start),
-                where("data", "<=", range.end)
+                where("data", "<=", range.end),
+                orderBy("data", "desc"),
+                limit(DASHBOARD_CONFIG.maximumRecords + 1)
             );
         } else {
             activityQuery = query(
@@ -659,17 +674,8 @@ async function loadActivities({ silent = false } = {}) {
             );
         }
 
-        let snapshot;
-        try {
-            snapshot = await getDocs(activityQuery);
-        } catch (error) {
-            if (state.canSeeAll && error?.code === "failed-precondition") {
-                console.warn("Consulta por período indisponível; utilizando filtro local.", error);
-                snapshot = await getDocs(collection(db, DASHBOARD_CONFIG.collections.activities));
-            } else {
-                throw error;
-            }
-        }
+        // Never download the entire collection as an implicit fallback.
+        const snapshot = await getDocs(activityQuery);
 
         if (sessionVersion !== state.sessionVersion) return;
 
@@ -711,6 +717,7 @@ async function loadActivities({ silent = false } = {}) {
         const now = new Date();
         setSyncStatus("ok", `Atualizado às ${formatTime(now)}`);
     } catch (error) {
+        if (sessionVersion !== state.sessionVersion) return;
         console.error("Erro ao carregar o dashboard:", error);
         setSyncStatus("error", "Falha ao atualizar");
         showToast(errorMessage(error), "error");
@@ -1397,6 +1404,7 @@ function renderTable() {
 }
 
 function openModal({ eyebrow, title, content }) {
+    ++state.modalVersion;
     $("modal-eyebrow").textContent = eyebrow;
     $("modal-title").textContent = title;
     $("modal-content").innerHTML = content;
@@ -1406,6 +1414,7 @@ function openModal({ eyebrow, title, content }) {
 }
 
 function closeModal() {
+    ++state.modalVersion;
     const modal = $("dashboard-modal");
     if (typeof modal.close === "function" && modal.open) modal.close();
     else modal.removeAttribute("open");
@@ -1436,15 +1445,17 @@ async function openActivityDetails(activityId) {
         content: `<p class="empty-state">Buscando detalhes do relatório...</p>`
     });
 
+    const modalVersion = state.modalVersion;
+    const sessionVersion = state.sessionVersion;
     let reportText = "Não há relatório vinculado a esta atividade.";
     let reportCode = "";
 
     if (activity.reportId) {
         try {
-            const reportSnapshot = await getDoc(doc(db, DASHBOARD_CONFIG.collections.reports, activity.reportId));
+            const reportSnapshot = await getDoc(doc(db, safeString(activity.raw.relatorioColecao, DASHBOARD_CONFIG.collections.reports), activity.reportId));
             if (reportSnapshot.exists()) {
                 const report = reportSnapshot.data();
-                reportText = safeString(report.textoAtual ?? report.texto ?? report.relato, "Relatório sem conteúdo.");
+                reportText = safeString(report.textoAtual ?? report.texto ?? report.relato ?? report.verificacao?.constatacoes ?? report.assistenciaTecnica?.constatacoes, "Relatório sem conteúdo.");
                 reportCode = safeString(report.codigo, activity.reportId);
             } else {
                 reportText = "O identificador do relatório existe, mas o documento não foi localizado.";
@@ -1453,6 +1464,8 @@ async function openActivityDetails(activityId) {
             reportText = `Não foi possível carregar o relatório: ${errorMessage(error)}`;
         }
     }
+
+    if (sessionVersion !== state.sessionVersion || modalVersion !== state.modalVersion || !$("dashboard-modal").open) return;
 
     const checkinGps = activity.checkinCoordinates
         ? `${activity.checkinCoordinates.lat.toFixed(6)}, ${activity.checkinCoordinates.lng.toFixed(6)}`
@@ -1666,8 +1679,10 @@ async function handleAuthenticatedUser(user) {
         if (sessionVersion !== state.sessionVersion) return;
 
         await loadActivities();
+        if (sessionVersion !== state.sessionVersion) return;
         configureAutoRefresh();
     } catch (error) {
+        if (sessionVersion !== state.sessionVersion) return;
         console.error("Falha ao abrir o dashboard:", error);
         setSyncStatus("error", "Acesso não liberado");
         showToast(errorMessage(error), "error");
@@ -1677,9 +1692,11 @@ async function handleAuthenticatedUser(user) {
             console.error("Falha ao encerrar sessão:", signOutError);
         }
     } finally {
-        if (sessionVersion === state.sessionVersion) setLoading(false);
-        $("dashboard-btn-entrar").disabled = false;
-        $("dashboard-btn-entrar").textContent = "Entrar";
+        if (sessionVersion === state.sessionVersion) {
+            setLoading(false);
+            $("dashboard-btn-entrar").disabled = false;
+            $("dashboard-btn-entrar").textContent = "Entrar";
+        }
     }
 }
 
@@ -1751,6 +1768,7 @@ function bindEvents() {
     });
 
     $("modal-fechar").addEventListener("click", closeModal);
+    $("dashboard-modal").addEventListener("close", () => { ++state.modalVersion; });
     $("dashboard-modal").addEventListener("click", event => {
         if (event.target === $("dashboard-modal")) closeModal();
     });

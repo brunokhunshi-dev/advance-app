@@ -70,11 +70,3 @@ if (typeof document !== 'undefined') {
         // Já está instalado; não mostrar o botão.
     }
 }
-
-if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-            .then(registration => registration.update())
-            .catch(error => console.error('Falha ao registrar o PWA:', error));
-    });
-}

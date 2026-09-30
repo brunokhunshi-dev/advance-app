@@ -1,61 +1,56 @@
-const CACHE_NAME = 'advance-pwa-r2-media-v11';
+const CACHE_NAME = 'advance-pwa-audit-v12';
 const APP_SHELL = [
-  './',
-  './index.html',
-  './styles.css',
-  './script.js',
-  './technical-report-editor.js',
-  './firebase-config.js',
-  './pwa-mobile.css',
-  './manifest.json',
-  './manifest.webmanifest',
-  './midia/iconspwa/advancecheck192.png',
-  './midia/iconspwa/advancecheck512.png',
-  './schema-exporter.js'
+  './', './index.html', './styles.css', './script.js',
+  './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
+  './manifest.json', './manifest.webmanifest', './schema-exporter.js',
+  './midia/logo-advancecheck.svg', './midia/iconspwa/favicon.svg',
+  './midia/iconspwa/advancecheck192.png', './midia/iconspwa/advancecheck512.png',
+  './dashboard/', './dashboard/index.html', './dashboard/dashboard.js', './dashboard/dashboard.css'
 ];
+const SHELL_URLS = new Set(APP_SHELL.map(path => new URL(path, self.location.href).href));
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-    ))
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith('advance-pwa-') && key !== CACHE_NAME)
+      .map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
-async function responderComRede(request) {
+async function respond(request, cacheKey) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(cacheKey);
+  // Versioned app shell assets are immutable within a service-worker release.
+  if (request.mode !== 'navigate' && cached) return cached;
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response.clone());
+    if (response.ok) {
+      // A quota/cache error must not discard a successful network response.
+      try { await cache.put(cacheKey, response.clone()); } catch {}
+      return response;
     }
-    return response;
+    return cached || response;
   } catch {
-    return caches.match(request);
+    return cached || new Response('Recurso indisponível offline.', { status: 503 });
   }
 }
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
-
-  if (url.hostname.includes('googleapis.com') ||
-      url.hostname.includes('firebaseio.com') ||
-      url.hostname.includes('brasilapi.com.br') ||
-      url.hostname.includes('nominatim.openstreetmap.org') ||
-      url.pathname.includes('/firestore')) return;
-
-  event.respondWith(
-    event.request.mode === 'navigate'
-      ? responderComRede(event.request).then(response => response || caches.match('./index.html'))
-      : responderComRede(event.request)
-  );
+  url.search = '';
+  url.hash = '';
+  // Cache only a finite list of static assets. Never cache APIs or user uploads.
+  if (!SHELL_URLS.has(url.href)) return;
+  event.respondWith(respond(event.request, url.href));
 });

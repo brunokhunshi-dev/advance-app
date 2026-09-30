@@ -1,4 +1,4 @@
-import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-10';
+import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=audit-12';
 let technicalEditor;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
@@ -55,6 +55,8 @@ let fechamentoManualPendente = null;
 let listaClientes = [];
 let clientesAutocompleteCarregados = false;
 const cacheClientes = new Map();
+const consultasClientes = new Map();
+let historicoCarregado = null;
 const GPS_ACCURACY_MAX_METERS = 150;
 
 let listaAtividadesAgenda = []; // Nova lista para edição de visitas
@@ -128,10 +130,10 @@ const PARTICULAS_NOME = new Set(['da', 'das', 'de', 'do', 'dos', 'e']);
 function obterIniciais(nome) {
     const partes = String(nome || '')
         .normalize('NFD')
-        .replace(/[\\u0300-\\u036f]/g, '')
-        .replace(/[^a-zA-Z\\s]/g, ' ')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z\s]/g, ' ')
         .trim()
-        .split(/\\s+/)
+        .split(/\s+/)
         .filter(Boolean);
 
     if (!partes.length) return 'XX';
@@ -300,11 +302,17 @@ async function buscarJson(url) {
 function obterCliente(clienteId) {
     if (!clienteId) return Promise.resolve(null);
     if (cacheClientes.has(clienteId)) return Promise.resolve(cacheClientes.get(clienteId));
-    return getDoc(doc(db, 'clientes', clienteId)).then(snap => {
-        const cliente = snap.exists() ? { id: snap.id, ...snap.data() } : null;
-        cacheClientes.set(clienteId, cliente);
+    if (consultasClientes.has(clienteId)) return consultasClientes.get(clienteId);
+    const versao = versaoSessao;
+    const consulta = getDoc(doc(db, 'clientes', clienteId)).then(snap => {
+        const cliente = snap.exists() ? { ...snap.data(), id: snap.id } : null;
+        if (versao === versaoSessao) cacheClientes.set(clienteId, cliente);
         return cliente;
+    }).finally(() => {
+        if (consultasClientes.get(clienteId) === consulta) consultasClientes.delete(clienteId);
     });
+    consultasClientes.set(clienteId, consulta);
+    return consulta;
 }
 
 function normalizarTipoVisita(atividade) {
@@ -936,6 +944,9 @@ function inicializarAplicativo() {
         ['area-visitas','area-agenda','area-historico-visitas','nv-cliente-dropdown'].forEach(id => document.getElementById(id).textContent = '');
         clientesAutocompleteCarregados = false;
         cacheClientes.clear();
+        consultasClientes.clear();
+        historicoCarregado = null;
+        technicalEditor?.reset();
 
         document.getElementById('tela-confirmacao').style.display = 'none';
 
@@ -1483,7 +1494,7 @@ async function carregarAgenda() {
 
         listaAtividadesAgenda = atividadesCarregadas.sort((a, b) => tempoData(a.data) - tempoData(b.data));
 
-        areaAgenda.innerHTML = '';
+        const cardsAgenda = [];
 
 
 
@@ -1493,7 +1504,7 @@ async function carregarAgenda() {
 
             const tituloSecao = index === 0 ? "Visitas agendadas" : "";
 
-            if (tituloSecao) areaAgenda.innerHTML += `<h2 class="section-subtitle">${tituloSecao}</h2>`;
+            if (tituloSecao) cardsAgenda.push(`<h2 class="section-subtitle">${tituloSecao}</h2>`);
 
             const botaoGpsHTML = atividade.enderecoCompleto ? `<button class="btn-gps" data-gps-index="${index}">Abrir no GPS</button>` : '<p>Endereço não cadastrado.</p>';
 
@@ -1505,7 +1516,7 @@ async function carregarAgenda() {
 
 
 
-            areaAgenda.innerHTML += `
+            cardsAgenda.push(`
 
                 <div class="card-agenda">
 
@@ -1523,9 +1534,10 @@ async function carregarAgenda() {
 
                 </div>
 
-            `;
+            `);
 
         });
+        areaAgenda.innerHTML = cardsAgenda.join('');
 
         areaAgenda.querySelectorAll('[data-ficha-index]').forEach(btn => btn.addEventListener('click', () => {
             if (!operacaoEmCurso) window.abrirDetalhesVisita(Number(btn.dataset.fichaIndex));
@@ -1750,6 +1762,7 @@ async function carregarHistoricoVisitas() {
         const q = query(
             collection(db, 'atividades'),
             where('ptvId', '==', sessao.id),
+            where('status', 'in', ['Concluída', 'Cancelada']),
             orderBy('data', 'desc'),
             limit(100)
         );
@@ -1760,6 +1773,7 @@ async function carregarHistoricoVisitas() {
             documentosHistorico = (await getDocs(q)).docs;
         } catch (erro) {
             if (erro.code !== 'failed-precondition') throw erro;
+            console.warn('Índice do histórico indisponível; usando consulta de compatibilidade. Consulte firestore.indexes.json.');
             documentosHistorico = (await getDocs(query(
                 collection(db, 'atividades'),
                 where('ptvId', '==', sessao.id)
@@ -1772,7 +1786,10 @@ async function carregarHistoricoVisitas() {
         });
         if (!sessaoValida(sessao) || pedido !== sequenciaHistorico) return;
 
+        documentosHistorico.sort((a, b) => tempoData(b.data().data) - tempoData(a.data().data));
+        documentosHistorico = documentosHistorico.slice(0, 100);
         if (!documentosHistorico.length) {
+            historicoCarregado = [];
             areaHistorico.innerHTML = '<p class="hist-vazio">Nenhuma visita encontrada.</p>';
             return;
         }
@@ -1793,6 +1810,7 @@ async function carregarHistoricoVisitas() {
 
         historicoArray.sort((a, b) => (obterDataHistorico(b)?.getTime() || 0) - (obterDataHistorico(a)?.getTime() || 0));
 
+        historicoCarregado = historicoArray;
         renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoArray));
     } catch (error) {
         if (sessaoValida(sessao) && pedido === sequenciaHistorico) {
@@ -1819,19 +1837,22 @@ function configurarFiltroHistorico() {
 
     periodo?.addEventListener('change', () => {
         filtrosHistorico.periodo = periodo.value;
-        carregarHistoricoVisitas();
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado));
+        else carregarHistoricoVisitas();
     });
 
     resultado?.addEventListener('change', () => {
         filtrosHistorico.resultado = resultado.value;
-        carregarHistoricoVisitas();
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado));
+        else carregarHistoricoVisitas();
     });
 
     limpar?.addEventListener('click', () => {
         filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
         if (periodo) periodo.value = 'todos';
         if (resultado) resultado.value = 'todos';
-        carregarHistoricoVisitas();
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado));
+        else carregarHistoricoVisitas();
     });
 }
 

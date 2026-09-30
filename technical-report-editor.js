@@ -84,7 +84,9 @@ export const mediaStore = {
 
             // Original e thumbnail não dependem um do outro. Enviar em paralelo
             // reduz o tempo de salvamento, principalmente em conexões móveis.
-            await Promise.all(uploads);
+            const results = await Promise.allSettled(uploads);
+            const failure = results.find(result => result.status === 'rejected');
+            if (failure) throw failure.reason;
 
             return {
                 key: signed.original.key,
@@ -285,6 +287,7 @@ export async function compressImage(inputFile) {
         let width = Math.max(1, Math.round(source.width * scale));
         let height = Math.max(1, Math.round(source.height * scale));
         let best = null;
+        let bestWidth = width, bestHeight = height;
 
         // Primeiro reduz qualidade; se a foto continuar muito detalhada, reduz
         // levemente a resolução até ficar próxima do alvo de ~200 KB.
@@ -301,7 +304,9 @@ export async function compressImage(inputFile) {
 
             for (const quality of [0.82, 0.76, 0.70, 0.64, 0.58]) {
                 const blob = await canvasBlob(canvas, 'image/webp', quality);
-                if (!best || blob.size < best.size) best = blob;
+                if (!best || blob.size < best.size) {
+                    best = blob; bestWidth = width; bestHeight = height;
+                }
                 if (blob.size <= IMAGE_TARGET_BYTES) {
                     const compressed = new File([blob], webpName(file.name), {
                         type: blob.type || 'image/webp',
@@ -318,11 +323,11 @@ export async function compressImage(inputFile) {
             }
 
             if (best?.size <= IMAGE_MAX_OUTPUT_BYTES) break;
-            width = Math.max(800, Math.round(width * 0.86));
-            height = Math.max(800, Math.round(height * 0.86));
+            width = Math.max(1, Math.round(width * 0.86));
+            height = Math.max(1, Math.round(height * 0.86));
         }
 
-        if (!best) throw new Error('Não foi possível comprimir a imagem.');
+        if (!best || best.size > IMAGE_MAX_OUTPUT_BYTES) throw new Error('Não foi possível reduzir a imagem para 300 KB. Tente outra foto.');
 
         const compressed = new File([best], webpName(file.name), {
             type: best.type || 'image/webp',
@@ -333,8 +338,8 @@ export async function compressImage(inputFile) {
             file: compressed,
             originalName: file.name,
             originalSize: file.size,
-            width,
-            height
+            width: bestWidth,
+            height: bestHeight
         };
     } finally {
         source.close?.();
@@ -346,67 +351,22 @@ export async function createThumbnail(file) {
     if (!file?.type?.startsWith('image/')) return null;
     const source = await decodeImage(file);
     try {
-        const width = source.width;
-        const height = source.height;
-        if (!width || !height) return null;
-
+        if (!source.width || !source.height) return null;
         const canvas = document.createElement('canvas');
         canvas.width = canvas.height = 96;
         const context = canvas.getContext('2d');
         if (!context) return null;
-
-        const side = Math.min(width, height);
-        const sx = (width - side) / 2;
-        const sy = (height - side) / 2;
-
-        // Draw to an intermediate square to keep the crop logic predictable.
-        const crop = document.createElement('canvas');
-        crop.width = crop.height = Math.max(1, Math.round(side));
-        const cropContext = crop.getContext('2d');
-        if (!cropContext) return null;
-        cropContext.drawImage(
-            sourceBitmapProxy(source, width, height),
-            sx, sy, side, side,
-            0, 0, crop.width, crop.height
-        );
-
-        context.fillStyle = '#edf0f5';
-        context.fillRect(0, 0, 96, 96);
-        context.drawImage(crop, 0, 0, 96, 96);
-        return await canvasBlob(canvas, 'image/jpeg', 0.32);
-    } catch {
-        // Fallback below handles browsers where the proxy canvas cannot be used.
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 96;
-        const context = canvas.getContext('2d');
-        if (!context) return null;
-
+        // Central crop directly into 96px: no full-resolution proxy canvases.
         const scale = Math.max(96 / source.width, 96 / source.height);
-        const drawWidth = source.width * scale;
-        const drawHeight = source.height * scale;
-        const temp = document.createElement('canvas');
-        temp.width = Math.max(1, Math.round(drawWidth));
-        temp.height = Math.max(1, Math.round(drawHeight));
-        const tempContext = temp.getContext('2d');
-        if (!tempContext) return null;
-        source.draw(tempContext, temp.width, temp.height);
-
+        const width = source.width * scale, height = source.height * scale;
         context.fillStyle = '#edf0f5';
         context.fillRect(0, 0, 96, 96);
-        context.drawImage(temp, (96 - temp.width) / 2, (96 - temp.height) / 2);
+        context.translate((96 - width) / 2, (96 - height) / 2);
+        source.draw(context, width, height);
         return await canvasBlob(canvas, 'image/jpeg', 0.32);
     } finally {
         source.close?.();
     }
-}
-
-function sourceBitmapProxy(source, width, height) {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    source.draw(context, width, height);
-    return canvas;
 }
 
 let viewer;
@@ -502,9 +462,22 @@ function showMediaError(message) {
 }
 
 export function initializeMediaPreviews() {
-    const observer = new MutationObserver(() => hydrate(document));
+    const observer = new MutationObserver(records => {
+        const roots = new Set();
+        for (const record of records) {
+            for (const node of record.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                // Include the parent so a newly added media button is hydrated too.
+                if (node.matches('[data-report-media]') || node.querySelector('[data-report-media]')) {
+                    roots.add(node.parentElement || node);
+                }
+            }
+        }
+        for (const root of roots) hydrate(root);
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     hydrate(document);
+    return () => observer.disconnect();
 }
 
 export class TechnicalReportEditor {
