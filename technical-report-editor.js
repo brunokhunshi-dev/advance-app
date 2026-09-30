@@ -176,29 +176,25 @@ function webpName(name) {
     return base + '.webp';
 }
 
-async function decodeImage(file) {
-    if (typeof createImageBitmap === 'function') {
-        try {
-            const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-            return {
-                width: bitmap.width,
-                height: bitmap.height,
-                draw(context, width, height) {
-                    context.drawImage(bitmap, 0, 0, width, height);
-                },
-                close() { bitmap.close?.(); }
-            };
-        } catch {}
-    }
-
+async function imageElementSource(src, revoke) {
     const img = document.createElement('img');
-    const url = URL.createObjectURL(file);
+    img.decoding = 'async';
+
     try {
         await new Promise((resolve, reject) => {
             img.onload = resolve;
-            img.onerror = () => reject(new Error('Este formato de imagem não pôde ser processado neste dispositivo.'));
-            img.src = url;
+            img.onerror = reject;
+            img.src = src;
         });
+
+        if (typeof img.decode === 'function') {
+            try { await img.decode(); } catch {}
+        }
+
+        if (!img.naturalWidth || !img.naturalHeight) {
+            throw new Error('Imagem sem dimensões válidas.');
+        }
+
         return {
             width: img.naturalWidth,
             height: img.naturalHeight,
@@ -207,12 +203,63 @@ async function decodeImage(file) {
             },
             close() {
                 img.removeAttribute('src');
-                URL.revokeObjectURL(url);
+                if (revoke) URL.revokeObjectURL(src);
             }
         };
     } catch (error) {
-        URL.revokeObjectURL(url);
+        img.removeAttribute('src');
+        if (revoke) URL.revokeObjectURL(src);
         throw error;
+    }
+}
+
+function fileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error || new Error('Não foi possível ler a imagem.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+async function decodeImage(file) {
+    // 1) Caminho mais rápido em Chromium/Android e navegadores modernos.
+    if (typeof createImageBitmap === 'function') {
+        try {
+            let bitmap;
+            try {
+                bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+            } catch {
+                bitmap = await createImageBitmap(file);
+            }
+
+            if (bitmap?.width && bitmap?.height) {
+                return {
+                    width: bitmap.width,
+                    height: bitmap.height,
+                    draw(context, width, height) {
+                        context.drawImage(bitmap, 0, 0, width, height);
+                    },
+                    close() { bitmap.close?.(); }
+                };
+            }
+            bitmap?.close?.();
+        } catch {}
+    }
+
+    // 2) Blob URL funciona melhor em Safari/iOS para vários JPEGs de câmera.
+    const objectUrl = URL.createObjectURL(file);
+    try {
+        return await imageElementSource(objectUrl, true);
+    } catch {}
+
+    // 3) Último fallback para browsers/PWAs que falham ao decodificar o Blob URL.
+    try {
+        const dataUrl = await fileAsDataUrl(file);
+        if (!dataUrl) throw new Error();
+        return await imageElementSource(dataUrl, false);
+    } catch {
+        throw new Error('Não foi possível abrir esta imagem. Tente outra foto JPG/PNG ou tire a foto diretamente pelo app.');
     }
 }
 
@@ -461,20 +508,79 @@ export function initializeMediaPreviews() {
 }
 
 export class TechnicalReportEditor {
-    constructor(root, input, button, picker, status) {
-        Object.assign(this, { root, input, button, picker, status });
+    constructor(root, input, button, picker, status, cameraPicker = null) {
+        Object.assign(this, { root, input, button, picker, status, cameraPicker });
         this.blocks = [textBlock('')];
         this.activityId = '';
         this.busy = false;
         this.pendingDeletes = new Set();
         this.persistedMediaIds = new Set();
 
-        button.addEventListener('click', () => { if (!this.locked && !this.busy) picker.click(); });
+        button.addEventListener('click', () => {
+            if (this.locked || this.busy) return;
+            this.openSourceChooser();
+        });
+
         root.addEventListener('click', event => {
             if (event.target === root) this.focusText(this.blocks.length - 1);
         });
+
         picker.addEventListener('change', () => this.insertFiles([...picker.files]));
+        cameraPicker?.addEventListener('change', () => this.insertFiles([...cameraPicker.files]));
         this.render();
+    }
+
+    openSourceChooser() {
+        const mobileLike =
+            window.matchMedia?.('(pointer: coarse)').matches ||
+            /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        if (!this.cameraPicker || !mobileLike) {
+            this.picker.click();
+            return;
+        }
+
+        let dialog = document.querySelector('.report-media-source-dialog');
+        if (!dialog) {
+            dialog = document.createElement('dialog');
+            dialog.className = 'report-media-source-dialog';
+
+            const title = document.createElement('strong');
+            title.textContent = 'Adicionar imagem';
+
+            const camera = document.createElement('button');
+            camera.type = 'button';
+            camera.className = 'report-media-source-action';
+            camera.innerHTML = '<span aria-hidden="true">📷</span><span>Tirar foto</span>';
+
+            const gallery = document.createElement('button');
+            gallery.type = 'button';
+            gallery.className = 'report-media-source-action';
+            gallery.innerHTML = '<span aria-hidden="true">▧</span><span>Escolher da galeria</span>';
+
+            const cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'report-media-source-cancel';
+            cancel.textContent = 'Cancelar';
+
+            dialog.append(title, camera, gallery, cancel);
+            document.body.append(dialog);
+
+            camera.addEventListener('click', () => {
+                dialog.close();
+                this.cameraPicker?.click();
+            });
+            gallery.addEventListener('click', () => {
+                dialog.close();
+                this.picker.click();
+            });
+            cancel.addEventListener('click', () => dialog.close());
+            dialog.addEventListener('click', event => {
+                if (event.target === dialog) dialog.close();
+            });
+        }
+
+        dialog.showModal();
     }
 
     reset({ activityId, text, blocks } = {}) {
@@ -696,6 +802,7 @@ export class TechnicalReportEditor {
             this.busy = false;
             this.setLocked(Boolean(this.locked));
             this.picker.value = '';
+            if (this.cameraPicker) this.cameraPicker.value = '';
         }
     }
 
