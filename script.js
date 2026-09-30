@@ -61,7 +61,7 @@ let listaAtividadesAgenda = []; // Nova lista para edição de visitas
 
 let nvClienteSelecionadoId = null;
 
-let hashCnpjNovoCliente = null;
+let cnpjNovoCliente = null;
 
 let callbackExclusaoAtual = null; // Callback para o modal de exclusão
 
@@ -177,8 +177,8 @@ function gerarIdRelatorio(data, nomeTecnico) {
     return 'REL-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
 }
 
-function gerarIdClienteCnpj(codigoCnpj) {
-    return 'CLI-CNPJ-' + String(codigoCnpj);
+function gerarIdClienteCnpj(cnpjPuro) {
+    return 'CLI-CNPJ-' + String(cnpjPuro);
 }
 
 function gerarIdClienteProvisorio(dataCriacao, nomeResponsavel) {
@@ -832,7 +832,7 @@ function invalidarCoordenadas() {
 
 function limparCadastroCliente() {
 
-    versaoConsultaCnpj++; hashCnpjNovoCliente = null; invalidarCoordenadas();
+    versaoConsultaCnpj++; cnpjNovoCliente = null; invalidarCoordenadas();
 
     ['cc-cnpj','cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => {
 
@@ -1146,7 +1146,15 @@ function formatarDataAgenda(data) {
 
 }
 
-function ofuscarCNPJ(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
+function codigoCnpjLegado(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
+
+async function buscarClientePorCnpj(cnpjPuro) {
+    let snap = await getDocs(query(collection(db, 'clientes'), where('cnpj', '==', cnpjPuro)));
+    if (snap.empty) {
+        snap = await getDocs(query(collection(db, 'clientes'), where('codigoCnpj', '==', codigoCnpjLegado(cnpjPuro))));
+    }
+    return snap;
+}
 
 
 
@@ -2381,7 +2389,7 @@ function configurarTelaCadastroCliente() {
 
     cnpj.addEventListener('input', () => {
 
-        hashCnpjNovoCliente = null; versaoConsultaCnpj++; invalidarCoordenadas(); campo('cc-status-cnpj').textContent = '';
+        cnpjNovoCliente = null; versaoConsultaCnpj++; invalidarCoordenadas(); campo('cc-status-cnpj').textContent = '';
 
     });
 
@@ -2395,7 +2403,7 @@ function configurarTelaCadastroCliente() {
 
         // CNPJ é opcional. Sem CNPJ, o cadastro segue como provisório e não dispara consulta externa.
         if (!puro) {
-            hashCnpjNovoCliente = null;
+            cnpjNovoCliente = null;
             campo('cc-status-cnpj').textContent = ' (Opcional)';
             return;
         }
@@ -2404,11 +2412,9 @@ function configurarTelaCadastroCliente() {
 
         const lbl = campo('cc-status-cnpj');
 
-        if (!cnpjValido(puro)) { hashCnpjNovoCliente = null; lbl.textContent = ' (CNPJ inválido)'; return; }
+        if (!cnpjValido(puro)) { cnpjNovoCliente = null; lbl.textContent = ' (CNPJ inválido)'; return; }
 
-        const codigo = ofuscarCNPJ(puro);
-
-        hashCnpjNovoCliente = codigo;
+        cnpjNovoCliente = puro;
 
         const enderecoVersao = versaoConsultaEndereco;
 
@@ -2418,7 +2424,7 @@ function configurarTelaCadastroCliente() {
 
         try {
 
-            const snap = await getDocs(query(collection(db,'clientes'), where('codigoCnpj','==',codigo)));
+            const snap = await buscarClientePorCnpj(puro);
 
             if (!sessaoValida(sessao) || pedido !== versaoConsultaCnpj) return;
 
@@ -2526,7 +2532,7 @@ function configurarTelaCadastroCliente() {
 
             if (puro && !cnpjValido(puro)) throw new Error('Informe um CNPJ válido, incluindo os dígitos verificadores.');
 
-            const codigo = puro ? ofuscarCNPJ(puro) : null;
+            const cnpjReal = puro || null;
             const nome = campo('cc-nome').value.trim();
 
             const cidade = campo('cc-cidade').value.trim(), uf = campo('cc-uf').value.trim().toUpperCase();
@@ -2541,9 +2547,9 @@ function configurarTelaCadastroCliente() {
 
             let clienteId, nomeFinal = nome, localizado = false;
 
-            if (codigo) {
-                // Fluxo atual de CNPJ: o código determinístico continua sendo a chave de unicidade.
-                const anteriores = await getDocs(query(collection(db,'clientes'), where('codigoCnpj','==',codigo)));
+            if (cnpjReal) {
+                // O CNPJ real é a chave de unicidade; códigos antigos continuam aceitos apenas para compatibilidade.
+                const anteriores = await buscarClientePorCnpj(cnpjReal);
 
                 exigirSessao(sessao);
 
@@ -2563,7 +2569,7 @@ function configurarTelaCadastroCliente() {
 
                     if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
 
-                    clienteId = gerarIdClienteCnpj(codigo);
+                    clienteId = gerarIdClienteCnpj(cnpjReal);
                     const ref = doc(db,'clientes',clienteId);
 
                     const resultado = await runTransaction(db, async tx => {
@@ -2573,7 +2579,7 @@ function configurarTelaCadastroCliente() {
                             return { nome: atual.data().nome || nome, localizado: true };
                         }
                         const agora = new Date();
-                        tx.set(ref, { codigoCnpj: codigo, nome, cidade, uf, enderecoCompleto,
+                        tx.set(ref, { cnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
                             lat: Number(coords.lat), lng: Number(coords.lng), status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
                         return { nome, localizado: false };
                     });
@@ -2606,8 +2612,8 @@ function configurarTelaCadastroCliente() {
 
             limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
-            window.mostrarAlerta('Sucesso', codigo
-                ? (localizado ? 'Cliente existente selecionado.' : 'Loja salva com coordenadas do endereço informado.')
+            window.mostrarAlerta('Sucesso', cnpjReal
+                ? (localizado ? 'Cliente existente selecionado.' : 'Loja salva com CNPJ e coordenadas do endereço informado.')
                 : 'Loja provisória salva. Ela poderá ser revisada posteriormente.');
 
         } catch (erro) { informarErro('Não foi possível salvar a loja', erro); }
