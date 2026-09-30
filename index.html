@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=nativeback-1">
+    <link rel="stylesheet" href="styles.css?v=r2-media-10">
     <link rel="stylesheet" href="pwa-mobile.css?v=nativeback-1">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
@@ -358,7 +358,7 @@
                         <tr><th>Cliente final</th><td id="pdf-at-cliente-final" colspan="3">—</td></tr>
                         <tr><th>Produto</th><td id="pdf-at-produto">—</td><th>Lote</th><td id="pdf-at-lote">—</td></tr>
                         <tr><th>Queixa</th><td id="pdf-at-queixa" colspan="3">—</td></tr>
-                        <tr><th>Constatações</th><td id="pdf-at-constatacoes" colspan="3">—</td></tr>
+                        <tr><th>Relatório técnico</th><td id="pdf-at-constatacoes" colspan="3">—</td></tr>
                         <tr><th>Conclusão</th><td id="pdf-at-conclusao" colspan="3">—</td></tr>
                         <tr><th>Resultado</th><td id="pdf-at-resultado" colspan="3">—</td></tr>
                     </tbody>
@@ -598,10 +598,6 @@
                 </div>
             </div>
 
-            <div class="relatorio-editor-section" id="relatorio-editor-padrao">
-                <textarea id="rel-texto" class="textarea-box-full" placeholder="Comece a escrever..."></textarea>
-            </div>
-
             <div class="relatorio-assistencia-section" id="relatorio-assistencia-section" style="display:none;">
                 <section class="assistencia-form-card">
                     <span class="assistencia-kicker">CLIENTE E APLICAÇÃO</span>
@@ -758,23 +754,21 @@
                             <input id="at-umidade-referencia" class="input-box box-cinza" type="text" placeholder="Ex.: acima do indicado">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label for="at-constatacoes">Constatações técnicas</label>
-                        <textarea id="at-constatacoes" class="input-box box-cinza textarea-box assistencia-textarea-long" placeholder="Descreva o que foi observado em campo e a relação com a ocorrência"></textarea>
-                    </div>
-                </section>
-
-                <section class="assistencia-form-card">
-                    <span class="assistencia-kicker">REGISTROS FOTOGRÁFICOS</span>
-                    <label class="assistencia-photo-input">
-                        <input id="at-fotos" type="file" accept="image/*" capture="environment" multiple>
-                        <span class="assistencia-photo-icon"><svg viewBox="0 0 24 24"><path d="M4 7h4l2-2h4l2 2h4v12H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span>
-                        <span><strong>Adicionar fotos</strong><small id="at-fotos-status">Use a câmera ou selecione imagens do aparelho</small></span>
-                    </label>
                 </section>
             </div>
 
+            <section class="relatorio-editor-section" id="relatorio-editor-padrao" aria-label="Conteúdo do relatório">
+                <h2 id="report-section-title" class="report-section-title" hidden>Relatório técnico</h2>
+                <textarea id="rel-texto" hidden></textarea>
+                <textarea id="at-constatacoes" hidden></textarea>
+                <div id="at-relatorio-editor" class="technical-report-editor" role="group" aria-label="Escrever relatório"></div>
+                <p id="at-media-status" role="status" aria-live="polite"></p>
+            </section>
+
             <div class="relatorio-acoes">
+                <input id="at-media-picker" type="file" accept="image/*" multiple hidden>
+                <input id="at-camera-picker" type="file" accept="image/*" capture="environment" hidden>
+                <button type="button" id="btn-adicionar-midia" class="report-add-media" aria-label="Adicionar imagem" title="Adicionar imagem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
                 <button class="btn-checkin" id="btn-salvar-relatorio" style="flex: 1;">Salvar relatório</button>
             </div>
         </div>
@@ -1053,7 +1047,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=nativeback-1"></script>
+    <script type="module" src="script.js?v=r2-media-10"></script>
     <script type="module" src="schema-exporter.js"></script>
     <script>
         window.addEventListener('load', () => {

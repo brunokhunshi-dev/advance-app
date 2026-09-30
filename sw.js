@@ -1,9 +1,10 @@
-const CACHE_NAME = 'advance-pwa-nativeback-v1';
+const CACHE_NAME = 'advance-pwa-r2-media-v10';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './script.js',
+  './technical-report-editor.js',
   './firebase-config.js',
   './pwa-mobile.css',
   './manifest.json',

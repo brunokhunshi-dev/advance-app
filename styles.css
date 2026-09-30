@@ -1299,3 +1299,96 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 #checkout-at-preview .assistencia-form-view-section{
     margin-bottom:32px;
 }
+
+/* Shared report writing section: compact text and 96px attachments. */
+#relatorio-editor-padrao { display: flex; flex-direction: column; cursor: text; }
+.report-section-title { font-size: 14px; margin: 0 0 12px; color: var(--color-dark); }
+.technical-report-editor { flex: 1; min-height: 200px; border: 0; border-radius: 0; padding: 0; background: transparent; }
+.report-text-block { min-height: 1.6em; margin: 0; padding: 0; border: 0; outline: none; font: inherit; font-size: 16px; line-height: 1.6; color: var(--color-dark); white-space: pre-wrap; overflow-wrap: anywhere; }
+.report-text-block:empty::before { content: attr(data-placeholder); color: #777; pointer-events: none; }
+.report-text-block-media-gap {
+    display: none !important;
+}
+.report-media-block {
+    break-inside: avoid;
+}
+
+#at-media-status { font-size: 12px; line-height: 1.5; color: #a12331; margin: 8px 0 0; cursor: default; }
+#at-media-status:empty { display: none; }
+.report-add-media { align-self: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; border: 1px solid #ccd2dd; color: #062666; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.report-add-media svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; }
+.report-add-media:disabled { opacity: .5; }
+.report-media-block { position: relative; display: inline-block; vertical-align: top; width: 96px; height: 96px; margin: 6px 8px 6px 0; }
+.report-media-open { position: relative; display: inline-flex; vertical-align: top; width: 96px; height: 96px; box-sizing: border-box; margin: 6px 8px 6px 0; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: #e9edf4; font: inherit; cursor: pointer; color: #062666; }
+.report-media-block .report-media-open { margin: 0; }
+.report-media-open:focus-visible, .report-add-media:focus-visible, .report-media-remove:focus-visible { outline: 2px solid #062666; outline-offset: 3px; }
+.report-media-preview { display: flex; width: 96px; height: 96px; align-items: center; justify-content: center; font-size: 28px; }
+.report-media-preview img { display: block; width: 96px; height: 96px; object-fit: cover; }
+.report-media-play { position: absolute; inset: auto 6px 6px auto; background: #062666; color: white; border-radius: 50%; padding: 4px 6px; font-size: 12px; }
+.report-media-remove { position: absolute; z-index: 1; top: -5px; right: -5px; width: 28px; height: 28px; min-height: 28px; min-width: 28px; box-sizing: border-box; padding: 6px; display: grid; place-items: center; border: 2px solid var(--color-bg); border-radius: 50%; background: #263348; color: #fff; cursor: pointer; }
+.report-media-remove svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.technical-report-paragraph { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.report-media-dialog { position: fixed; inset: 0; width: min(90vw, 800px); max-height: 90dvh; margin: auto; box-sizing: border-box; border: 0; border-radius: 20px; padding: 20px; overflow: auto; }
+.report-media-dialog::backdrop { background: rgba(0,0,0,.75); }
+.report-media-dialog h2 { font-size: 16px; overflow-wrap: anywhere; margin: 12px 0; }
+.report-media-dialog img, .report-media-dialog video { display: block; max-width: 100%; max-height: 65dvh; margin: 16px auto; }
+.report-media-dialog audio { width: 100%; margin: 20px 0; }
+.report-media-close { display: block; margin-left: auto; padding: 10px 16px; background: #eef1f6; border: 0; border-radius: 20px; cursor: pointer; }
+.report-media-dialog a { display: inline-block; color: #062666; padding: 12px 0; }
+
+
+/* === FONTE DE IMAGEM DO RELATÓRIO === */
+.report-media-source-dialog {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: auto;
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 18px;
+    border: 0;
+    border-radius: 22px;
+    background: #fff;
+    color: var(--color-dark);
+}
+.report-media-source-dialog::backdrop {
+    background: rgba(0,0,0,.48);
+}
+.report-media-source-dialog strong {
+    display: block;
+    margin: 2px 4px 14px;
+    font-size: 1rem;
+    font-weight: 700;
+}
+.report-media-source-action,
+.report-media-source-cancel {
+    width: 100%;
+    min-height: 52px;
+    border: 0;
+    border-radius: 16px;
+    font: inherit;
+    cursor: pointer;
+}
+.report-media-source-action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+    padding: 12px 16px;
+    background: #f3f4f6;
+    color: var(--color-dark);
+    text-align: left;
+}
+.report-media-source-action > span:first-child {
+    width: 28px;
+    text-align: center;
+    font-size: 20px;
+}
+.report-media-source-cancel {
+    margin-top: 8px;
+    background: transparent;
+    color: var(--color-red);
+    font-weight: 600;
+}

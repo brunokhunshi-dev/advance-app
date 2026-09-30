@@ -1,8 +1,10 @@
+import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=r2-media-10';
+let technicalEditor;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
 
@@ -13,6 +15,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 const db = getFirestore(app);
+
+configureMediaApi({
+    baseUrl: 'https://advance-media-api.brunokhunshi.workers.dev',
+    getIdToken: async () => {
+        if (!auth.currentUser) throw new Error('Entre novamente para acessar os arquivos.');
+        return auth.currentUser.getIdToken();
+    }
+});
 
 
 
@@ -330,12 +340,29 @@ function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, pa
     return doc(db, colecaoRelatorioDaAtividade(atividade, paraNovo), relatorioId);
 }
 
-async function carregarRelatorioDaAtividade(atividade) {
+async function carregarRelatorioDaAtividade(atividade, forcarServidor = false) {
     if (!atividade?.relatorioId) return null;
     const ref = referenciaRelatorio(atividade);
-    const snap = await getDoc(ref);
+    const snap = await (forcarServidor ? getDocFromServer(ref) : getDoc(ref));
     if (!snap.exists()) return null;
     return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
+}
+
+function blocosPersistidosRelatorio(relatorio) {
+    const conteudo = relatorio?.conteudoRelatorio;
+    return conteudo?.versao === 1 && Array.isArray(conteudo.blocos)
+        ? conteudo.blocos
+        : null;
+}
+
+function serializarEstavel(valor) {
+    if (Array.isArray(valor)) return '[' + valor.map(serializarEstavel).join(',') + ']';
+    if (valor && typeof valor === 'object') {
+        return '{' + Object.keys(valor).sort().map(chave =>
+            JSON.stringify(chave) + ':' + serializarEstavel(valor[chave])
+        ).join(',') + '}';
+    }
+    return JSON.stringify(valor);
 }
 
 function dadosAssistenciaDoRelatorio(relatorio = {}) {
@@ -440,6 +467,17 @@ function limparFormularioCheckout() {
     document.querySelectorAll('input[name="checkoutOportunidade"], input[name="checkoutAtResultado"]').forEach(radio => { radio.checked = false; });
 }
 
+function preencherConteudoRelatorio(id, relatorio, fallback) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    const blocks = blocosPersistidosRelatorio(relatorio);
+    if (blocks) {
+        element.innerHTML = reportMarkup(blocks, relatorio?.atividadeId || '');
+    } else {
+        element.textContent = relatorio?.textoAtual || fallback;
+    }
+}
+
 function preencherCheckout(atividade, relatorio, saida) {
     checkoutPendenteGlobal = { atividadeId: atividade.id, posicao: saida };
     limparFormularioCheckout();
@@ -480,7 +518,7 @@ function preencherCheckout(atividade, relatorio, saida) {
     const assistenciaPreview = document.getElementById('checkout-assistencia-preview');
     if (textoSection) textoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
     if (assistenciaPreview) assistenciaPreview.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
-    document.getElementById('checkout-relatorio-final').textContent = relatorio?.textoAtual || 'Nenhum relatório salvo.';
+    preencherConteudoRelatorio('checkout-relatorio-final', relatorio, 'Nenhum relatório salvo.');
     if (tipo === ASSISTENCIA_TECNICA_TIPO) atualizarPreviewCheckoutAssistencia();
 
     navegarParaTela('tela-checkout', { carregar: false });
@@ -527,23 +565,12 @@ function limparFormularioAssistencia() {
     ['atEspecificacao','atImpactoClimatico','atLimpeza','atFerramenta','atVerificado'].forEach(name => {
         document.querySelectorAll('input[name="' + name + '"]').forEach(input => { input.checked = false; });
     });
-    const fotos = document.getElementById('at-fotos');
-    if (fotos) fotos.value = '';
-    const status = document.getElementById('at-fotos-status');
-    if (status) status.textContent = 'Use a câmera ou selecione imagens do aparelho';
     document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display','none');
     document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display','none');
 }
 
 function lerFormularioAssistencia() {
-    const novasFotos = [...(document.getElementById('at-fotos')?.files || [])].map(file => ({
-        nome: file.name,
-        tipo: file.type || '',
-        tamanho: Number(file.size || 0),
-        alteradoEm: Number(file.lastModified || 0)
-    }));
-    const fotosSalvas = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas;
-    const fotos = novasFotos.length ? novasFotos : (Array.isArray(fotosSalvas) ? fotosSalvas : []);
+    const fotos = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas || [];
 
     return {
         clienteFinal: valorCampoAssistencia('at-cliente-final'),
@@ -600,9 +627,7 @@ function preencherFormularioAssistencia(dados = {}) {
     document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display', dados?.houveEspecificacao === 'Sim' ? 'block' : 'none');
     document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display', dados?.impactoClimatico === 'Sim' ? 'block' : 'none');
 
-    const antigas = Array.isArray(dados?.fotosSelecionadas) ? dados.fotosSelecionadas : [];
-    const status = document.getElementById('at-fotos-status');
-    if (status && antigas.length) status.textContent = antigas.length + (antigas.length === 1 ? ' foto registrada na última edição' : ' fotos registradas na última edição');
+
 }
 
 function normalizarAssistenciaComparacao(dados = {}) {
@@ -650,7 +675,7 @@ function gerarResumoAssistenciaTecnica(dados = {}) {
         lista('Itens verificados', dados.itensVerificados),
         linha('Umidade medida', dados.umidade),
         linha('Referência / limite', dados.umidadeReferencia),
-        linha('Constatações técnicas', dados.constatacoes),
+        linha('Relatório técnico', dados.constatacoes),
         '',
         linha('Ações definidas', dados.acoesDefinidas),
         linha('Conclusão técnica', dados.conclusaoTecnica),
@@ -717,7 +742,7 @@ function renderFichaAssistencia(dados = {}, opcoes = {}) {
         campo('Itens verificados', listaVisualAssistencia(dados.itensVerificados)) +
         campo('Umidade medida', dados.umidade) +
         campo('Referência / limite', dados.umidadeReferencia) +
-        campo('Constatações técnicas', dados.constatacoes)
+        campo('Relatório técnico', dados.constatacoes)
     );
 
     if (!opcoes.omitirFechamento) {
@@ -729,6 +754,15 @@ function renderFichaAssistencia(dados = {}, opcoes = {}) {
         );
     }
 
+    const blocks = blocosPersistidosRelatorio(objetoRelatorioGlobal);
+    if (blocks) {
+        html = html.replace(
+            campo('Relatório técnico', dados.constatacoes),
+            '<div class="report-read-content"><label>Relatório técnico</label>' +
+                reportMarkup(blocks, objetoRelatorioGlobal?.atividadeId || '') +
+            '</div>'
+        );
+    }
     return html;
 }
 
@@ -752,7 +786,8 @@ function mostrarEditorRelatorioPorTipo(tipo) {
     const assistencia = tipo === ASSISTENCIA_TECNICA_TIPO;
     const padrao = document.getElementById('relatorio-editor-padrao');
     const personalizado = document.getElementById('relatorio-assistencia-section');
-    if (padrao) padrao.style.display = assistencia ? 'none' : 'block';
+    if (padrao) padrao.style.display = 'flex';
+    document.getElementById('report-section-title').hidden = !assistencia;
     if (personalizado) personalizado.style.display = assistencia ? 'block' : 'none';
 }
 
@@ -1242,10 +1277,10 @@ function relatorioPossuiAlteracoesNaoSalvas() {
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
         const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
         const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
-        return JSON.stringify(atual) !== JSON.stringify(salvo);
+        return technicalEditor?.dirty || JSON.stringify(atual) !== JSON.stringify(salvo);
     }
 
-    return document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
+    return technicalEditor?.dirty || document.getElementById('rel-texto').value.trim() !== String(objetoRelatorioGlobal?.textoAtual || '').trim();
 }
 
 function voltarNavegacao(fallback = 'tela-inicio') {
@@ -2053,7 +2088,7 @@ function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     }
 
     preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
-    preencherCampoVisualizador('visu-relatorio', relatorio?.textoAtual, 'Nenhum relatório registrado.');
+    preencherConteudoRelatorio('visu-relatorio', relatorio, 'Nenhum relatório registrado.');
 
     const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
     document.getElementById('visu-manual').style.display = manual ? 'block' : 'none';
@@ -2903,11 +2938,27 @@ function atualizarInterfaceVisitaAtual() {
         if (operacaoEmCurso || !atividadeSelecionadaId) return;
 
         try {
-            const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeSelecionadaId));
-            if (atividadeSnap.exists()) {
-                objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            const sessao = sessaoAtual();
+            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeSelecionadaId));
+            exigirSessao(sessao);
+            if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
+
+            objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            validarResponsavel(objetoAtividadeGlobal, sessao);
+
+            // O estado da tela inicial pode ter sido carregado minutos antes ou em
+            // outro dispositivo. Recarrega o relatório do servidor imediatamente
+            // antes de editar para evitar conflito falso com uma cópia antiga.
+            objetoRelatorioGlobal = objetoAtividadeGlobal.relatorioId
+                ? await carregarRelatorioDaAtividade(objetoAtividadeGlobal, true)
+                : null;
+            exigirSessao(sessao);
+
+            if (objetoRelatorioGlobal &&
+                (objetoRelatorioGlobal.atividadeId !== atividadeSelecionadaId ||
+                 objetoRelatorioGlobal.ptvId !== sessao.id)) {
+                throw new Error('O relatório associado não corresponde a esta visita.');
             }
-            if (!objetoAtividadeGlobal) throw new Error('Visita não encontrada.');
 
             if (objetoAtividadeGlobal.clienteId) {
                 const cliente = await obterCliente(objetoAtividadeGlobal.clienteId);
@@ -2936,6 +2987,12 @@ function atualizarInterfaceVisitaAtual() {
             if (tipo === ASSISTENCIA_TECNICA_TIPO) {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
+            technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
+            technicalEditor.reset({
+                activityId: atividadeSelecionadaId,
+                text: technicalEditor.input.value,
+                blocks: blocosPersistidosRelatorio(objetoRelatorioGlobal)
+            });
 
             document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + nomeCliente;
             document.getElementById('rel-opcao-cliente').textContent = nomeCliente;
@@ -3222,10 +3279,7 @@ function configurarEventosGlobais() {
     document.querySelectorAll('input[name="atImpactoClimatico"]').forEach(input => input.addEventListener('change', () => {
         document.getElementById('at-impacto-detalhe-wrap').style.display = radioAssistencia('atImpactoClimatico') === 'Sim' ? 'block' : 'none';
     }));
-    document.getElementById('at-fotos')?.addEventListener('change', event => {
-        const total = event.target.files?.length || 0;
-        document.getElementById('at-fotos-status').textContent = total ? total + (total === 1 ? ' foto selecionada' : ' fotos selecionadas') : 'Use a câmera ou selecione imagens do aparelho';
-    });
+
 
     ['checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', atualizarPreviewCheckoutAssistencia);
@@ -3234,11 +3288,23 @@ function configurarEventosGlobais() {
         input.addEventListener('change', atualizarPreviewCheckoutAssistencia);
     });
 
+    initializeMediaPreviews();
+    technicalEditor = new TechnicalReportEditor(
+        document.getElementById('at-relatorio-editor'),
+        document.getElementById('at-constatacoes'),
+        document.getElementById('btn-adicionar-midia'),
+        document.getElementById('at-media-picker'),
+        document.getElementById('at-media-status'),
+        document.getElementById('at-camera-picker')
+    );
+
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
     document.getElementById('btn-salvar-relatorio')?.addEventListener('click', async () => {
         if (operacaoEmCurso) return;
         const btn = document.getElementById('btn-salvar-relatorio');
+        let mediaSave = null;
+        let firestoreSaved = false;
 
         try {
             const sessao = sessaoAtual(), atividadeId = atividadeSelecionadaId;
@@ -3249,7 +3315,9 @@ function configurarEventosGlobais() {
             let assistenciaTecnica = null;
             let texto = '';
 
+            if (technicalEditor.busy) throw new Error('Aguarde a adição dos arquivos antes de salvar.');
             if (ehAssistencia) {
+                if (document.getElementById('at-constatacoes').value.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
                 assistenciaTecnica = lerFormularioAssistencia();
                 const obrigatoriosPreenchidos =
                     assistenciaTecnica.produto &&
@@ -3279,6 +3347,14 @@ function configurarEventosGlobais() {
             operacaoEmCurso = true;
             btn.disabled = true;
             btn.textContent = 'Salvando...';
+            technicalEditor.setLocked(true);
+
+            mediaSave = await technicalEditor.prepareSave();
+            const conteudoRelatorio = {
+                versao: 1,
+                blocos: mediaSave.blocks
+            };
+            const conteudoBase = objetoRelatorioGlobal?.conteudoRelatorio || null;
 
             const salvo = await runTransaction(db, async tx => {
                 const atvRef = doc(db,'atividades',atividadeId);
@@ -3297,6 +3373,15 @@ function configurarEventosGlobais() {
 
                 if (dados && (dados.atividadeId !== atividadeId || dados.ptvId !== sessao.id)) {
                     throw new Error('O relatório não corresponde a esta visita.');
+                }
+
+                const conteudoBanco = dados?.conteudoRelatorio || null;
+                if (
+                    dados &&
+                    serializarEstavel(conteudoBanco) !== serializarEstavel(conteudoBase) &&
+                    serializarEstavel(conteudoBanco) !== serializarEstavel(conteudoRelatorio)
+                ) {
+                    throw new Error('As mídias deste relatório foram alteradas depois que você abriu esta tela. Reabra o relatório antes de salvar.');
                 }
 
                 const agora = new Date();
@@ -3340,7 +3425,8 @@ function configurarEventosGlobais() {
                         ...dados,
                         ...baseComum,
                         ...secoes,
-                        revisoes
+                        revisoes,
+                        conteudoRelatorio
                     };
                     delete resultado.assistenciaTecnica;
                     delete resultado.textoAtual;
@@ -3357,7 +3443,8 @@ function configurarEventosGlobais() {
                         ...dados,
                         ...baseComum,
                         textoAtual: texto,
-                        historico
+                        historico,
+                        conteudoRelatorio
                     };
                 }
 
@@ -3375,19 +3462,30 @@ function configurarEventosGlobais() {
                 return { ...resultado, colecao: ref.parent.id };
             });
 
+            firestoreSaved = true;
             if (!sessaoValida(sessao)) return;
 
             objetoRelatorioGlobal = salvo;
             objetoAtividadeGlobal.relatorioId = salvo.id;
             objetoAtividadeGlobal.relatorioColecao = salvo.colecao || colecaoRelatorioPorTipo(tipo);
+            try {
+                await technicalEditor.commitSave(mediaSave);
+            } catch (error) {
+                window.mostrarAlerta('Relatório salvo', error.message || 'O relatório foi salvo, mas houve uma falha ao limpar arquivos removidos.');
+            }
             navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
+            if (mediaSave && !firestoreSaved) {
+                try { await technicalEditor.rollbackSave(mediaSave); }
+                catch (cleanupError) { console.error('Falha ao limpar upload não confirmado:', cleanupError); }
+            }
             informarErro('Erro ao salvar relatório', erro);
         } finally {
             operacaoEmCurso = false;
             btn.disabled = false;
             btn.textContent = 'Salvar relatório';
+            technicalEditor.setLocked(false);
         }
     });
 }
