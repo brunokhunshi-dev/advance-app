@@ -3,7 +3,7 @@ import {pathToFileURL} from 'node:url';
 import {resolve} from 'node:path';
 import vm from 'node:vm';
 const root=pathToFileURL(resolve('.')+'/');
-const html=readFileSync(new URL('index.html',root),'utf8')+readFileSync(new URL('dashboard/index.html',root),'utf8');
+const html=readFileSync(new URL('index.html',root),'utf8');
 const elements=new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([,id])=>[id,{
     value:'',textContent:'',style:{},dataset:{},addEventListener(){},replaceChildren(){},removeAttribute(){}
 }]));
@@ -14,7 +14,7 @@ const context=vm.createContext({console,URL,Date,Intl,Map,Set,Promise,AbortContr
     document:{readyState:'loading',addEventListener(){},getElementById:id=>elements.get(id),querySelectorAll:()=>[]}
 });
 const remoteNames=new Set();
-for(const file of ['script.js','dashboard/dashboard.js']){
+for(const file of ['script.js']){
     const text=readFileSync(new URL(file,root),'utf8');
     for(const m of text.matchAll(/import\s*\{([^}]+)\}\s*from\s*["']https:\/\/www.gstatic.com[^"']+/g)){
         m[1].split(',').forEach(n=>remoteNames.add(n.trim()));
@@ -29,9 +29,9 @@ function moduleFor(url){
     return modules.get(url);
 }
 const linker=(specifier,ref)=>moduleFor(new URL(specifier,ref.identifier).href);
-for(const entry of ['script.js','dashboard/dashboard.js']){
+for(const entry of ['script.js']){
     const mod=moduleFor(new URL(entry,root).href);
     if(mod.status==='unlinked')await mod.link(linker);
     await mod.evaluate();
 }
-console.log('Both entrypoints evaluated with Firebase mocked; no production access.');
+console.log('App entrypoint evaluated with Firebase mocked; no production access.');

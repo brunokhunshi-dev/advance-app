@@ -1,17 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 import { configureMediaApi, mediaStore, compressImage, createThumbnail } from '../technical-report-editor.js';
 
 import { createClientRepository } from '../src/data/client-repository.js';
 import { obterIniciais } from '../src/domain/identifiers.js';
-const dashboardSource = readFileSync(new URL('../dashboard/dashboard.js', import.meta.url), 'utf8');
-function functionSource(source, name) {
-    const start = source.search(new RegExp(`(?:async )?function ${name}\\(`));
-    assert.notEqual(start, -1);
-    return source.slice(start, source.indexOf('\n}', start) + 2);
-}
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b; }); return {promise,resolve,reject}; };
 test('concurrent visits to the same client share one read', async () => {
     let reads=0; const request=deferred();
@@ -45,30 +37,6 @@ test('initials handle spaces and accents', () => {
     assert.equal(obterIniciais('Bruno Santos de Souza'),'BS');
     assert.equal(obterIniciais('Érica de Ávila'),'EA');
     assert.equal(obterIniciais(''),'XX');
-});
-
-test('dashboard date boundaries follow São Paulo even in a UTC runtime', () => {
-    const c=vm.createContext(); vm.runInContext(functionSource(dashboardSource,'parseInputDate'),c);
-    assert.equal(c.parseInputDate('2026-09-30').toISOString(),'2026-09-30T03:00:00.000Z');
-    assert.equal(c.parseInputDate('2026-09-30',true).toISOString(),'2026-10-01T02:59:59.999Z');
-});
-
-test('dashboard reads the correct report collection and ignores a closed modal response', async () => {
-    const pending=deferred(); let reference;
-    const elements=new Map();
-    const $=id => { if (!elements.has(id)) elements.set(id,{open:false}); return elements.get(id); };
-    const activity={id:'a1',client:{name:'Loja'},reportId:'r1',raw:{relatorioColecao:'relatorios_assistencia_tecnica'}};
-    const state={activities:[activity],modalVersion:1,sessionVersion:1};
-    const c=vm.createContext({state,$,db:{},DASHBOARD_CONFIG:{collections:{reports:'relatorios'}},
-        safeString:(v,f='')=>String(v||f),openModal:()=>{$('dashboard-modal').open=true;},
-        doc:(_,collection,id)=>(reference=[collection,id]),getDoc:()=>pending.promise});
-    vm.runInContext(functionSource(dashboardSource,'openActivityDetails'),c);
-    const result=c.openActivityDetails('a1');
-    assert.deepEqual(reference,['relatorios_assistencia_tecnica','r1']);
-    state.modalVersion++; $('dashboard-modal').open=false;
-    pending.resolve({exists:()=>true,data:()=>({verificacao:{constatacoes:'Relato'}})});
-    await result;
-    assert.equal($('modal-content').innerHTML,undefined);
 });
 
 test('failed parallel upload waits for the other PUT before deleting', async t => {

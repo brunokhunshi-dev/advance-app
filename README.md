@@ -1,22 +1,21 @@
 # Advance Check
 
-Aplicativo web de visitas comerciais, treinamentos e assistência técnica, com dashboard de acompanhamento. HTML/CSS e módulos JavaScript nativos, Firebase Auth/Firestore e serviço de mídia externo no Cloudflare R2.
+Aplicativo web de visitas comerciais, treinamentos e assistência técnica. HTML/CSS e módulos JavaScript nativos, Firebase Auth/Firestore e serviço de mídia externo no Cloudflare R2.
 
 ## Organização
 
 | Caminho | Responsabilidade |
 | --- | --- |
 | `index.html`, `script.js` | Telas e coordenação dos fluxos do aplicativo. |
-| `src/domain/` | Datas, identificadores, formatos de relatório, filtros de histórico e estatísticas. Funções independentes do Firebase e da interface. |
-| `src/data/` | Cache de clientes por sessão, consulta compatível de CNPJ e controle de concorrência. O acesso ao banco é recebido como função. |
+| `src/domain/` | Datas, identificadores, formatos de relatório, filtros de histórico. Funções independentes do Firebase e da interface. |
+| `src/data/` | Cache de clientes por sessão, consulta compatível de CNPJ. O acesso ao banco é recebido como função. |
 | `src/services/location.js` | GPS, precisão, distâncias e consultas de endereço. |
-| `src/ui/` | Formulário de assistência, visualizador/impressão, atualização de gráficos e interface de instalação do PWA. |
+| `src/ui/` | Formulário de assistência, visualizador/impressão e interface de instalação do PWA. |
 | `technical-report-editor.js` | Editor de blocos, compressão e integração com mídia. |
-| `dashboard/` | Interface de acompanhamento; realiza apenas leituras no Firestore. |
-| `firebase-config.js` | Configuração de conexão compartilhada, sem efeitos sobre a interface. |
+| `firebase-config.js` | Configuração de conexão do app, sem efeitos sobre a interface. |
 | `manifest.json`, `sw.js` | Identidade e cache do PWA. O registro do worker permanece no HTML, para permitir atualizações mesmo quando o JS está em cache. |
 | `midia/` | Logo e ícones efetivamente utilizados. |
-| `tools/` | Exportação de banco/schema e verificação de JavaScript. O schema é carregado sob demanda pelo botão existente. |
+| `tools/` | Exportação de banco e verificação de JavaScript. |
 | `tests/` | Testes de regressão e integração dos módulos com serviços simulados. |
 | `docs/` | Auditorias, decisões e documentação de mídia. |
 
@@ -31,10 +30,10 @@ O app precisa ser servido por HTTP/HTTPS, não aberto como arquivo local. Para d
 - Novos clientes com CNPJ usam `codigoCnpj` com o número real, conforme a correção da main. A busca também reconhece `cnpj` e o código hexadecimal antigo.
 - Relatórios antigos sem coleção explícita continuam sendo lidos em `relatorios`. Novos relatórios mantêm as coleções por tipo.
 - O modelo persistido de revisões e as regras do Firestore não são alterados por esta refatoração.
-- `firestore.indexes.json` define os índices do histórico e da consulta individual por período. Incorporar essas definições à configuração existente do projeto, preservando outros índices. Até a aplicação, as consultas individuais mantêm o fallback por profissional, que pode ler mais documentos.
+- `firestore.indexes.json` define os índices do histórico. Incorporar essas definições à configuração existente do projeto, preservando outros índices.
 
 ## Cache e publicação
 
-Ao mudar HTML, CSS ou módulos do app, atualizar `CACHE_NAME` em `sw.js`. Novos módulos locais utilizados pelo app/dashboard devem ser incluídos em `APP_SHELL`; os testes verificam os caminhos e a cobertura dos módulos. Firebase e bibliotecas externas continuam dependendo da rede/cache do navegador; não há garantia de login ou gravação offline.
+Ao mudar HTML, CSS ou módulos do app, atualizar `CACHE_NAME` em `sw.js`. Novos módulos locais utilizados pelo app devem ser incluídos em `APP_SHELL`; os testes verificam os caminhos e a cobertura dos módulos. Firebase e bibliotecas externas continuam dependendo da rede/cache do navegador; não há garantia de login ou gravação offline.
 
 Antes do merge, homologar no celular/PWA: troca de conta, cadastro por CNPJ, visita completa dos três tipos, imagens, descarte de edição, impressão e atualização de uma instalação existente. Os testes locais não substituem essa validação com Firebase/R2 e dispositivos reais.

@@ -303,13 +303,6 @@ function limparCadastroCliente() {
 // === INICIALIZAÇÃO E AUTENTICAÇÃO ===
 
 function inicializarAplicativo() {
-    document.getElementById('btn-exportar-schema')?.addEventListener('click', async () => {
-        try {
-            const { baixarSchemaAdvance } = await import('./tools/schema-exporter.js');
-            baixarSchemaAdvance();
-        } catch (erro) { informarErro('Erro ao exportar schema', erro); }
-    });
-
     // Alertas precisam continuar visíveis quando o app-container está oculto.
 
     ['modal-alerta-generico','modal-aviso-andamento','modal-confirmar-exclusao','modal-fechamento-manual'].forEach(id => {

@@ -3,15 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createClientRepository } from '../src/data/client-repository.js';
 import { createCnpjLookup } from '../src/data/cnpj-lookup.js';
-import { mapSettled } from '../src/data/concurrency.js';
 import { codigoCnpjLegado, cnpjValido } from '../src/domain/identifiers.js';
 import { dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, colecaoRelatorioDaAtividade, relatorioValidoParaCheckout } from '../src/domain/reports.js';
 import { aplicarFiltrosHistorico } from '../src/domain/history.js';
-import { calculateTeamStatistics } from '../src/domain/team-statistics.js';
 import { renderFichaAssistencia, preencherFormularioAssistencia, lerFormularioAssistencia } from '../src/ui/assistance.js';
 import { renderizarVisualizadorVisita, prepararImpressaoVisualizador } from '../src/ui/visit-view.js';
-import { updateChart } from '../src/ui/charts.js';
-import { ADVANCE_SCHEMA } from '../tools/schema-exporter.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 function mockDom(t) {
@@ -51,22 +47,6 @@ test('CNPJ lookup survives one denied format without hiding total failure', asyn
     const lookup=createCnpjLookup(async field=>{if(field==='codigoCnpj')throw Error('denied');return {empty:false};});
     assert.equal((await lookup('11222333000181')).empty,false);
     await assert.rejects(createCnpjLookup(async()=>{throw Error('offline');})('11222333000181'),/offline/);
-});
-
-test('client enrichment has bounded concurrency and does not truncate at 200', async () => {
-    let active=0,peak=0;
-    const results=await mapSettled(Array.from({length:250},(_,i)=>i),6,async i=>{
-        peak=Math.max(peak,++active);await new Promise(r=>setImmediate(r));active--;
-        if(i===100)throw Error('missing');return i;
-    });
-    assert.equal(results.length,250); assert.ok(peak<=6);
-    assert.equal(results[100].status,'rejected');assert.equal(results[249].value,249);
-});
-
-test('session cancellation stops scheduling new client requests',async()=>{
-    let current=true,calls=0;
-    await mapSettled([1,2,3,4],1,async()=>{calls++;current=false;},()=>current);
-    assert.equal(calls,1);
 });
 
 test('legacy report collections and structured assistance data remain compatible', () => {
@@ -113,32 +93,4 @@ test('viewer and print use explicit report/client/professional data', t => {
     assert.match(el.get('visu-at-relatorio-visual').innerHTML,/Relato correto/);
     assert.equal(el.get('pdf-tecnico').textContent,'Técnico A');
     assert.equal(el.get('pdf-at-constatacoes').textContent,'Relato correto');
-});
-
-test('dashboard computes team totals without DOM dependencies',()=>{
-    const professional={name:'A'};
-    const stats=calculateTeamStatistics([
-        {professionalId:'p',professional,status:'Concluída',type:'Treinamento',clientId:'c',durationMinutes:30},
-        {professionalId:'p',professional,status:'Pendente',type:'Visita comercial',clientId:'c'}
-    ]);
-    assert.equal(stats[0].total,2);assert.equal(stats[0].clientCount,1);
-    assert.equal(stats[0].completionRate,50);assert.equal(stats[0].averageDuration,30);
-});
-
-test('charts update in place while changed types are replaced',()=>{
-    let created=0,destroyed=0,updated=0;
-    class Chart {constructor(canvas,config){this.config=config;created++;}update(mode){assert.equal(mode,'none');updated++;}destroy(){destroyed++;}}
-    const charts={};const config={type:'bar',data:{labels:['A']},options:{}};
-    const first=updateChart(charts,'team',{},config,Chart);
-    assert.equal(updateChart(charts,'team',{},config,Chart),first);
-    assert.equal(created,1);assert.equal(updated,1);
-    updateChart(charts,'team',{}, {...config,type:'pie'},Chart);
-    assert.equal(created,2);assert.equal(destroyed,1);
-});
-
-test('schema documents current CNPJ fields and all report block formats',()=>{
-    assert.ok(ADVANCE_SCHEMA.collections.clientes.fields.cnpj);
-    for(const collection of ['relatorios_comerciais','relatorios_treinamentos','relatorios_assistencia_tecnica']){
-        assert.ok(ADVANCE_SCHEMA.collections[collection].fields.conteudoRelatorio);
-    }
 });

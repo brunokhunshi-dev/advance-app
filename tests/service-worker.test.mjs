@@ -20,12 +20,11 @@ function setup({cached,network,put=async()=>{}}={}) {
 test('every precached path exists in the checkout',async()=>{await setup().event('install');});
 test('activation deletes only old Advance caches',async()=>{const s=setup();await s.event('activate');assert.deepEqual(s.deleted,['advance-pwa-old']);assert.equal(s.claimed(),true);});
 test('versioned static URL uses precached asset without network',async()=>{const s=setup({cached:new Response('cached')});assert.equal(await(await s.request('/script.js?v=v12')).text(),'cached');assert.equal(s.fetches(),0);});
-test('offline dashboard keeps its own HTML',async()=>{const s=setup({cached:new Response('dashboard'),network:Error('offline')});assert.equal(await(await s.request('/dashboard/','navigate')).text(),'dashboard');});
 test('cache quota failure does not discard a network response',async()=>{const s=setup({network:new Response('fresh'),put:async()=>{throw Error('quota');}});assert.equal(await(await s.request('/index.html','navigate')).text(),'fresh');});
 test('offline cache miss returns a Response, not undefined',async()=>{const s=setup({network:Error('offline')});assert.equal((await s.request('/script.js')).status,503);});
 test('APIs and uploads are not intercepted or cached',()=>{const s=setup();assert.equal(s.request('/api/private'),undefined);assert.equal(s.request('/uploads/photo.jpg'),undefined);});
 
-test('all app/dashboard local module dependencies are precached, including lazy schema', async () => {
+test('all app local module dependencies are precached', async () => {
     const paths = new Set([...source.matchAll(/['"]\.\/([^'"]+)['"]/g)].map(([,path])=>path));
     const visited = new Set();
     function walk(relative) {
@@ -40,5 +39,5 @@ test('all app/dashboard local module dependencies are precached, including lazy 
             walk(target.pathname.slice(root.pathname.length));
         }
     }
-    walk('script.js');walk('dashboard/dashboard.js');
+    walk('script.js');
 });
