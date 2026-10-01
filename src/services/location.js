@@ -51,16 +51,34 @@ export async function obterEnderecoPorCoords(lat, lng) {
 
 }
 
+// Recebe os campos separados para evitar que o bairro seja interpretado como rua.
 export async function obterCoordsPorEndereco(endereco) {
-
+    const params = new URLSearchParams({ format: 'jsonv2', countrycodes: 'br', limit: '1', addressdetails: '1' });
+    if (typeof endereco === 'string') {
+        params.set('q', endereco);
+    } else {
+        const rua = String(endereco?.logradouro || '').trim();
+        const numero = String(endereco?.numero || '').trim();
+        const cidade = String(endereco?.cidade || '').trim();
+        const uf = String(endereco?.uf || '').trim();
+        if (!rua || !numero || !cidade || !uf) return null;
+        params.set('street', `${numero} ${rua}`);
+        params.set('city', cidade);
+        params.set('state', uf);
+        params.set('country', 'Brasil');
+    }
+    let data;
     try {
-
-        const data = await buscarJson(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&q=${encodeURIComponent(endereco)}&limit=1`);
-
-        if(data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }; return null;
-
-    } catch(e) { return null; }
-
+        data = await buscarJson(`https://nominatim.openstreetmap.org/search?${params}`);
+    } catch (erro) {
+        throw new Error('O serviço de localização está indisponível. Tente salvar novamente em alguns instantes.', { cause: erro });
+    }
+    if (!Array.isArray(data)) throw new Error('O serviço de localização retornou uma resposta inválida. Tente novamente.');
+    const resultado = data[0];
+    if (!resultado || !coordenadasValidas(resultado.lat, resultado.lon)) return null;
+    // Uma cidade, bairro ou CEP não representa a posição da loja para check-in.
+    if (['city', 'town', 'village', 'municipality', 'administrative', 'suburb', 'postcode'].includes(resultado.addresstype)) return null;
+    return { lat: Number(resultado.lat), lng: Number(resultado.lon) };
 }
 
 export function calcularDistancia(lat1, lon1, lat2, lon2) {

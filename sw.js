@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-cleanup-v13';
+const CACHE_NAME = 'advance-pwa-geocoding-v14';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',

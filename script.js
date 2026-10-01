@@ -1482,6 +1482,8 @@ function configurarTelaCadastroCliente() {
 
     const valoresEndereco = () => ['cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].map(id => campo(id).value.trim()).join(', ');
 
+    const enderecoParaCoordenadas = () => ({ logradouro: campo('cc-endereco').value.trim(), numero: campo('cc-numero').value.trim(), cidade: campo('cc-cidade').value.trim(), uf: campo('cc-uf').value.trim().toUpperCase() });
+
     const mostrarMapa = endereco => {
 
         campo('mapa-iframe').src = `https://maps.google.com/maps?q=${encodeURIComponent(endereco)}&output=embed`;
@@ -1555,7 +1557,7 @@ function configurarTelaCadastroCliente() {
 
             const ids = ['cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'];
 
-            const valores = [dados.nome_fantasia || dados.razao_social || '', String(dados.cep || '').replace(/\D/g,''), dados.logradouro || '', dados.numero || '', dados.bairro || '', dados.municipio || '', dados.uf || ''];
+            const valores = [dados.nome_fantasia || dados.razao_social || '', String(dados.cep || '').replace(/\D/g,''), [dados.descricao_tipo_de_logradouro, dados.logradouro].filter(Boolean).join(' ').trim(), dados.numero || '', dados.bairro || '', dados.municipio || '', dados.uf || ''];
 
             if (enderecoVersao === versaoConsultaEndereco && ids.every((id,i) => campo(id).value === valoresAntes[i])) {
 
@@ -1670,7 +1672,7 @@ function configurarTelaCadastroCliente() {
 
                 } else {
 
-                    const coords = await obterCoordsPorEndereco(enderecoCompleto);
+                    const coords = await obterCoordsPorEndereco(enderecoParaCoordenadas());
 
                     exigirSessao(sessao);
 
@@ -1694,7 +1696,7 @@ function configurarTelaCadastroCliente() {
                 }
             } else {
                 // Sem CNPJ: ID aleatório e cadastro provisório, sem tentativa de detectar duplicidade.
-                const coords = await obterCoordsPorEndereco(enderecoCompleto);
+                const coords = await obterCoordsPorEndereco(enderecoParaCoordenadas());
                 exigirSessao(sessao);
                 if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
 
