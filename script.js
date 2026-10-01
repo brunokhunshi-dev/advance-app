@@ -1149,11 +1149,31 @@ function formatarDataAgenda(data) {
 function codigoCnpjLegado(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
 
 async function buscarClientePorCnpj(cnpjPuro) {
-    let snap = await getDocs(query(collection(db, 'clientes'), where('cnpj', '==', cnpjPuro)));
-    if (snap.empty) {
-        snap = await getDocs(query(collection(db, 'clientes'), where('codigoCnpj', '==', codigoCnpjLegado(cnpjPuro))));
+    const consultas = [
+        ['codigoCnpj', cnpjPuro],
+        ['cnpj', cnpjPuro],
+        ['codigoCnpj', codigoCnpjLegado(cnpjPuro)]
+    ];
+
+    let ultimoSnap = null;
+    let ultimoErro = null;
+
+    for (const [campoCnpj, valor] of consultas) {
+        try {
+            const snap = await getDocs(
+                query(collection(db, 'clientes'), where(campoCnpj, '==', valor))
+            );
+            ultimoSnap = snap;
+            if (!snap.empty) return snap;
+        } catch (erro) {
+            ultimoErro = erro;
+            console.warn('Consulta de CNPJ por ' + campoCnpj + ' indisponível:', erro);
+        }
     }
-    return snap;
+
+    if (ultimoSnap) return ultimoSnap;
+    if (ultimoErro) throw ultimoErro;
+    throw new Error('Não foi possível consultar a base de clientes.');
 }
 
 
@@ -2579,7 +2599,7 @@ function configurarTelaCadastroCliente() {
                             return { nome: atual.data().nome || nome, localizado: true };
                         }
                         const agora = new Date();
-                        tx.set(ref, { cnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
+                        tx.set(ref, { codigoCnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
                             lat: Number(coords.lat), lng: Number(coords.lng), status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
                         return { nome, localizado: false };
                     });
