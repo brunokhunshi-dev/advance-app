@@ -1,10 +1,23 @@
-const CACHE_NAME = 'advance-pwa-audit-v12';
+const CACHE_NAME = 'advance-pwa-cleanup-v13';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
-  './manifest.json', './manifest.webmanifest', './schema-exporter.js',
+  './manifest.json', './tools/schema-exporter.js',
   './midia/logo-advancecheck.svg', './midia/iconspwa/favicon.svg',
   './midia/iconspwa/advancecheck192.png', './midia/iconspwa/advancecheck512.png',
+  './src/data/client-repository.js',
+  './src/data/cnpj-lookup.js',
+  './src/data/concurrency.js',
+  './src/domain/formatters.js',
+  './src/domain/history.js',
+  './src/domain/identifiers.js',
+  './src/domain/reports.js',
+  './src/domain/team-statistics.js',
+  './src/services/location.js',
+  './src/ui/assistance.js',
+  './src/ui/charts.js',
+  './src/ui/pwa.js',
+  './src/ui/visit-view.js',
   './dashboard/', './dashboard/index.html', './dashboard/dashboard.js', './dashboard/dashboard.css'
 ];
 const SHELL_URLS = new Set(APP_SHELL.map(path => new URL(path, self.location.href).href));

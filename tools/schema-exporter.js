@@ -2,7 +2,7 @@
 // Este arquivo não acessa nem exporta documentos do Firebase.
 // O schema abaixo descreve a estrutura usada pelo aplicativo.
 
-const ADVANCE_SCHEMA = {
+export const ADVANCE_SCHEMA = {
     schemaVersion: "1.0",
     database: "Cloud Firestore",
     generatedBy: "Advance Check",
@@ -31,7 +31,8 @@ const ADVANCE_SCHEMA = {
         clientes: {
             documentId: "string",
             fields: {
-                codigoCnpj: { type: "string | null", required: false, usage: "identificação por CNPJ" },
+                codigoCnpj: { type: "string | null", required: false, usage: "CNPJ real nos novos cadastros; código nos registros legados" },
+                cnpj: { type: "string | null", required: false, usage: "CNPJ real em registros de versões anteriores" },
                 nome: { type: "string", required: true },
                 cidade: { type: "string", required: true },
                 uf: { type: "string", required: true },
@@ -148,6 +149,13 @@ const ADVANCE_SCHEMA = {
                 ptvId: { type: "string", required: true },
                 tipoVisita: { type: "string", required: true, enum: ["Visita comercial"] },
                 codigo: { type: "string", required: true },
+                conteudoRelatorio: {
+                    type: "object", required: false,
+                    fields: {
+                        versao: { type: "number", enum: [1] },
+                        blocos: { type: "array<object>", note: "Blocos de texto e mídia na ordem do relatório; mídia contém id, name, type, size, storage, key e thumbnailKey. URLs assinadas não são persistidas." }
+                    }
+                },
                 textoAtual: { type: "string", required: true },
                 historico: { type: "array<object>", required: true },
                 objetivo: { type: "string", required: false, conditional: "após check-out" },
@@ -170,6 +178,13 @@ const ADVANCE_SCHEMA = {
                 ptvId: { type: "string", required: true },
                 tipoVisita: { type: "string", required: true, enum: ["Treinamento"] },
                 codigo: { type: "string", required: true },
+                conteudoRelatorio: {
+                    type: "object", required: false,
+                    fields: {
+                        versao: { type: "number", enum: [1] },
+                        blocos: { type: "array<object>", note: "Blocos de texto e mídia na ordem do relatório; mídia contém id, name, type, size, storage, key e thumbnailKey. URLs assinadas não são persistidas." }
+                    }
+                },
                 textoAtual: { type: "string", required: true },
                 historico: { type: "array<object>", required: true },
                 categoriaTreinamento: { type: "string", required: false, conditional: "após check-out" },
@@ -193,6 +208,13 @@ const ADVANCE_SCHEMA = {
                 ptvId: { type: "string", required: true },
                 tipoVisita: { type: "string", required: true, enum: ["Assistência técnica"] },
                 codigo: { type: "string", required: true },
+                conteudoRelatorio: {
+                    type: "object", required: false,
+                    fields: {
+                        versao: { type: "number", enum: [1] },
+                        blocos: { type: "array<object>", note: "Blocos de texto e mídia na ordem do relatório; mídia contém id, name, type, size, storage, key e thumbnailKey. URLs assinadas não são persistidas." }
+                    }
+                },
 
                 clienteAplicacao: {
                     type: "object",
@@ -284,7 +306,6 @@ const ADVANCE_SCHEMA = {
         atividades_excluidas: {
             documentId: "string",
             fields: {
-                ...{}, 
                 excluidoEm: { type: "timestamp", required: true },
                 excluidoPor: { type: "string", required: true },
                 note: "Os demais campos são uma cópia do documento correspondente da coleção 'atividades'."
@@ -293,7 +314,7 @@ const ADVANCE_SCHEMA = {
     }
 };
 
-function baixarSchemaAdvance() {
+export function baixarSchemaAdvance() {
     const schema = {
         ...ADVANCE_SCHEMA,
         exportedAt: new Date().toISOString()
@@ -321,16 +342,3 @@ function baixarSchemaAdvance() {
     }
 }
 
-function inicializarExportadorSchema() {
-    const botao = document.getElementById("btn-exportar-schema");
-    if (!botao || botao.dataset.schemaReady === "true") return;
-
-    botao.dataset.schemaReady = "true";
-    botao.addEventListener("click", baixarSchemaAdvance);
-}
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", inicializarExportadorSchema, { once: true });
-} else {
-    inicializarExportadorSchema();
-}

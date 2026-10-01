@@ -1,11 +1,11 @@
 {
-  "name": "advance-app-firestore-tools",
+  "name": "advance-check",
   "private": true,
   "type": "module",
   "scripts": {
     "export:firestore": "node tools/export-firestore.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check script.js && node --check dashboard/dashboard.js && node --check technical-report-editor.js && node --check sw.js && node --check firebase-config.js"
+    "check": "node tools/check-js.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.5.0"

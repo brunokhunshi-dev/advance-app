@@ -24,3 +24,21 @@ test('offline dashboard keeps its own HTML',async()=>{const s=setup({cached:new 
 test('cache quota failure does not discard a network response',async()=>{const s=setup({network:new Response('fresh'),put:async()=>{throw Error('quota');}});assert.equal(await(await s.request('/index.html','navigate')).text(),'fresh');});
 test('offline cache miss returns a Response, not undefined',async()=>{const s=setup({network:Error('offline')});assert.equal((await s.request('/script.js')).status,503);});
 test('APIs and uploads are not intercepted or cached',()=>{const s=setup();assert.equal(s.request('/api/private'),undefined);assert.equal(s.request('/uploads/photo.jpg'),undefined);});
+
+test('all app/dashboard local module dependencies are precached, including lazy schema', async () => {
+    const paths = new Set([...source.matchAll(/['"]\.\/([^'"]+)['"]/g)].map(([,path])=>path));
+    const visited = new Set();
+    function walk(relative) {
+        if(visited.has(relative))return;
+        visited.add(relative);
+        assert.ok(paths.has(relative),`Not precached: ${relative}`);
+        const url = new URL('../'+relative,import.meta.url);
+        const code=readFileSync(url,'utf8');
+        for(const match of code.matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["'](\.[^"']+)["']/g)) {
+            const target=new URL(match[1],url);
+            const root=new URL('../',import.meta.url);
+            walk(target.pathname.slice(root.pathname.length));
+        }
+    }
+    walk('script.js');walk('dashboard/dashboard.js');
+});

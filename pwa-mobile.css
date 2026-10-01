@@ -1,4 +1,4 @@
-/* Camada mobile-first carregada junto com a configuração do Firebase. */
+/* Ajustes de viewport e controles do aplicativo móvel. */
 :root {
   --mobile-gutter: clamp(16px, 5vw, 28px);
   --safe-bottom: max(20px, env(safe-area-inset-bottom));
@@ -32,7 +32,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .nav-item { min-width: 64px; min-height: 56px; gap: 3px; color: #697080; }
 .nav-item.active { color: var(--color-red); }
 .nav-item svg { width: 22px; height: 22px; }
-.fab-nova-visita { right: var(--mobile-gutter); bottom: calc(78px + var(--safe-bottom)); min-height: 52px; box-shadow: none; }
+.fab-nova-visita { right: var(--mobile-gutter); bottom: calc(78px + var(--safe-bottom)); box-shadow: none; }
 
 .tela-fullscreen { min-height: 100dvh; height: 100dvh; overflow-y: auto; padding: max(32px, env(safe-area-inset-top)) var(--mobile-gutter) var(--safe-bottom); }
 .titulo-confirmacao { font-size: clamp(1.7rem, 8vw, 2.2rem); margin-bottom: 28px; }
@@ -66,3 +66,10 @@ button:disabled { opacity: .6; cursor: wait; }
 .input-date, .input-time { background-position: right 16px center; }
 .row-inputs > .input-date, .row-inputs > .input-time { min-width: 0; }
 .radio-label, .checkout-radio-label { min-height: 30px; }
+
+.pwa-install-button {
+  position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+  padding: 13px 18px; border: 0; border-radius: 999px;
+  background: #F51E30; color: #fff; font-weight: 700;
+  box-shadow: none; cursor: pointer;
+}

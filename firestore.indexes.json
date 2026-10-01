@@ -4,9 +4,32 @@
       "collectionGroup": "atividades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ptvId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "data", "order": "DESCENDING" }
+        {
+          "fieldPath": "ptvId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "atividades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ptvId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

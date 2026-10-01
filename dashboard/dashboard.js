@@ -1,3 +1,6 @@
+import { mapSettled } from '../src/data/concurrency.js';
+import { updateChart } from '../src/ui/charts.js';
+import { calculateTeamStatistics } from '../src/domain/team-statistics.js';
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 import {
     getAuth,
@@ -22,14 +25,7 @@ import {
  * Dashboard independente do aplicativo principal.
  * Este arquivo realiza apenas leituras no Firebase/Firestore.
  */
-const firebaseConfig = Object.freeze({
-    apiKey: "AIzaSyAMDeRB1ZOOP919gcbcOoFGAsy6dNy7zS8",
-    authDomain: "banco-de-dados-monitor.firebaseapp.com",
-    projectId: "banco-de-dados-monitor",
-    storageBucket: "banco-de-dados-monitor.firebasestorage.app",
-    messagingSenderId: "248039911306",
-    appId: "1:248039911306:web:188ffff179b3ffb3ace273"
-});
+import { firebaseConfig } from '../firebase-config.js';
 
 const DASHBOARD_CONFIG = Object.freeze({
     locale: "pt-BR",
@@ -79,10 +75,10 @@ const state = {
     canSeeAll: false,
     professionals: [],
     professionalMap: new Map(),
-    clients: [],
     clientMap: new Map(),
     activities: [],
     filteredActivities: [],
+    teamStats: [],
     charts: {},
     map: null,
     mapLayers: [],
@@ -429,10 +425,10 @@ function resetStateForSession() {
     state.canSeeAll = false;
     state.professionals = [];
     state.professionalMap = new Map();
-    state.clients = [];
     state.clientMap = new Map();
     state.activities = [];
     state.filteredActivities = [];
+    state.teamStats = [];
     state.loadedRange = null;
     state.activitiesLoading = false;
     state.currentPage = 1;
@@ -548,10 +544,15 @@ async function readCollectionSafely(collectionName) {
 async function loadReferenceData(sessionVersion) {
     setLoading(true, "Carregando equipe e clientes...");
 
-    const [promoters, assistance, clients] = await Promise.all([
+    if (!state.canSeeAll) {
+        state.professionals = [state.profile];
+        state.professionalMap = new Map([[state.profile.id, state.profile]]);
+        populateProfessionalFilter();
+        return;
+    }
+    const [promoters, assistance] = await Promise.all([
         readCollectionSafely(DASHBOARD_CONFIG.collections.promoters),
-        readCollectionSafely(DASHBOARD_CONFIG.collections.technicalAssistance),
-        readCollectionSafely(DASHBOARD_CONFIG.collections.clients)
+        readCollectionSafely(DASHBOARD_CONFIG.collections.technicalAssistance)
     ]);
 
     if (sessionVersion !== state.sessionVersion) return;
@@ -569,15 +570,8 @@ async function loadReferenceData(sessionVersion) {
         new Map(professionals.map(person => [person.id, person])).values()
     ).sort((first, second) => first.name.localeCompare(second.name, DASHBOARD_CONFIG.locale));
 
-    state.professionals = state.canSeeAll
-        ? uniqueProfessionals
-        : uniqueProfessionals.filter(person => person.id === state.profile.id);
+    state.professionals = uniqueProfessionals;
     state.professionalMap = new Map(uniqueProfessionals.map(person => [person.id, person]));
-
-    state.clients = clients
-        .map(item => normalizeClient(item.data, item.id))
-        .sort((first, second) => first.name.localeCompare(second.name, DASHBOARD_CONFIG.locale));
-    state.clientMap = new Map(state.clients.map(client => [client.id, client]));
 
     populateProfessionalFilter();
 }
@@ -612,14 +606,14 @@ async function loadMissingClients(activities, sessionVersion) {
         activities
             .map(activity => activity.clienteId)
             .filter(id => id && !state.clientMap.has(id))
-    )].slice(0, 200);
+    )];
 
     if (!missingIds.length) return;
 
-    const results = await Promise.allSettled(missingIds.map(async id => {
+    const results = await mapSettled(missingIds, 6, async id => {
         const snapshot = await getDoc(doc(db, DASHBOARD_CONFIG.collections.clients, id));
         return snapshot.exists() ? normalizeClient(snapshot.data(), snapshot.id) : null;
-    }));
+    }, () => sessionVersion === state.sessionVersion);
 
     if (sessionVersion !== state.sessionVersion) return;
 
@@ -670,12 +664,23 @@ async function loadActivities({ silent = false } = {}) {
         } else {
             activityQuery = query(
                 collection(db, DASHBOARD_CONFIG.collections.activities),
-                where("ptvId", "==", state.profile.id)
+                where("ptvId", "==", state.profile.id),
+                where("data", ">=", range.start),
+                where("data", "<=", range.end),
+                orderBy("data", "desc"),
+                limit(DASHBOARD_CONFIG.maximumRecords + 1)
             );
         }
 
-        // Never download the entire collection as an implicit fallback.
-        const snapshot = await getDocs(activityQuery);
+        let snapshot;
+        try {
+            snapshot = await getDocs(activityQuery);
+        } catch (error) {
+            if (state.canSeeAll || error?.code !== 'failed-precondition') throw error;
+            // Compatibility until the ptvId/data index is deployed; never broaden ownership.
+            console.warn('Índice individual indisponível; consulte firestore.indexes.json.');
+            snapshot = await getDocs(query(collection(db, DASHBOARD_CONFIG.collections.activities), where('ptvId', '==', state.profile.id)));
+        }
 
         if (sessionVersion !== state.sessionVersion) return;
 
@@ -759,6 +764,7 @@ function applyFilters({ resetPage = false } = {}) {
     });
 
     if (resetPage) state.currentPage = 1;
+    state.teamStats = calculateTeamStatistics(state.filteredActivities, DASHBOARD_CONFIG.locale);
     renderDashboard();
 }
 
@@ -877,11 +883,11 @@ function renderCharts() {
 }
 
 function renderEvolutionChart() {
-    destroyChart("evolution");
     const empty = $("grafico-evolucao-vazio");
     const canvas = $("grafico-evolucao");
 
     if (!state.filteredActivities.length) {
+        destroyChart("evolution");
         canvas.hidden = true;
         empty.hidden = false;
         return;
@@ -912,7 +918,7 @@ function renderEvolutionChart() {
     options.scales.x.ticks.autoSkip = true;
     options.scales.x.ticks.maxTicksLimit = 16;
 
-    state.charts.evolution = new window.Chart(canvas, {
+    updateChart(state.charts, "evolution", canvas, {
         type: "bar",
         data: {
             labels: ordered.map(item => formatCompactDate(item.date)),
@@ -941,15 +947,15 @@ function renderEvolutionChart() {
             ]
         },
         options
-    });
+    }, window.Chart);
 }
 
 function renderStatusChart() {
-    destroyChart("status");
     const empty = $("grafico-status-vazio");
     const canvas = $("grafico-status");
 
     if (!state.filteredActivities.length) {
+        destroyChart("status");
         canvas.hidden = true;
         empty.hidden = false;
         return;
@@ -969,7 +975,7 @@ function renderStatusChart() {
         if (!labels.includes(status)) labels.push(status);
     }
 
-    state.charts.status = new window.Chart(canvas, {
+    updateChart(state.charts, "status", canvas, {
         type: "doughnut",
         data: {
             labels,
@@ -1005,61 +1011,17 @@ function renderStatusChart() {
                 }
             }
         }
-    });
+    }, window.Chart);
 }
 
-function teamStatistics() {
-    const stats = new Map();
-
-    for (const activity of state.filteredActivities) {
-        const id = activity.professionalId || "sem-profissional";
-        if (!stats.has(id)) {
-            stats.set(id, {
-                id,
-                professional: activity.professional,
-                total: 0,
-                completed: 0,
-                inProgress: 0,
-                pending: 0,
-                trainings: 0,
-                clients: new Set(),
-                durations: [],
-                lastActivity: null
-            });
-        }
-
-        const item = stats.get(id);
-        item.total += 1;
-        if (activity.status === "Concluída") item.completed += 1;
-        else if (activity.status === "Em andamento") item.inProgress += 1;
-        else if (activity.status === "Pendente") item.pending += 1;
-        if (normalizeText(activity.type).includes("treinamento")) item.trainings += 1;
-        if (activity.clientId) item.clients.add(activity.clientId);
-        if (Number.isFinite(activity.durationMinutes)) item.durations.push(activity.durationMinutes);
-        if (!item.lastActivity || (activity.scheduledAt?.getTime() || 0) > (item.lastActivity.scheduledAt?.getTime() || 0)) {
-            item.lastActivity = activity;
-        }
-    }
-
-    return [...stats.values()]
-        .map(item => ({
-            ...item,
-            clientCount: item.clients.size,
-            completionRate: item.total ? Math.round((item.completed / item.total) * 100) : 0,
-            averageDuration: item.durations.length
-                ? Math.round(item.durations.reduce((sum, value) => sum + value, 0) / item.durations.length)
-                : null
-        }))
-        .sort((first, second) => second.total - first.total || second.completed - first.completed || first.professional.name.localeCompare(second.professional.name));
-}
 
 function renderTeamChart() {
-    destroyChart("team");
     const empty = $("grafico-equipe-vazio");
     const canvas = $("grafico-equipe");
-    const stats = teamStatistics().slice(0, 12);
+    const stats = state.teamStats.slice(0, 12);
 
     if (!stats.length) {
+        destroyChart("team");
         canvas.hidden = true;
         empty.hidden = false;
         return;
@@ -1079,7 +1041,7 @@ function renderTeamChart() {
     };
     options.plugins.legend.display = false;
 
-    state.charts.team = new window.Chart(canvas, {
+    updateChart(state.charts, "team", canvas, {
         type: "bar",
         data: {
             labels: stats.map(item => item.professional.name),
@@ -1092,7 +1054,7 @@ function renderTeamChart() {
             }]
         },
         options
-    });
+    }, window.Chart);
 }
 
 function initializeMap() {
@@ -1320,7 +1282,7 @@ function openGoogleRoute() {
 function renderRanking() {
     const container = $("ranking-equipe");
     const empty = $("ranking-vazio");
-    const stats = teamStatistics();
+    const stats = state.teamStats;
     container.replaceChildren();
 
     if (!stats.length) {
@@ -1502,7 +1464,7 @@ async function openActivityDetails(activityId) {
 
 function openProfessionalProfile(professionalId) {
     const professional = state.professionalMap.get(professionalId) || state.profile;
-    const stats = teamStatistics().find(item => item.id === professionalId) || {
+    const stats = state.teamStats.find(item => item.id === professionalId) || {
         total: 0,
         completed: 0,
         trainings: 0,

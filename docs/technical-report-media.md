@@ -1,6 +1,6 @@
 # Relatórios com mídias — Cloudflare R2
 
-Branch: `teste/relatorio-tecnico-midias`.
+Implementação: `technical-report-editor.js`. Configuração de instalação: `src/ui/pwa.js`.
 
 ## Arquitetura atual
 
@@ -38,4 +38,4 @@ O relatório recupera `conteudoRelatorio.blocos` do Firestore. Para mídias, a m
 - Visita comercial e treinamento continuam usando `textoAtual`.
 - Relatórios antigos sem `conteudoRelatorio` continuam sendo exibidos apenas como texto.
 - PDF continua textual nesta etapa.
-- Limite do editor: 20 arquivos por relatório e 100 MB por arquivo.
+- Limite do editor: 20 imagens por relatório; cada imagem original pode ter até 25 MB. O app comprime para um alvo de 200 KB, com máximo de 300 KB na saída, e gera uma thumbnail JPEG de 96 × 96 px. Vídeos e áudios antigos ainda podem ser visualizados, mas não são aceitos na inclusão atual.

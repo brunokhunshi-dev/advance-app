@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { configureMediaApi, mediaStore, compressImage, createThumbnail } from '../technical-report-editor.js';
 
-const appSource = readFileSync(new URL('../script.js', import.meta.url), 'utf8');
+import { createClientRepository } from '../src/data/client-repository.js';
+import { obterIniciais } from '../src/domain/identifiers.js';
 const dashboardSource = readFileSync(new URL('../dashboard/dashboard.js', import.meta.url), 'utf8');
 function functionSource(source, name) {
     const start = source.search(new RegExp(`(?:async )?function ${name}\\(`));
@@ -12,51 +13,38 @@ function functionSource(source, name) {
     return source.slice(start, source.indexOf('\n}', start) + 2);
 }
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b; }); return {promise,resolve,reject}; };
-function clientContext(getDoc) {
-    const context = vm.createContext({ getDoc, doc: (...args) => args, db: {} });
-    vm.runInContext('const cacheClientes = new Map(); const consultasClientes = new Map(); let versaoSessao = 1;', context);
-    vm.runInContext(functionSource(appSource, 'obterCliente'), context);
-    return context;
-}
-
-test('concurrent visits to the same client share one Firestore read', async () => {
+test('concurrent visits to the same client share one read', async () => {
     let reads=0; const request=deferred();
-    const c=clientContext(() => { reads++; return request.promise; });
-    const a=c.obterCliente('c1'), b=c.obterCliente('c1');
+    const repo=createClientRepository(() => { reads++; return request.promise; });
+    const a=repo.get('c1'), b=repo.get('c1');
     assert.equal(a,b);
-    request.resolve({exists:()=>true,id:'c1',data:()=>({nome:'Loja',id:'wrong'})});
+    request.resolve({id:'c1',nome:'Loja'});
     assert.equal((await a).id,'c1');
-    await c.obterCliente('c1');
-    assert.equal(reads,1);
+    await repo.get('c1'); assert.equal(reads,1);
 });
 
-test('stale client response cannot fill a new session cache or remove its pending read', async () => {
+test('old session cannot repopulate cache or remove the new pending read', async () => {
     const old=deferred(), current=deferred(); let reads=0;
-    const c=clientContext(() => (++reads === 1 ? old : current).promise);
-    const first=c.obterCliente('c1');
-    vm.runInContext('++versaoSessao; cacheClientes.clear(); consultasClientes.clear();',c);
-    const second=c.obterCliente('c1');
-    old.resolve({exists:()=>true,id:'c1',data:()=>({nome:'Old'})}); await first;
-    assert.equal(vm.runInContext('cacheClientes.size',c),0);
-    assert.equal(c.obterCliente('c1'),second);
-    current.resolve({exists:()=>true,id:'c1',data:()=>({nome:'New'})});
-    assert.equal((await second).nome,'New');
+    const repo=createClientRepository(() => (++reads === 1 ? old : current).promise);
+    const first=repo.get('c1'); await Promise.resolve();
+    repo.clear(); const second=repo.get('c1');
+    old.resolve({nome:'Old'}); await first;
+    assert.equal(repo.get('c1'),second);
+    current.resolve({nome:'New'}); await second;
+    assert.equal((await repo.get('c1')).nome,'New');
 });
 
 test('failed client read can be retried', async () => {
     let reads=0;
-    const c=clientContext(async () => { if (++reads===1) throw Error('offline'); return {exists:()=>false}; });
-    await assert.rejects(c.obterCliente('c1'));
-    assert.equal(await c.obterCliente('c1'),null);
-    assert.equal(reads,2);
+    const repo=createClientRepository(async () => { if (++reads===1) throw Error('offline'); return null; });
+    await assert.rejects(repo.get('c1'));
+    assert.equal(await repo.get('c1'),null); assert.equal(reads,2);
 });
 
 test('initials handle spaces and accents', () => {
-    const c=vm.createContext();
-    vm.runInContext("const PARTICULAS_NOME = new Set(['da','das','de','do','dos','e']);"+functionSource(appSource,'obterIniciais'),c);
-    assert.equal(c.obterIniciais('Bruno Santos de Souza'),'BS');
-    assert.equal(c.obterIniciais('Érica de Ávila'),'EA');
-    assert.equal(c.obterIniciais(''),'XX');
+    assert.equal(obterIniciais('Bruno Santos de Souza'),'BS');
+    assert.equal(obterIniciais('Érica de Ávila'),'EA');
+    assert.equal(obterIniciais(''),'XX');
 });
 
 test('dashboard date boundaries follow São Paulo even in a UTC runtime', () => {

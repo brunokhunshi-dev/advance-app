@@ -1,5 +1,7 @@
 # Auditoria do Advance Check — 30/09/2026
 
+Registro da primeira etapa. Para as alterações posteriores e o estado atual, consulte [refatoracao-2026-10-01.md](refatoracao-2026-10-01.md).
+
 Base: `b558cf94dd29c29a3bf401b07a72f14cdad020d7` da main. Branch: `fix/auditoria-otimizacao-app`.
 
 ## Correções implementadas

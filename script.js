@@ -1,4 +1,15 @@
-import { TechnicalReportEditor, reportMarkup, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js?v=audit-12';
+import { createCnpjLookup } from './src/data/cnpj-lookup.js';
+import './src/ui/pwa.js';
+import { escaparHtml, tempoData, lerDataHora, formatarDataHoraPT, formatarDataAgenda, formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, serializarEstavel } from './src/domain/formatters.js';
+import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, gerarIdClienteProvisorio, cnpjValido } from './src/domain/identifiers.js';
+import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao } from './src/domain/reports.js';
+import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
+import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
+import { buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia, validarPrecisaoGps } from './src/services/location.js';
+import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
+import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
+import { createClientRepository } from './src/data/client-repository.js';
+import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js';
 let technicalEditor;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
@@ -8,8 +19,6 @@ import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFro
 
 import { firebaseConfig } from './firebase-config.js';
 
-
-
 const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
@@ -17,14 +26,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 configureMediaApi({
-    baseUrl: 'https://advance-media-api.brunokhunshi.workers.dev',
     getIdToken: async () => {
         if (!auth.currentUser) throw new Error('Entre novamente para acessar os arquivos.');
         return auth.currentUser.getIdToken();
     }
 });
-
-
 
 // Variáveis Globais de Gestão de Estado
 
@@ -33,8 +39,6 @@ let idUsuarioLogado = null;
 let nomeUsuarioLogado = null;
 
 let perfilUsuarioLogado = null;
-
-
 
 let atividadeSelecionadaId = null;
 
@@ -50,14 +54,15 @@ let objetoRelatorioGlobal = null;
 let checkoutPendenteGlobal = null;
 let fechamentoManualPendente = null; 
 
-
-
 let listaClientes = [];
 let clientesAutocompleteCarregados = false;
-const cacheClientes = new Map();
-const consultasClientes = new Map();
+const clientesRepository = createClientRepository(async clienteId => {
+    const snap = await getDoc(doc(db, 'clientes', clienteId));
+    return snap.exists() ? { ...snap.data(), id: snap.id } : null;
+});
+const obterCliente = clientesRepository.get;
 let historicoCarregado = null;
-const GPS_ACCURACY_MAX_METERS = 150;
+let clienteVisualizadorAtual = null;
 
 let listaAtividadesAgenda = []; // Nova lista para edição de visitas
 
@@ -66,8 +71,6 @@ let nvClienteSelecionadoId = null;
 let cnpjNovoCliente = null;
 
 let callbackExclusaoAtual = null; // Callback para o modal de exclusão
-
-
 
 // Operações assíncronas não devem reutilizar IDs de outra sessão/tela.
 
@@ -108,84 +111,9 @@ let navegacaoHistoricoAtiva = false;
 let estadoNavegacaoAtual = null;
 let ignorarProtecaoRelatorioUmaVez = false;
 
-
-
-
-function escaparHtml(valor) {
-
-    return String(valor ?? '').replace(/[&<>"']/g, c => ({
-
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-
-    }[c]));
-
-}
-
 // === PADRÃO DE IDs DO FIRESTORE ===
 // IDs novos são gerados em um único lugar para manter o padrão consistente.
 // Registros antigos não são renomeados, preservando todas as referências existentes.
-
-const PARTICULAS_NOME = new Set(['da', 'das', 'de', 'do', 'dos', 'e']);
-
-function obterIniciais(nome) {
-    const partes = String(nome || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z\s]/g, ' ')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
-
-    if (!partes.length) return 'XX';
-
-    const uteis = partes.filter((parte, indice) =>
-        indice === 0 || indice === partes.length - 1 || !PARTICULAS_NOME.has(parte.toLowerCase())
-    );
-
-    if (uteis.length === 1) return uteis[0].slice(0, 2).toUpperCase();
-
-    return (uteis[0][0] + uteis[uteis.length - 1][0]).toUpperCase();
-}
-
-function formatarDataId(data) {
-    const d = obterData(data);
-    if (!d) throw new Error('Não foi possível gerar o ID: data inválida.');
-
-    return [
-        d.getFullYear(),
-        String(d.getMonth() + 1).padStart(2, '0'),
-        String(d.getDate()).padStart(2, '0'),
-        String(d.getHours()).padStart(2, '0'),
-        String(d.getMinutes()).padStart(2, '0')
-    ].join('');
-}
-
-function gerarSufixoId() {
-    if (globalThis.crypto?.getRandomValues) {
-        const bytes = new Uint8Array(4);
-        crypto.getRandomValues(bytes);
-        return Array.from(bytes, byte => byte.toString(36).padStart(2, '0')).join('').slice(0, 6).toUpperCase();
-    }
-
-    return Math.random().toString(36).slice(2, 8).toUpperCase();
-}
-
-function gerarIdAtividade(tipoVisita, data, nomeTecnico) {
-    const prefixo = tipoVisita === 'Treinamento' ? 'TR' : (tipoVisita === 'Assistência técnica' ? 'AT' : 'VC');
-    return prefixo + '-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
-}
-
-function gerarIdRelatorio(data, nomeTecnico) {
-    return 'REL-' + formatarDataId(data) + '-' + obterIniciais(nomeTecnico) + '-' + gerarSufixoId();
-}
-
-function gerarIdClienteCnpj(cnpjPuro) {
-    return 'CLI-CNPJ-' + String(cnpjPuro);
-}
-
-function gerarIdClienteProvisorio(dataCriacao, nomeResponsavel) {
-    return 'CLI-PROV-' + formatarDataId(dataCriacao) + '-' + obterIniciais(nomeResponsavel) + '-' + gerarSufixoId();
-}
 
 function sessaoAtual() {
 
@@ -235,114 +163,6 @@ function informarErro(titulo, erro) {
 
 }
 
-function obterData(valor) {
-
-    const data = valor?.toDate ? valor.toDate() : (valor == null ? new Date(NaN) : new Date(valor));
-
-    return Number.isFinite(data.getTime()) ? data : null;
-
-}
-
-function tempoData(valor) { return obterData(valor)?.getTime() ?? 0; }
-
-function lerDataHora(data, hora) {
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(hora)) throw new Error('Informe uma data e um horário válidos.');
-
-    const resultado = new Date(`${data}T${hora}:00`);
-
-    if (!obterData(resultado) || formatarDataHoraPT(resultado).dataInput !== data || formatarDataHoraPT(resultado).hora !== hora) throw new Error('Data ou horário inválidos.');
-
-    return resultado;
-
-}
-
-function coordenadasValidas(lat, lng) {
-
-    return lat !== null && lat !== undefined && lat !== '' && lng !== null && lng !== undefined && lng !== '' &&
-
-        Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
-
-}
-
-function obterPosicao() {
-
-    return new Promise((resolve, reject) => {
-
-        if (!navigator.geolocation) return reject(new Error('Este navegador não disponibiliza geolocalização.'));
-
-        navigator.geolocation.getCurrentPosition(resolve, erro => reject(new Error(
-
-            erro.code === 1 ? 'Permita o acesso à localização para continuar.' : 'Não foi possível obter o GPS. Tente novamente em um local com melhor sinal.'
-
-        )), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-
-    });
-
-}
-
-async function buscarJson(url) {
-
-    const controller = new AbortController();
-
-    const temporizador = setTimeout(() => controller.abort(), 12000);
-
-    try {
-
-        const resposta = await fetch(url, { signal: controller.signal });
-
-        if (!resposta.ok) throw new Error(`Consulta indisponível (HTTP ${resposta.status}).`);
-
-        return await resposta.json();
-
-    } finally { clearTimeout(temporizador); }
-
-}
-
-function obterCliente(clienteId) {
-    if (!clienteId) return Promise.resolve(null);
-    if (cacheClientes.has(clienteId)) return Promise.resolve(cacheClientes.get(clienteId));
-    if (consultasClientes.has(clienteId)) return consultasClientes.get(clienteId);
-    const versao = versaoSessao;
-    const consulta = getDoc(doc(db, 'clientes', clienteId)).then(snap => {
-        const cliente = snap.exists() ? { ...snap.data(), id: snap.id } : null;
-        if (versao === versaoSessao) cacheClientes.set(clienteId, cliente);
-        return cliente;
-    }).finally(() => {
-        if (consultasClientes.get(clienteId) === consulta) consultasClientes.delete(clienteId);
-    });
-    consultasClientes.set(clienteId, consulta);
-    return consulta;
-}
-
-function normalizarTipoVisita(atividade) {
-    const tipo = String(atividade?.tipoVisita || '').trim().toLowerCase();
-    if (tipo === 'treinamento' || atividade?.objetivo === 'Treinamento') return 'Treinamento';
-    if (tipo === 'assistência técnica' || tipo === 'assistencia tecnica' || tipo === 'visita de assistência técnica' || tipo === 'visita de assistencia tecnica') return 'Assistência técnica';
-    // Compatibilidade com registros antigos: "Visita técnica" passa a ser exibida como comercial.
-    if (tipo === 'visita comercial' || tipo === 'visita técnica' || tipo === 'visita tecnica') return 'Visita comercial';
-    return 'Visita comercial';
-}
-
-const COLECOES_RELATORIO = Object.freeze({
-    'Visita comercial': 'relatorios_comerciais',
-    'Treinamento': 'relatorios_treinamentos',
-    'Assistência técnica': 'relatorios_assistencia_tecnica'
-});
-
-function colecaoRelatorioPorTipo(tipoOuAtividade) {
-    const tipo = typeof tipoOuAtividade === 'string' ? normalizarTipoVisita({ tipoVisita: tipoOuAtividade }) : normalizarTipoVisita(tipoOuAtividade || {});
-    return COLECOES_RELATORIO[tipo] || 'relatorios_comerciais';
-}
-
-function colecaoRelatorioDaAtividade(atividade, paraNovo = false) {
-    const explicita = String(atividade?.relatorioColecao || '').trim();
-    if (explicita) return explicita;
-    // Registros antigos já vinculados continuam na coleção histórica.
-    if (atividade?.relatorioId && !paraNovo) return 'relatorios';
-    return colecaoRelatorioPorTipo(atividade);
-}
-
 function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, paraNovo = false) {
     if (!relatorioId) return null;
     return doc(db, colecaoRelatorioDaAtividade(atividade, paraNovo), relatorioId);
@@ -356,134 +176,10 @@ async function carregarRelatorioDaAtividade(atividade, forcarServidor = false) {
     return { ...snap.data(), id: snap.id, colecao: ref.parent.id };
 }
 
-function blocosPersistidosRelatorio(relatorio) {
-    const conteudo = relatorio?.conteudoRelatorio;
-    return conteudo?.versao === 1 && Array.isArray(conteudo.blocos)
-        ? conteudo.blocos
-        : null;
-}
-
-function serializarEstavel(valor) {
-    if (Array.isArray(valor)) return '[' + valor.map(serializarEstavel).join(',') + ']';
-    if (valor && typeof valor === 'object') {
-        return '{' + Object.keys(valor).sort().map(chave =>
-            JSON.stringify(chave) + ':' + serializarEstavel(valor[chave])
-        ).join(',') + '}';
-    }
-    return JSON.stringify(valor);
-}
-
-function dadosAssistenciaDoRelatorio(relatorio = {}) {
-    const fonte = relatorio && typeof relatorio === 'object' ? relatorio : {};
-    if (fonte.assistenciaTecnica) return { ...fonte.assistenciaTecnica };
-
-    return {
-        ...(fonte.clienteAplicacao || {}),
-        ...(fonte.produtoQueixa || {}),
-        ...(fonte.preparoAplicacao || {}),
-        ...(fonte.verificacao || {}),
-        fotosSelecionadas: Array.isArray(fonte.evidencias?.fotos) ? fonte.evidencias.fotos : [],
-        acoesDefinidas: fonte.fechamento?.acoesDefinidas || '',
-        conclusaoTecnica: fonte.fechamento?.conclusaoTecnica || '',
-        resultado: fonte.fechamento?.resultado || '',
-        proximoPasso: fonte.fechamento?.proximoPasso || ''
-    };
-}
-
-function secoesAssistenciaParaDocumento(dados = {}) {
-    return {
-        clienteAplicacao: {
-            clienteFinal: dados.clienteFinal || '',
-            contato: dados.contato || '',
-            setor: dados.setor || '',
-            enderecoAplicacao: dados.enderecoAplicacao || '',
-            empresaAplicacao: dados.empresaAplicacao || '',
-            responsavelEmpresa: dados.responsavelEmpresa || '',
-            acompanhadoPor: dados.acompanhadoPor || '',
-            superficie: dados.superficie || '',
-            dataAplicacao: dados.dataAplicacao || '',
-            houveEspecificacao: dados.houveEspecificacao || '',
-            numeroEspecificacao: dados.numeroEspecificacao || ''
-        },
-        produtoQueixa: {
-            produto: dados.produto || '',
-            lote: dados.lote || '',
-            cor: dados.cor || '',
-            queixa: dados.queixa || '',
-            esquemaPintura: dados.esquemaPintura || ''
-        },
-        preparoAplicacao: {
-            preparoSuperficie: dados.preparoSuperficie || '',
-            metodosLimpeza: Array.isArray(dados.metodosLimpeza) ? dados.metodosLimpeza : [],
-            impactoClimatico: dados.impactoClimatico || '',
-            impactoClimaticoDetalhe: dados.impactoClimaticoDetalhe || '',
-            ferramentasAplicacao: Array.isArray(dados.ferramentasAplicacao) ? dados.ferramentasAplicacao : []
-        },
-        verificacao: {
-            itensVerificados: Array.isArray(dados.itensVerificados) ? dados.itensVerificados : [],
-            umidade: dados.umidade || '',
-            umidadeReferencia: dados.umidadeReferencia || '',
-            constatacoes: dados.constatacoes || ''
-        },
-        evidencias: {
-            fotos: Array.isArray(dados.fotosSelecionadas) ? dados.fotosSelecionadas : []
-        },
-        fechamento: {
-            acoesDefinidas: dados.acoesDefinidas || '',
-            conclusaoTecnica: dados.conclusaoTecnica || '',
-            resultado: dados.resultado || '',
-            proximoPasso: dados.proximoPasso || ''
-        }
-    };
-}
-
-function relatorioValidoParaCheckout(relatorio, tipo) {
-    if (!relatorio) return false;
-    if (tipo === 'Assistência técnica') {
-        const dados = dadosAssistenciaDoRelatorio(relatorio);
-        return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());
-    }
-    return Boolean(String(relatorio.textoAtual || '').trim());
-}
-
-function formatarDataCheckout(valor) {
-    const data = obterData(valor);
-    if (!data) return '--/--/----';
-    return String(data.getDate()).padStart(2, '0') + '/' + String(data.getMonth() + 1).padStart(2, '0') + '/' + data.getFullYear();
-}
-
-function formatarHoraCheckout(valor) {
-    const data = obterData(valor);
-    if (!data) return '--h--';
-    return String(data.getHours()).padStart(2, '0') + 'h' + String(data.getMinutes()).padStart(2, '0');
-}
-
-function formatarDuracaoVisita(inicio, fim) {
-    const a = obterData(inicio), b = obterData(fim);
-    if (!a || !b || b < a) return 'Tempo de visita: --.';
-    const minutos = Math.round((b.getTime() - a.getTime()) / 60000);
-    const horas = Math.floor(minutos / 60);
-    const mins = minutos % 60;
-    if (!horas) return 'Tempo de visita: ' + mins + ' minuto' + (mins === 1 ? '' : 's') + '.';
-    if (!mins) return 'Tempo de visita: ' + horas + ' hora' + (horas === 1 ? '' : 's') + '.';
-    return 'Tempo de visita: ' + horas + ' hora' + (horas === 1 ? '' : 's') + ' e ' + mins + ' minuto' + (mins === 1 ? '' : 's') + '.';
-}
-
 function limparFormularioCheckout() {
     ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico','checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['checkout-cliente','checkout-chegada-data','checkout-chegada-hora','checkout-saida-data','checkout-saida-hora','checkout-duracao','checkout-relatorio-final'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     document.querySelectorAll('input[name="checkoutOportunidade"], input[name="checkoutAtResultado"]').forEach(radio => { radio.checked = false; });
-}
-
-function preencherConteudoRelatorio(id, relatorio, fallback) {
-    const element = document.getElementById(id);
-    if (!element) return;
-    const blocks = blocosPersistidosRelatorio(relatorio);
-    if (blocks) {
-        element.innerHTML = reportMarkup(blocks, relatorio?.atividadeId || '');
-    } else {
-        element.textContent = relatorio?.textoAtual || fallback;
-    }
 }
 
 function preencherCheckout(atividade, relatorio, saida) {
@@ -533,247 +229,6 @@ function preencherCheckout(atividade, relatorio, saida) {
     window.scrollTo(0, 0);
 }
 
-const ASSISTENCIA_TECNICA_TIPO = 'Assistência técnica';
-
-function valorCampoAssistencia(id) {
-    return String(document.getElementById(id)?.value || '').trim();
-}
-
-function valoresMarcadosAssistencia(name) {
-    return [...document.querySelectorAll('input[name="' + name + '"]:checked')].map(input => input.value);
-}
-
-function radioAssistencia(name) {
-    return document.querySelector('input[name="' + name + '"]:checked')?.value || '';
-}
-
-function marcarRadioAssistencia(name, value) {
-    document.querySelectorAll('input[name="' + name + '"]').forEach(input => {
-        input.checked = String(input.value) === String(value || '');
-    });
-}
-
-function marcarChecksAssistencia(name, values) {
-    const set = new Set(Array.isArray(values) ? values.map(String) : []);
-    document.querySelectorAll('input[name="' + name + '"]').forEach(input => {
-        input.checked = set.has(String(input.value));
-    });
-}
-
-function limparFormularioAssistencia() {
-    [
-        'at-cliente-final','at-contato','at-setor','at-endereco-aplicacao','at-empresa-aplicacao',
-        'at-responsavel-empresa','at-acompanhado-por','at-superficie','at-data-aplicacao',
-        'at-numero-especificacao','at-produto','at-lote','at-cor','at-queixa','at-esquema-pintura',
-        'at-preparo-superficie','at-impacto-detalhe','at-umidade','at-umidade-referencia','at-constatacoes'
-    ].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    ['atEspecificacao','atImpactoClimatico','atLimpeza','atFerramenta','atVerificado'].forEach(name => {
-        document.querySelectorAll('input[name="' + name + '"]').forEach(input => { input.checked = false; });
-    });
-    document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display','none');
-    document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display','none');
-}
-
-function lerFormularioAssistencia() {
-    const fotos = dadosAssistenciaDoRelatorio(objetoRelatorioGlobal).fotosSelecionadas || [];
-
-    return {
-        clienteFinal: valorCampoAssistencia('at-cliente-final'),
-        contato: valorCampoAssistencia('at-contato'),
-        setor: valorCampoAssistencia('at-setor'),
-        enderecoAplicacao: valorCampoAssistencia('at-endereco-aplicacao'),
-        empresaAplicacao: valorCampoAssistencia('at-empresa-aplicacao'),
-        responsavelEmpresa: valorCampoAssistencia('at-responsavel-empresa'),
-        acompanhadoPor: valorCampoAssistencia('at-acompanhado-por'),
-        superficie: valorCampoAssistencia('at-superficie'),
-        dataAplicacao: valorCampoAssistencia('at-data-aplicacao'),
-        houveEspecificacao: radioAssistencia('atEspecificacao'),
-        numeroEspecificacao: valorCampoAssistencia('at-numero-especificacao'),
-        produto: valorCampoAssistencia('at-produto'),
-        lote: valorCampoAssistencia('at-lote'),
-        cor: valorCampoAssistencia('at-cor'),
-        queixa: valorCampoAssistencia('at-queixa'),
-        esquemaPintura: valorCampoAssistencia('at-esquema-pintura'),
-        preparoSuperficie: valorCampoAssistencia('at-preparo-superficie'),
-        metodosLimpeza: valoresMarcadosAssistencia('atLimpeza'),
-        impactoClimatico: radioAssistencia('atImpactoClimatico'),
-        impactoClimaticoDetalhe: valorCampoAssistencia('at-impacto-detalhe'),
-        ferramentasAplicacao: valoresMarcadosAssistencia('atFerramenta'),
-        itensVerificados: valoresMarcadosAssistencia('atVerificado'),
-        umidade: valorCampoAssistencia('at-umidade'),
-        umidadeReferencia: valorCampoAssistencia('at-umidade-referencia'),
-        constatacoes: valorCampoAssistencia('at-constatacoes'),
-        fotosSelecionadas: fotos
-    };
-}
-
-function preencherFormularioAssistencia(dados = {}) {
-    limparFormularioAssistencia();
-    const mapa = {
-        'at-cliente-final':'clienteFinal','at-contato':'contato','at-setor':'setor',
-        'at-endereco-aplicacao':'enderecoAplicacao','at-empresa-aplicacao':'empresaAplicacao',
-        'at-responsavel-empresa':'responsavelEmpresa','at-acompanhado-por':'acompanhadoPor',
-        'at-superficie':'superficie','at-data-aplicacao':'dataAplicacao',
-        'at-numero-especificacao':'numeroEspecificacao','at-produto':'produto','at-lote':'lote',
-        'at-cor':'cor','at-queixa':'queixa','at-esquema-pintura':'esquemaPintura',
-        'at-preparo-superficie':'preparoSuperficie','at-impacto-detalhe':'impactoClimaticoDetalhe',
-        'at-umidade':'umidade','at-umidade-referencia':'umidadeReferencia','at-constatacoes':'constatacoes'
-    };
-    Object.entries(mapa).forEach(([id,key]) => {
-        const el = document.getElementById(id);
-        if (el) el.value = dados?.[key] ?? '';
-    });
-    marcarRadioAssistencia('atEspecificacao', dados?.houveEspecificacao);
-    marcarRadioAssistencia('atImpactoClimatico', dados?.impactoClimatico);
-    marcarChecksAssistencia('atLimpeza', dados?.metodosLimpeza);
-    marcarChecksAssistencia('atFerramenta', dados?.ferramentasAplicacao);
-    marcarChecksAssistencia('atVerificado', dados?.itensVerificados);
-
-    document.getElementById('at-especificacao-numero-wrap')?.style?.setProperty('display', dados?.houveEspecificacao === 'Sim' ? 'block' : 'none');
-    document.getElementById('at-impacto-detalhe-wrap')?.style?.setProperty('display', dados?.impactoClimatico === 'Sim' ? 'block' : 'none');
-
-
-}
-
-function normalizarAssistenciaComparacao(dados = {}) {
-    const secoes = secoesAssistenciaParaDocumento(dados && typeof dados === 'object' ? dados : {});
-    return {
-        clienteAplicacao: secoes.clienteAplicacao,
-        produtoQueixa: secoes.produtoQueixa,
-        preparoAplicacao: secoes.preparoAplicacao,
-        verificacao: secoes.verificacao
-    };
-}
-
-function gerarResumoAssistenciaTecnica(dados = {}) {
-    const linha = (rotulo, valor) => {
-        if (valor == null || String(valor).trim() === '') return null;
-        return rotulo + ': ' + String(valor).trim();
-    };
-    const lista = (rotulo, valores) => Array.isArray(valores) && valores.length ? rotulo + ': ' + valores.join(', ') : null;
-
-    return [
-        'RELATÓRIO DE ASSISTÊNCIA TÉCNICA',
-        linha('Cliente final', dados.clienteFinal),
-        linha('Contato / setor', [dados.contato, dados.setor].filter(Boolean).join(' / ')),
-        linha('Endereço de aplicação', dados.enderecoAplicacao),
-        linha('Empresa de aplicação', dados.empresaAplicacao),
-        linha('Responsável da empresa', dados.responsavelEmpresa),
-        linha('Acompanhado por', dados.acompanhadoPor),
-        linha('Equipamento / superfície', dados.superficie),
-        linha('Data da aplicação', dados.dataAplicacao),
-        linha('Houve especificação', dados.houveEspecificacao),
-        linha('Nº da especificação', dados.numeroEspecificacao),
-        '',
-        linha('Produto', dados.produto),
-        linha('Lote', dados.lote),
-        linha('Cor', dados.cor),
-        linha('Queixa', dados.queixa),
-        linha('Esquema de pintura', dados.esquemaPintura),
-        '',
-        linha('Preparo da superfície', dados.preparoSuperficie),
-        lista('Métodos de limpeza', dados.metodosLimpeza),
-        linha('Impacto climático / intempéries', dados.impactoClimatico),
-        linha('Detalhes das condições', dados.impactoClimaticoDetalhe),
-        lista('Ferramentas de aplicação', dados.ferramentasAplicacao),
-        '',
-        lista('Itens verificados', dados.itensVerificados),
-        linha('Umidade medida', dados.umidade),
-        linha('Referência / limite', dados.umidadeReferencia),
-        linha('Relatório técnico', dados.constatacoes),
-        '',
-        linha('Ações definidas', dados.acoesDefinidas),
-        linha('Conclusão técnica', dados.conclusaoTecnica),
-        linha('Resultado da assistência', dados.resultado),
-        linha('Próximo passo', dados.proximoPasso)
-    ].filter(item => item !== null).join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-function valorVisualAssistencia(valor, fallback = 'Não informado') {
-    const texto = String(valor ?? '').trim();
-    return texto ? escaparHtml(texto) : fallback;
-}
-
-function listaVisualAssistencia(valores) {
-    const lista = Array.isArray(valores) ? valores.filter(Boolean) : [];
-    return lista.length ? lista.map(escaparHtml).join(', ') : 'Não informado';
-}
-
-function renderFichaAssistencia(dados = {}, opcoes = {}) {
-    const campo = (rotulo, valor) =>
-        '<div class="visualizador-info"><label>' + escaparHtml(rotulo) + '</label><div class="visualizador-value">' + valorVisualAssistencia(valor) + '</div></div>';
-
-    const secao = (titulo, conteudo) =>
-        '<div class="assistencia-form-view-section"><h3>' + escaparHtml(titulo) + '</h3>' + conteudo + '</div>';
-
-    const especificacao = dados.houveEspecificacao === 'Sim'
-        ? 'Sim' + (dados.numeroEspecificacao ? ' · ' + dados.numeroEspecificacao : '')
-        : (dados.houveEspecificacao || 'Não informado');
-
-    const clima = dados.impactoClimatico === 'Sim'
-        ? 'Sim' + (dados.impactoClimaticoDetalhe ? ' · ' + dados.impactoClimaticoDetalhe : '')
-        : (dados.impactoClimatico || 'Não informado');
-
-    let html = '';
-
-    html += secao('Cliente e aplicação',
-        campo('Cliente final', dados.clienteFinal) +
-        campo('Contato / setor', [dados.contato, dados.setor].filter(Boolean).join(' / ')) +
-        campo('Endereço de aplicação', dados.enderecoAplicacao) +
-        campo('Empresa de aplicação', dados.empresaAplicacao) +
-        campo('Responsável da empresa', dados.responsavelEmpresa) +
-        campo('Acompanhado por', dados.acompanhadoPor) +
-        campo('Equipamento / superfície', dados.superficie) +
-        campo('Data da aplicação', dados.dataAplicacao) +
-        campo('Especificação', especificacao)
-    );
-
-    html += secao('Produto e queixa',
-        campo('Produto', dados.produto) +
-        campo('Lote', dados.lote) +
-        campo('Cor', dados.cor) +
-        campo('Queixa', dados.queixa) +
-        campo('Esquema de pintura', dados.esquemaPintura)
-    );
-
-    html += secao('Preparo e condições de aplicação',
-        campo('Preparo da superfície', dados.preparoSuperficie) +
-        campo('Métodos de limpeza', listaVisualAssistencia(dados.metodosLimpeza)) +
-        campo('Impacto climático / intempéries', clima) +
-        campo('Ferramenta de aplicação', listaVisualAssistencia(dados.ferramentasAplicacao))
-    );
-
-    html += secao('O que foi verificado',
-        campo('Itens verificados', listaVisualAssistencia(dados.itensVerificados)) +
-        campo('Umidade medida', dados.umidade) +
-        campo('Referência / limite', dados.umidadeReferencia) +
-        campo('Relatório técnico', dados.constatacoes)
-    );
-
-    if (!opcoes.omitirFechamento) {
-        html += secao('Fechamento',
-            campo('Ações definidas', dados.acoesDefinidas) +
-            campo('Conclusão técnica', dados.conclusaoTecnica) +
-            campo('Resultado da assistência', dados.resultado) +
-            campo('Próximo passo', dados.proximoPasso)
-        );
-    }
-
-    const blocks = blocosPersistidosRelatorio(objetoRelatorioGlobal);
-    if (blocks) {
-        html = html.replace(
-            campo('Relatório técnico', dados.constatacoes),
-            '<div class="report-read-content"><label>Relatório técnico</label>' +
-                reportMarkup(blocks, objetoRelatorioGlobal?.atividadeId || '') +
-            '</div>'
-        );
-    }
-    return html;
-}
-
 function dadosAssistenciaCheckoutAtual() {
     return {
         ...dadosAssistenciaDoRelatorio(objetoRelatorioGlobal),
@@ -787,7 +242,7 @@ function dadosAssistenciaCheckoutAtual() {
 function atualizarPreviewCheckoutAssistencia() {
     const container = document.getElementById('checkout-at-preview');
     if (!container) return;
-    container.innerHTML = renderFichaAssistencia(dadosAssistenciaCheckoutAtual());
+    container.innerHTML = renderFichaAssistencia(dadosAssistenciaCheckoutAtual(), {}, objetoRelatorioGlobal);
 }
 
 function mostrarEditorRelatorioPorTipo(tipo) {
@@ -800,13 +255,6 @@ function mostrarEditorRelatorioPorTipo(tipo) {
 }
 
 class ErroCheckoutLocalizacao extends Error {}
-
-function validarPrecisaoGps(pos) {
-    const accuracy = Number(pos?.coords?.accuracy);
-    if (!Number.isFinite(accuracy) || accuracy < 0) throw new Error('O GPS não retornou uma precisão válida.');
-    if (accuracy > GPS_ACCURACY_MAX_METERS) throw new Error(`A precisão do GPS está baixa (${Math.round(accuracy)} m). Aguarde alguns segundos em local aberto e tente novamente.`);
-    return accuracy;
-}
 
 function limparEstadoVisita() {
 
@@ -852,29 +300,15 @@ function limparCadastroCliente() {
 
 }
 
-function cnpjValido(valor) {
-
-    if (!/^\d{14}$/.test(valor) || /^(\d)\1{13}$/.test(valor)) return false;
-
-    const digito = base => {
-
-        let peso = base.length - 7, soma = 0;
-
-        for (const n of base) { soma += Number(n) * peso--; if (peso < 2) peso = 9; }
-
-        const resto = soma % 11; return resto < 2 ? '0' : String(11 - resto);
-
-    };
-
-    return digito(valor.slice(0,12)) === valor[12] && digito(valor.slice(0,13)) === valor[13];
-
-}
-
-
-
 // === INICIALIZAÇÃO E AUTENTICAÇÃO ===
 
 function inicializarAplicativo() {
+    document.getElementById('btn-exportar-schema')?.addEventListener('click', async () => {
+        try {
+            const { baixarSchemaAdvance } = await import('./tools/schema-exporter.js');
+            baixarSchemaAdvance();
+        } catch (erro) { informarErro('Erro ao exportar schema', erro); }
+    });
 
     // Alertas precisam continuar visíveis quando o app-container está oculto.
 
@@ -943,9 +377,9 @@ function inicializarAplicativo() {
 
         ['area-visitas','area-agenda','area-historico-visitas','nv-cliente-dropdown'].forEach(id => document.getElementById(id).textContent = '');
         clientesAutocompleteCarregados = false;
-        cacheClientes.clear();
-        consultasClientes.clear();
+        clientesRepository.clear();
         historicoCarregado = null;
+        clienteVisualizadorAtual = null;
         technicalEditor?.reset();
 
         document.getElementById('tela-confirmacao').style.display = 'none';
@@ -1026,8 +460,6 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 
 else queueMicrotask(inicializarAplicativo);
 
-
-
 // === FUNÇÕES DE ALERTA NATIVO ===
 
 window.mostrarAlerta = function(titulo, msg) {
@@ -1043,8 +475,6 @@ window.mostrarAlerta = function(titulo, msg) {
 window.fecharAlerta = function() { document.getElementById('modal-alerta-generico').style.display = 'none'; };
 
 window.mostrarAvisoAndamento = function() { document.getElementById('modal-aviso-andamento').style.display = 'flex'; };
-
-
 
 window.mostrarConfirmacaoExclusao = function(callback, encerrar = false) {
 
@@ -1089,85 +519,13 @@ window.mostrarConfirmacaoDescarteRelatorio = function(callback) {
     modal.style.display = 'flex';
 };
 
-
-
 // === FUNÇÕES DE LOCALIZAÇÃO ===
-
-async function obterEnderecoPorCoords(lat, lng) {
-
-    try {
-
-        const data = await buscarJson(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`); return data.display_name || "Endereço não encontrado na base de mapas.";
-
-    } catch(e) { return "Erro ao traduzir coordenadas para endereço."; }
-
-}
-
-async function obterCoordsPorEndereco(endereco) {
-
-    try {
-
-        const data = await buscarJson(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&q=${encodeURIComponent(endereco)}&limit=1`);
-
-        if(data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }; return null;
-
-    } catch(e) { return null; }
-
-}
-
-function calcularDistancia(lat1, lon1, lat2, lon2) {
-
-    const R = 6371e3; const rad = Math.PI / 180;
-
-    const dLat = (lat2 - lat1) * rad; const dLon = (lon2 - lon1) * rad;
-
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c; 
-
-}
-
-
 
 // === FUNÇÕES AUXILIARES ===
 
-function formatarDataHoraPT(data) {
-
-    if (!obterData(data)) return { hora: "--:--", data: "--/--/----", dataInput: "", completo: "--:-- | --/--/----" };
-
-    const d = obterData(data);
-
-    const horas = String(d.getHours()).padStart(2, '0'); const minutos = String(d.getMinutes()).padStart(2, '0');
-
-    const dia = String(d.getDate()).padStart(2, '0'); const mes = String(d.getMonth() + 1).padStart(2, '0'); const ano = d.getFullYear();
-
-    return { hora: `${horas}:${minutos}`, data: `${dia}/${mes}/${ano}`, dataInput: `${ano}-${mes}-${dia}`, completo: `${horas}:${minutos} | ${dia}/${mes}/${ano}` };
-
-}
-
-function formatarDataAgenda(data) {
-
-    const d = obterData(data);
-
-    if (!d) return { diaMes: "Data não informada", hora: "--:--" };
-
-    const dia = String(d.getDate()).padStart(2, '0'); const meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-
-    return { diaMes: `${dia} - ${meses[d.getMonth()]}`, hora: `${String(d.getHours()).padStart(2, '0')}h${String(d.getMinutes()).padStart(2, '0')}` };
-
-}
-
-function codigoCnpjLegado(cnpjPuro) { return "C-" + (BigInt(cnpjPuro) * 999999937n).toString(16).toUpperCase(); }
-
-async function buscarClientePorCnpj(cnpjPuro) {
-    let snap = await getDocs(query(collection(db, 'clientes'), where('cnpj', '==', cnpjPuro)));
-    if (snap.empty) {
-        snap = await getDocs(query(collection(db, 'clientes'), where('codigoCnpj', '==', codigoCnpjLegado(cnpjPuro))));
-    }
-    return snap;
-}
-
-
+const buscarClientePorCnpj = createCnpjLookup((campoCnpj, valor) =>
+    getDocs(query(collection(db, 'clientes'), where(campoCnpj, '==', valor)))
+);
 
 function mostrarApenasTela(idTelaAlvo) {
 
@@ -1294,7 +652,7 @@ function relatorioPossuiAlteracoesNaoSalvas() {
     const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
 
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-        const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia());
+        const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia(objetoRelatorioGlobal));
         const salvo = normalizarAssistenciaComparacao(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
         return technicalEditor?.dirty || JSON.stringify(atual) !== JSON.stringify(salvo);
     }
@@ -1364,8 +722,6 @@ function configurarHistoricoNativo() {
         window.scrollTo(0, 0);
     });
 }
-
-
 
 // === TELAS DE LEITURA ===
 
@@ -1441,8 +797,6 @@ async function carregarAtividadesPendentes() {
 
 }
 
-
-
 async function carregarAgenda() {
 
     if (!idUsuarioLogado) return;
@@ -1461,15 +815,11 @@ async function carregarAgenda() {
 
         const querySnapshot = await getDocs(q);
 
-
-
         if (!sessaoValida(sessao) || pedido !== sequenciaAgenda) return;
 
         listaAtividadesAgenda = [];
 
         if (querySnapshot.empty) { areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita agendada.</p>`; return; }
-
-
 
         const atividadesCarregadas = await Promise.all(querySnapshot.docs.map(async documento => {
 
@@ -1488,15 +838,11 @@ async function carregarAgenda() {
 
         }));
 
-
-
         if (!sessaoValida(sessao) || pedido !== sequenciaAgenda) return;
 
         listaAtividadesAgenda = atividadesCarregadas.sort((a, b) => tempoData(a.data) - tempoData(b.data));
 
         const cardsAgenda = [];
-
-
 
         listaAtividadesAgenda.forEach((atividade, index) => {
 
@@ -1513,8 +859,6 @@ async function carregarAgenda() {
             // Badge para mostrar que está em andamento
 
             const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
-
-
 
             cardsAgenda.push(`
 
@@ -1553,97 +897,6 @@ async function carregarAgenda() {
 
     } catch (error) { if (sessaoValida(sessao) && pedido === sequenciaAgenda) { areaAgenda.textContent = 'Não foi possível carregar a agenda.'; informarErro('Erro na agenda', error); } }
 
-}
-
-
-
-function obterResultadoHistorico(visita) {
-    if (String(visita.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise') return 'Pendente';
-    if (visita.status === 'Em andamento') return 'Em andamento';
-    const valor = String(visita.resultado || '').trim().toLowerCase();
-    if (valor === 'resolvido') return 'Resolvido';
-    if (valor === 'não resolvido' || valor === 'nao resolvido') return 'Não resolvido';
-    if (valor === 'cancelada' || visita.status === 'Cancelada') return 'Cancelada';
-    return 'Concluída';
-}
-
-function obterClasseResultadoHistorico(resultado) {
-    if (resultado === 'Resolvido') return 'hist-status-resolvido';
-    if (resultado === 'Não resolvido') return 'hist-status-nao-resolvido';
-    if (resultado === 'Cancelada') return 'hist-status-cancelada';
-    if (resultado === 'Pendente') return 'hist-status-pendente';
-    if (resultado === 'Em andamento') return 'hist-status-andamento';
-    return 'hist-status-concluida';
-}
-
-function obterDataHistorico(visita) {
-    return obterData(visita.checkinDataHora) || obterData(visita.data);
-}
-
-function formatarDiaHistorico(data) {
-    return `${String(data.getDate()).padStart(2, '0')} - ${data.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}`;
-}
-
-function formatarHoraHistorico(valor) {
-    const data = obterData(valor);
-    if (!data) return '';
-    return `${String(data.getHours()).padStart(2, '0')}h${String(data.getMinutes()).padStart(2, '0')}`;
-}
-
-function formatarHorarioVisitaHistorico(visita) {
-    const inicio = formatarHoraHistorico(visita.checkinDataHora);
-    const fim = formatarHoraHistorico(visita.checkoutDataHora);
-    if (inicio && fim) return `${inicio} - ${fim}`;
-    return inicio || formatarHoraHistorico(visita.data) || 'Horário não informado';
-}
-
-function inicioDaSemanaHistorico(data) {
-    const inicio = new Date(data);
-    const dia = inicio.getDay();
-    const deslocamento = dia === 0 ? 6 : dia - 1;
-    inicio.setHours(0, 0, 0, 0);
-    inicio.setDate(inicio.getDate() - deslocamento);
-    return inicio;
-}
-
-function periodoHistorico(visita) {
-    const data = obterDataHistorico(visita);
-    if (!data) return 'Outras datas';
-
-    const agora = new Date();
-    const inicioSemana = inicioDaSemanaHistorico(agora);
-    const inicioProximaSemana = new Date(inicioSemana);
-    inicioProximaSemana.setDate(inicioProximaSemana.getDate() + 7);
-
-    if (data >= inicioSemana && data < inicioProximaSemana) return 'Nessa semana';
-    if (data.getMonth() === agora.getMonth() && data.getFullYear() === agora.getFullYear()) return 'Nesse mês';
-
-    return data.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-        .replace(/^./, c => c.toUpperCase());
-}
-
-function aplicarFiltrosHistorico(visitas) {
-    const agora = new Date();
-    const inicioSemana = inicioDaSemanaHistorico(agora);
-    const inicioProximaSemana = new Date(inicioSemana);
-    inicioProximaSemana.setDate(inicioProximaSemana.getDate() + 7);
-
-    return visitas.filter(visita => {
-        const resultado = obterResultadoHistorico(visita);
-        const data = obterDataHistorico(visita);
-
-        if (filtrosHistorico.resultado !== 'todos' && resultado !== filtrosHistorico.resultado) return false;
-
-        if (filtrosHistorico.periodo === 'semana') {
-            if (!data || data < inicioSemana || data >= inicioProximaSemana) return false;
-        } else if (filtrosHistorico.periodo === 'mes') {
-            if (!data || data.getMonth() !== agora.getMonth() || data.getFullYear() !== agora.getFullYear()) return false;
-        } else if (filtrosHistorico.periodo === 'anteriores') {
-            if (!data || data.getMonth() === agora.getMonth() && data.getFullYear() === agora.getFullYear()) return false;
-        }
-
-        return true;
-    });
 }
 
 function renderizarHistoricoVisitas(visitas) {
@@ -1811,7 +1064,7 @@ async function carregarHistoricoVisitas() {
         historicoArray.sort((a, b) => (obterDataHistorico(b)?.getTime() || 0) - (obterDataHistorico(a)?.getTime() || 0));
 
         historicoCarregado = historicoArray;
-        renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoArray));
+        renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoArray, filtrosHistorico));
     } catch (error) {
         if (sessaoValida(sessao) && pedido === sequenciaHistorico) {
             areaHistorico.textContent = "Não foi possível carregar o histórico.";
@@ -1837,13 +1090,13 @@ function configurarFiltroHistorico() {
 
     periodo?.addEventListener('change', () => {
         filtrosHistorico.periodo = periodo.value;
-        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado));
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado, filtrosHistorico));
         else carregarHistoricoVisitas();
     });
 
     resultado?.addEventListener('change', () => {
         filtrosHistorico.resultado = resultado.value;
-        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado));
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado, filtrosHistorico));
         else carregarHistoricoVisitas();
     });
 
@@ -1851,12 +1104,10 @@ function configurarFiltroHistorico() {
         filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
         if (periodo) periodo.value = 'todos';
         if (resultado) resultado.value = 'todos';
-        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado));
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado, filtrosHistorico));
         else carregarHistoricoVisitas();
     });
 }
-
-
 
 // === TELA: NOVA VISITA ===
 
@@ -1867,8 +1118,6 @@ function configurarTelaNovaVisita() {
     const countNota = document.getElementById('nv-char-count');
 
     if(inputNota) { inputNota.addEventListener('input', () => { countNota.textContent = `${inputNota.value.length}/600`; }); }
-
-
 
     const inputCliente = document.getElementById('nv-cliente');
 
@@ -1884,8 +1133,6 @@ function configurarTelaNovaVisita() {
 
             const filtrados = listaClientes.filter(item => String(item.nome || '').toLowerCase().includes(txt));
 
-
-
             const divNovo = document.createElement('div');
 
             divNovo.className = 'autocomplete-item autocomplete-item-novo';
@@ -1895,8 +1142,6 @@ function configurarTelaNovaVisita() {
             divNovo.addEventListener('click', () => { if (operacaoEmCurso) return; limparCadastroCliente(); navegarParaTela('tela-cadastro-cliente'); dropCliente.style.display = 'none'; });
 
             dropCliente.appendChild(divNovo);
-
-
 
             filtrados.forEach(item => {
 
@@ -1917,8 +1162,6 @@ function configurarTelaNovaVisita() {
         document.addEventListener('click', (e) => { if(!e.target.closest('#nv-cliente') && !e.target.closest('#nv-cliente-dropdown')) dropCliente.style.display = 'none'; });
 
     }
-
-
 
     const btnAgendar = document.getElementById('btn-agendar-visita');
 
@@ -1990,148 +1233,6 @@ function configurarTelaNovaVisita() {
 
 }
 
-
-
-
-function formatarProtocoloVisualizador(valor, fallback) {
-    const bruto = String(valor || fallback || '').trim();
-    if (!bruto) return '#...';
-    return bruto.startsWith('#') ? bruto : '#' + bruto;
-}
-
-function preencherCampoVisualizador(id, valor, fallback = 'Não informado') {
-    const el = document.getElementById(id);
-    if (el) el.textContent = valor == null || String(valor).trim() === '' ? fallback : String(valor);
-}
-
-function formatarGpsVisualizador(gps, accuracy) {
-    const texto = gps ? String(gps) : 'GPS não informado';
-    const precisao = Number.isFinite(Number(accuracy)) ? ' • Precisão: ' + Math.round(Number(accuracy)) + ' m' : '';
-    return texto + precisao;
-}
-
-function preencherCelulaPdf(id, valor) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = valor == null || String(valor).trim() === '' ? '—' : String(valor);
-}
-
-function prepararImpressaoVisualizador(atividade, cliente, relatorio) {
-    const resultado = obterResultadoHistorico(atividade);
-    const tipo = normalizarTipoVisita(atividade);
-
-    preencherCelulaPdf('pdf-status', resultado.toUpperCase());
-    preencherCelulaPdf('pdf-cliente', cliente?.nome);
-    preencherCelulaPdf('pdf-protocolo', formatarProtocoloVisualizador(relatorio?.codigo, atividade.id));
-    preencherCelulaPdf('pdf-tipo', tipo);
-    preencherCelulaPdf('pdf-tecnico', nomeUsuarioLogado);
-    preencherCelulaPdf('pdf-endereco', cliente?.enderecoCompleto);
-
-    preencherCelulaPdf('pdf-chegada-data', formatarDataCheckout(atividade.checkinDataHora));
-    preencherCelulaPdf('pdf-chegada-hora', formatarHoraCheckout(atividade.checkinDataHora));
-    preencherCelulaPdf('pdf-saida-data', formatarDataCheckout(atividade.checkoutDataHora));
-    preencherCelulaPdf('pdf-saida-hora', formatarHoraCheckout(atividade.checkoutDataHora));
-    preencherCelulaPdf('pdf-duracao', formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora));
-
-    const tecnica = document.getElementById('pdf-tecnica-table');
-    const treinamento = document.getElementById('pdf-treinamento-table');
-    const assistencia = document.getElementById('pdf-assistencia-table');
-
-    tecnica.style.display = tipo === 'Visita comercial' ? 'table' : 'none';
-    treinamento.style.display = tipo === 'Treinamento' ? 'table' : 'none';
-    assistencia.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'table' : 'none';
-
-    preencherCelulaPdf('pdf-objetivo', atividade.objetivo);
-    preencherCelulaPdf('pdf-oportunidade', atividade.oportunidadeIdentificada);
-    preencherCelulaPdf('pdf-categoria', atividade.categoriaTreinamento);
-    preencherCelulaPdf('pdf-participantes', atividade.quantidadeParticipantes);
-    preencherCelulaPdf('pdf-publico', atividade.publicoAtendido);
-
-    const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
-    preencherCelulaPdf('pdf-at-cliente-final', dadosAssistencia.clienteFinal);
-    preencherCelulaPdf('pdf-at-produto', dadosAssistencia.produto);
-    preencherCelulaPdf('pdf-at-lote', dadosAssistencia.lote);
-    preencherCelulaPdf('pdf-at-queixa', dadosAssistencia.queixa);
-    preencherCelulaPdf('pdf-at-constatacoes', dadosAssistencia.constatacoes);
-    preencherCelulaPdf('pdf-at-conclusao', dadosAssistencia.conclusaoTecnica);
-    preencherCelulaPdf('pdf-at-resultado', dadosAssistencia.resultado);
-
-    preencherCelulaPdf('pdf-nota', atividade.nota);
-    preencherCelulaPdf('pdf-relatorio', relatorio?.textoAtual);
-    const relatorioTextoTable = document.getElementById('pdf-relatorio-texto-table');
-    if (relatorioTextoTable) relatorioTextoTable.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'table';
-
-    const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
-    const manualTable = document.getElementById('pdf-manual-table');
-    manualTable.style.display = manual ? 'table' : 'none';
-    preencherCelulaPdf('pdf-manual-status', atividade.fechamentoAnaliseStatus);
-    preencherCelulaPdf('pdf-manual-motivo', atividade.motivoFechamentoManual);
-    preencherCelulaPdf('pdf-manual-data', atividade.fechamentoSolicitadoEm ? formatarDataHoraPT(atividade.fechamentoSolicitadoEm).completo : null);
-
-    preencherCelulaPdf('pdf-checkin-endereco', atividade.checkinEndereco);
-    preencherCelulaPdf('pdf-checkin-precisao', Number.isFinite(Number(atividade.checkinGpsAccuracy)) ? Math.round(Number(atividade.checkinGpsAccuracy)) + ' m' : null);
-    preencherCelulaPdf('pdf-checkout-endereco', atividade.checkoutEndereco);
-    preencherCelulaPdf('pdf-checkout-precisao', Number.isFinite(Number(atividade.checkoutGpsAccuracy)) ? Math.round(Number(atividade.checkoutGpsAccuracy)) + ' m' : null);
-    preencherCelulaPdf('pdf-checkin-gps', atividade.checkinGps);
-    preencherCelulaPdf('pdf-checkout-gps', atividade.checkoutGps);
-    preencherCelulaPdf('pdf-gerado-em', formatarDataHoraPT(new Date()).completo);
-}
-
-function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
-    window._clienteVisualizadorAtual = cliente || null;
-    const resultado = obterResultadoHistorico(atividade);
-    const resultadoEl = document.getElementById('visu-resultado');
-    resultadoEl.textContent = resultado;
-    resultadoEl.className = 'visualizador-resultado ' + obterClasseResultadoHistorico(resultado).replace('hist-status-', 'visualizador-');
-
-    preencherCampoVisualizador('visu-cliente', cliente?.nome || 'Cliente não encontrado');
-    preencherCampoVisualizador('visu-protocolo', formatarProtocoloVisualizador(relatorio?.codigo, atividade.id), '');
-    preencherCampoVisualizador('visu-chegada-data', formatarDataCheckout(atividade.checkinDataHora), '--/--/----');
-    preencherCampoVisualizador('visu-chegada-hora', formatarHoraCheckout(atividade.checkinDataHora), '--h--');
-    preencherCampoVisualizador('visu-saida-data', formatarDataCheckout(atividade.checkoutDataHora), '--/--/----');
-    preencherCampoVisualizador('visu-saida-hora', formatarHoraCheckout(atividade.checkoutDataHora), '--h--');
-    preencherCampoVisualizador('visu-duracao', formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora), 'Tempo de visita: --.');
-    document.getElementById('visu-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, atividade.checkoutDataHora);
-
-    const enderecoCliente = document.getElementById('visu-endereco-cliente');
-    if (enderecoCliente) enderecoCliente.textContent = cliente?.enderecoCompleto || 'Endereço não informado';
-
-    const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('visu-tecnica').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
-    document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' ? 'block' : 'none';
-    document.getElementById('visu-assistencia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
-
-    preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
-    preencherCampoVisualizador('visu-oportunidade', atividade.oportunidadeIdentificada);
-    preencherCampoVisualizador('visu-categoria', atividade.categoriaTreinamento);
-    preencherCampoVisualizador('visu-participantes', atividade.quantidadeParticipantes);
-    preencherCampoVisualizador('visu-publico', atividade.publicoAtendido);
-
-    const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
-    const relatorioTextoSection = document.getElementById('visu-relatorio-section');
-    if (relatorioTextoSection) relatorioTextoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
-
-    if (tipo === ASSISTENCIA_TECNICA_TIPO) {
-        const visual = document.getElementById('visu-at-relatorio-visual');
-        if (visual) visual.innerHTML = renderFichaAssistencia(dadosAssistencia);
-
-    }
-
-    preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
-    preencherConteudoRelatorio('visu-relatorio', relatorio, 'Nenhum relatório registrado.');
-
-    const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
-    document.getElementById('visu-manual').style.display = manual ? 'block' : 'none';
-    preencherCampoVisualizador('visu-motivo-manual', atividade.motivoFechamentoManual);
-    preencherCampoVisualizador('visu-manual-data', atividade.fechamentoSolicitadoEm ? formatarDataHoraPT(atividade.fechamentoSolicitadoEm).completo : null);
-
-    preencherCampoVisualizador('visu-checkin-endereco', atividade.checkinEndereco);
-    preencherCampoVisualizador('visu-checkout-endereco', atividade.checkoutEndereco);
-    preencherCampoVisualizador('visu-checkin-gps', formatarGpsVisualizador(atividade.checkinGps, atividade.checkinGpsAccuracy));
-    preencherCampoVisualizador('visu-checkout-gps', formatarGpsVisualizador(atividade.checkoutGps, atividade.checkoutGpsAccuracy));
-
-    document.getElementById('btn-fechar-visualizador')?.blur();
-}
-
 window.abrirVisualizadorVisita = async function(atividadeId) {
     if (operacaoEmCurso || !atividadeId) return;
 
@@ -2171,6 +1272,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         clienteSelecionadoId = atividade.clienteId || null;
         clienteSelecionadoNome = cliente?.nome || '';
 
+        clienteVisualizadorAtual = cliente;
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
         informarErro('Não foi possível abrir a visita', erro);
@@ -2181,8 +1283,6 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
 // === TELA 8: DETALHES DA VISITA ===
 
 let visitaEmEdicao = null;
-
-
 
 window.abrirDetalhesVisita = function(index) {
 
@@ -2204,8 +1304,6 @@ window.abrirDetalhesVisita = function(index) {
 
     document.getElementById('det-mapa-iframe').src = `https://maps.google.com/maps?q=${encodeURIComponent(visitaEmEdicao.enderecoCompleto)}&output=embed`;
 
-
-
     // Preenche inputs
 
     document.getElementById('det-data').value = objData.dataInput;
@@ -2214,15 +1312,11 @@ window.abrirDetalhesVisita = function(index) {
 
     document.getElementById('det-nota').value = visitaEmEdicao.nota || "";
 
-
-
     // Preenche radio buttons
 
     const objValue = normalizarTipoVisita(visitaEmEdicao);
 
     document.querySelectorAll('input[name="detTipoVisita"]').forEach(rad => { rad.checked = rad.value === objValue; });
-
-
 
     // Bloqueia campos se não for pendente
 
@@ -2233,8 +1327,6 @@ window.abrirDetalhesVisita = function(index) {
     inputs.forEach(id => { document.getElementById(id).disabled = emAndamento; });
 
     document.querySelectorAll('input[name="detTipoVisita"]').forEach(radio => radio.disabled = emAndamento);
-
-
 
     if (emAndamento) {
 
@@ -2248,13 +1340,9 @@ window.abrirDetalhesVisita = function(index) {
 
     }
 
-
-
     navegarParaTela('tela-detalhes-visita', { carregar: false });
 
 };
-
-
 
 function configurarTelaDetalhesVisita() {
 
@@ -2355,8 +1443,6 @@ function configurarTelaDetalhesVisita() {
 
 }
 
-
-
 // === CADASTRO DE NOVO CLIENTE ===
 
 async function carregarDadosParaAutocomplete() {
@@ -2376,7 +1462,7 @@ async function carregarDadosParaAutocomplete() {
         listaClientes = snap.docs.map(d => {
             const dados = d.data();
             const cliente = { id: d.id, ...dados, nome: String(dados.nome || 'Cliente sem nome') };
-            cacheClientes.set(d.id, cliente);
+            clientesRepository.set(d.id, cliente);
             return { id: d.id, nome: cliente.nome };
         });
 
@@ -2600,7 +1686,7 @@ function configurarTelaCadastroCliente() {
                             return { nome: atual.data().nome || nome, localizado: true };
                         }
                         const agora = new Date();
-                        tx.set(ref, { cnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
+                        tx.set(ref, { codigoCnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
                             lat: Number(coords.lat), lng: Number(coords.lng), status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
                         return { nome, localizado: false };
                     });
@@ -2625,8 +1711,8 @@ function configurarTelaCadastroCliente() {
 
             if (!sessaoValida(sessao)) return;
 
-            const clienteAtual = await obterCliente(clienteId);
-            if (clienteAtual) cacheClientes.set(clienteId, clienteAtual);
+            const clienteAtual = await obterCliente(clienteId, { refresh: true });
+            if (clienteAtual) clientesRepository.set(clienteId, clienteAtual);
             if (!listaClientes.some(c => c.id === clienteId)) listaClientes.push({ id: clienteId, nome: nomeFinal });
 
             nvClienteSelecionadoId = clienteId; campo('nv-cliente').value = nomeFinal;
@@ -2644,8 +1730,6 @@ function configurarTelaCadastroCliente() {
     });
 
 }
-
-
 
 // === NAVEGAÇÃO PRINCIPAL ===
 
@@ -2675,8 +1759,6 @@ function configurarNavegacao() {
 
     });
 
-
-
     const btnNovaVisita = document.getElementById('btn-nova-visita');
 
     if (btnNovaVisita) {
@@ -2692,8 +1774,6 @@ function configurarNavegacao() {
 
     }
 
-
-
     const btnCancelarVisita = document.getElementById('btn-cancelar-visita');
 
     if (btnCancelarVisita) {
@@ -2703,8 +1783,6 @@ function configurarNavegacao() {
     }
 
 }
-
-
 
 // === CHECK-IN ===
 
@@ -2731,16 +1809,12 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
 
 }
 
-
-
 function configurarBotoesModal() {
     document.getElementById('btn-configuracoes')?.addEventListener('click', () => window.mostrarAlerta('Aviso', 'Tela de Perfil em construção!'));
     document.getElementById('btn-fechar-alerta')?.addEventListener('click', () => window.fecharAlerta());
     document.getElementById('btn-fechar-aviso-andamento')?.addEventListener('click', () => { document.getElementById('modal-aviso-andamento').style.display = 'none'; });
     document.getElementById('btn-cancelar-exclusao')?.addEventListener('click', () => window.fecharConfirmacaoExclusao());
     document.getElementById('btn-confirmar-exclusao')?.addEventListener('click', () => window.confirmarExclusao());
-
-
 
     document.getElementById('btn-voltar')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
@@ -2774,8 +1848,6 @@ function configurarBotoesModal() {
     });
 
 }
-
-
 
 async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null) {
 
@@ -2834,8 +1906,6 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
     }
 
 }
-
-
 
 async function encerrarVisita(id, btn) {
     if (operacaoEmCurso) return;
@@ -3124,7 +2194,6 @@ async function enviarFechamentoManual() {
 function configurarEventosGlobais() {
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 
-
     document.addEventListener('click', (event) => {
         const botao = event.target.closest('#btn-exportar-visualizador');
         if (!botao) return;
@@ -3136,8 +2205,9 @@ function configurarEventosGlobais() {
 
         prepararImpressaoVisualizador(
             objetoAtividadeGlobal,
-            window._clienteVisualizadorAtual,
-            objetoRelatorioGlobal
+            clienteVisualizadorAtual,
+            objetoRelatorioGlobal,
+            nomeUsuarioLogado
         );
 
         setTimeout(() => window.print(), 50);
@@ -3299,14 +2369,12 @@ function configurarEventosGlobais() {
         }
     });
 
-
     document.querySelectorAll('input[name="atEspecificacao"]').forEach(input => input.addEventListener('change', () => {
         document.getElementById('at-especificacao-numero-wrap').style.display = radioAssistencia('atEspecificacao') === 'Sim' ? 'block' : 'none';
     }));
     document.querySelectorAll('input[name="atImpactoClimatico"]').forEach(input => input.addEventListener('change', () => {
         document.getElementById('at-impacto-detalhe-wrap').style.display = radioAssistencia('atImpactoClimatico') === 'Sim' ? 'block' : 'none';
     }));
-
 
     ['checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', atualizarPreviewCheckoutAssistencia);
@@ -3345,7 +2413,7 @@ function configurarEventosGlobais() {
             if (technicalEditor.busy) throw new Error('Aguarde a adição dos arquivos antes de salvar.');
             if (ehAssistencia) {
                 if (document.getElementById('at-constatacoes').value.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
-                assistenciaTecnica = lerFormularioAssistencia();
+                assistenciaTecnica = lerFormularioAssistencia(objetoRelatorioGlobal);
                 const obrigatoriosPreenchidos =
                     assistenciaTecnica.produto &&
                     assistenciaTecnica.queixa &&
