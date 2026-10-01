@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-r2-media-v11';
+const CACHE_NAME = 'advance-pwa-r2-media-v12';
 const APP_SHELL = [
   './',
   './index.html',
