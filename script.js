@@ -1106,9 +1106,9 @@ function configurarFiltroHistorico() {
 
 // === TELA: NOVA VISITA ===
 
-function atualizarLimitesAgendamento() {
-    const campoData = document.getElementById('nv-data');
-    const campoHora = document.getElementById('nv-hora');
+function atualizarLimitesAgendamento(prefixo = 'nv') {
+    const campoData = document.getElementById(`${prefixo}-data`);
+    const campoHora = document.getElementById(`${prefixo}-hora`);
     const { minimo, minInput, maxInput } = limitesAgendamento();
     campoData.min = minInput;
     campoData.max = maxInput;
@@ -1117,8 +1117,8 @@ function atualizarLimitesAgendamento() {
 
 function configurarTelaNovaVisita() {
     ['nv-data', 'nv-hora'].forEach(id => {
-        document.getElementById(id).addEventListener('focus', atualizarLimitesAgendamento);
-        document.getElementById(id).addEventListener('change', atualizarLimitesAgendamento);
+        document.getElementById(id).addEventListener('focus', () => atualizarLimitesAgendamento());
+        document.getElementById(id).addEventListener('change', () => atualizarLimitesAgendamento());
     });
     atualizarLimitesAgendamento();
 
@@ -1321,6 +1321,7 @@ window.abrirDetalhesVisita = function(index) {
     document.getElementById('det-data').value = objData.dataInput;
 
     document.getElementById('det-hora').value = objData.hora;
+    atualizarLimitesAgendamento('det');
 
     document.getElementById('det-nota').value = visitaEmEdicao.nota || "";
 
@@ -1357,6 +1358,9 @@ window.abrirDetalhesVisita = function(index) {
 };
 
 function configurarTelaDetalhesVisita() {
+    ['det-data', 'det-hora'].forEach(id => {
+        ['focus', 'change'].forEach(evento => document.getElementById(id).addEventListener(evento, () => atualizarLimitesAgendamento('det')));
+    });
 
     document.getElementById('btn-voltar-detalhes')?.addEventListener('click', () => voltarNavegacao('tela-agenda'));
 
@@ -1416,6 +1420,8 @@ function configurarTelaDetalhesVisita() {
             const sessao = sessaoAtual(), id = visitaEmEdicao.id;
 
             const data = lerDataHora(document.getElementById('det-data').value, document.getElementById('det-hora').value);
+            atualizarLimitesAgendamento('det');
+            validarAgendamento(data);
 
             const tipoVisita = document.querySelector('input[name="detTipoVisita"]:checked')?.value;
 
@@ -1437,6 +1443,7 @@ function configurarTelaDetalhesVisita() {
 
                 if (snap.data().status !== 'Pendente') throw new Error('Somente visitas pendentes podem ser editadas.');
 
+                validarAgendamento(data);
                 tx.update(ref, { data, tipoVisita, nota, atualizadoEm: new Date() });
 
             });
