@@ -1,3 +1,4 @@
+import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
 import './src/ui/pwa.js';
 import { escaparHtml, tempoData, lerDataHora, formatarDataHoraPT, formatarDataAgenda, formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, serializarEstavel } from './src/domain/formatters.js';
@@ -521,6 +522,7 @@ const buscarClientePorCnpj = createCnpjLookup((campoCnpj, valor) =>
 );
 
 function mostrarApenasTela(idTelaAlvo) {
+    if (idTelaAlvo === 'tela-nova-visita') atualizarLimitesAgendamento();
 
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout', 'tela-visualizador-visita'];
 
@@ -1104,7 +1106,21 @@ function configurarFiltroHistorico() {
 
 // === TELA: NOVA VISITA ===
 
+function atualizarLimitesAgendamento() {
+    const campoData = document.getElementById('nv-data');
+    const campoHora = document.getElementById('nv-hora');
+    const { minimo, minInput, maxInput } = limitesAgendamento();
+    campoData.min = minInput;
+    campoData.max = maxInput;
+    campoHora.min = campoData.value === minInput ? `${String(minimo.getHours()).padStart(2, '0')}:${String(minimo.getMinutes()).padStart(2, '0')}` : '';
+}
+
 function configurarTelaNovaVisita() {
+    ['nv-data', 'nv-hora'].forEach(id => {
+        document.getElementById(id).addEventListener('focus', atualizarLimitesAgendamento);
+        document.getElementById(id).addEventListener('change', atualizarLimitesAgendamento);
+    });
+    atualizarLimitesAgendamento();
 
     const inputNota = document.getElementById('nv-nota');
 
@@ -1173,6 +1189,8 @@ function configurarTelaNovaVisita() {
                 const clienteId = nvClienteSelecionadoId;
 
                 const data = lerDataHora(document.getElementById('nv-data').value, document.getElementById('nv-hora').value);
+                atualizarLimitesAgendamento();
+                validarAgendamento(data);
 
                 const tipoVisita = document.querySelector('input[name="tipoVisita"]:checked')?.value;
 
@@ -1191,6 +1209,7 @@ function configurarTelaNovaVisita() {
                 if (!cliente || !['Ativo', 'Provisorio'].includes(cliente.status)) throw new Error('O cliente não está disponível para agendamento. Atualize a lista.');
 
                 const agora = new Date();
+                validarAgendamento(data, agora);
                 const atividadeId = gerarIdAtividade(tipoVisita, data, nomeUsuarioLogado);
 
                 await setDoc(doc(db, 'atividades', atividadeId), {

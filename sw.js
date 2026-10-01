@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-profile-v15';
+const CACHE_NAME = 'advance-pwa-scheduling-v16';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -11,6 +11,7 @@ const APP_SHELL = [
   './src/domain/history.js',
   './src/domain/identifiers.js',
   './src/domain/reports.js',
+  './src/domain/scheduling.js',
   './src/services/location.js',
   './src/ui/assistance.js',
   './src/ui/pwa.js',
