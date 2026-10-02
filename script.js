@@ -1,3 +1,4 @@
+import { CommercialReport } from './src/ui/commercial-report.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
 import './src/ui/pwa.js';
@@ -12,6 +13,19 @@ import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVi
 import { createClientRepository } from './src/data/client-repository.js';
 import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js';
 let technicalEditor;
+let commercialReport;
+function abrirPrototipoComercial(page = 'overview') {
+    const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
+    const formato = formatarDataHoraPT(chegada);
+    commercialReport.open({
+        id: atividadeSelecionadaId,
+        client: clienteSelecionadoNome || 'Cliente não encontrado',
+        code: objetoRelatorioGlobal?.codigo || '#' + atividadeSelecionadaId,
+        date: formato.data, time: formato.hora,
+        arrival: tempoData(chegada) || null, text: objetoRelatorioGlobal?.textoAtual || ''
+    }, page);
+    navegarParaTela('tela-relatorio', { carregar: false });
+}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
@@ -358,6 +372,7 @@ function inicializarAplicativo() {
     onAuthStateChanged(auth, async user => {
 
         const versao = ++versaoSessao;
+        commercialReport?.clear();
 
         idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
 
@@ -645,6 +660,7 @@ function abrirCamadaHistorica(nome) {
 function relatorioPossuiAlteracoesNaoSalvas() {
     if (!objetoAtividadeGlobal) return false;
     const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
+    if (tipo === 'Visita comercial' && commercialReport?.active) return commercialReport.dirty;
 
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
         const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia(objetoRelatorioGlobal));
@@ -678,6 +694,10 @@ function configurarHistoricoNativo() {
 
         const destino = event.state;
         const telaAtual = estadoNavegacaoAtual?.tela;
+        if (telaAtual === 'tela-relatorio' && commercialReport?.backModule()) {
+            history.pushState(estadoNavegacaoAtual, '', urlTela('tela-relatorio'));
+            return;
+        }
 
         if (estadoNavegacaoAtual?.overlay === 'checkin') {
             document.getElementById('tela-confirmacao').style.display = 'none';
@@ -1930,6 +1950,10 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
 async function encerrarVisita(id, btn) {
     if (operacaoEmCurso) return;
+    if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') {
+        abrirPrototipoComercial('checkout');
+        return;
+    }
     operacaoEmCurso = true;
     btn.disabled = true;
     btn.textContent = 'Obtendo GPS de saída...';
@@ -2054,6 +2078,11 @@ function atualizarInterfaceVisitaAtual() {
 
     const acaoAbrirRelatorio = async () => {
         if (operacaoEmCurso || !atividadeSelecionadaId) return;
+        if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') {
+            abrirPrototipoComercial();
+            return;
+        }
+        commercialReport.deactivate();
 
         try {
             const sessao = sessaoAtual();
@@ -2213,6 +2242,7 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
+    commercialReport = new CommercialReport(document.getElementById('tela-relatorio'), () => voltarNavegacao('tela-inicio'));
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 
     document.addEventListener('click', (event) => {
@@ -2417,6 +2447,7 @@ function configurarEventosGlobais() {
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
     document.getElementById('btn-salvar-relatorio')?.addEventListener('click', async () => {
+        if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') return;
         if (operacaoEmCurso) return;
         const btn = document.getElementById('btn-salvar-relatorio');
         let mediaSave = null;
