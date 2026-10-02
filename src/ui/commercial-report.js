@@ -10,8 +10,8 @@ const questions = [['low','Estoque baixo'],['missing','Falta de produto'],['slow
 const materials = ['Catálogo','Cartela de cores','Material de ponto de venda','Material técnico','Outro'];
 const blank = () => ({name:'',role:'',goal:'',low:'',missing:'',slow:'',products:{low:[],missing:[],slow:[]},organization:'',materials:[],other:'',text:'',photos:[],attachments:[],feedback:[],pending:''});
 export class CommercialReport {
-  constructor(host, onClose = () => {}) {
-    this.host = host; this.onClose = onClose; this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
+  constructor(host, onClose = () => {}, onSave = () => {}) {
+    this.host = host; this.onClose = onClose; this.onSave = onSave; this.revisions = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
     this.root = document.createElement('section'); this.root.className = 'commercial-report'; this.root.hidden = true; host.append(this.root);
     this.root.addEventListener('click', e => this.click(e));
     this.root.addEventListener('input', e => this.input(e));
@@ -19,6 +19,7 @@ export class CommercialReport {
     window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   get dirty() { return this.active && JSON.stringify(this.data) !== (this.saved.get(this.key) || this.initial.get(this.key)); }
+  savedReport(key) { const snapshot=this.saved.get(key); if(!snapshot) return null; const data=JSON.parse(snapshot); return {textoAtual:data.text, historico:this.revisions.get(key) || [], atualizadoEm:this.revisions.get(key)?.at(-1)?.salvoEm}; }
   hasSaved(key) { return this.saved.has(key); }
   open(context, page = 'overview') {
     this.key = context.id; this.context = context;
@@ -28,9 +29,9 @@ export class CommercialReport {
   }
   clear() {
     for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) URL.revokeObjectURL(photo.url);
-    this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.deactivate();
+    this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.revisions.clear(); this.deactivate();
   }
-  backModule() { if (!this.active || this.page === 'overview') return false; this.page = this.review ? 'checkout' : 'overview'; this.review = false; this.render(); return true; }
+  backModule() { if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
   deactivate() { this.active = false; this.host.classList.remove('commercial-mode'); this.root.hidden = true; }
   complete(key) {
     if(key === 'contact') return !!(this.data.name.trim() && this.data.role && this.data.goal);
@@ -46,17 +47,12 @@ export class CommercialReport {
   render() {
     const page = this.page; const info = modules.find(([k])=>k===page);
     let body = '';
-    if(page==='overview') body = `<h1>Visita comercial - ${escape(this.context.client)}</h1><p class="cr-code">${escape(this.context.code || '')}</p><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Cliente<div class="cr-pill">${escape(this.context.client)}</div></label>${this.rows()}<div class="cr-footer"><button class="cr-primary" data-action="save">Salvar relatório</button>${this.hasSaved(this.key)?'<button class="cr-secondary" data-page="checkout">Prévia do check-out</button>':''}</div>`;
+    if(page==='overview') body = `<h1>Visita comercial - ${escape(this.context.client)}</h1><p class="cr-code">${escape(this.context.code || '')}</p><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Cliente<div class="cr-pill">${escape(this.context.client)}</div></label>${this.rows()}<div class="cr-footer"><button class="btn-checkin cr-primary" data-action="save">Salvar relatório</button></div>`;
     if(page==='contact') body = this.field('Nome','name','Quem te recebeu?') + this.select('Cargo do responsável','role',['Proprietário(a)','Gerente','Comprador(a)','Vendedor(a)','Outro']) + this.select('Objetivo principal','goal',['Relacionamento','Apresentação de produtos','Reposição de estoque','Prospecção','Acompanhamento comercial','Outro']);
     if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(p)}">${escape(p)} <span>×</span></button>`).join('')}<form data-product="${k}"><input aria-label="Nome do produto em ${title}" placeholder="Buscar ou digitar produto" maxlength="100"><button type="submit" aria-label="Adicionar produto">+</button></form></div><small>Digite o nome e toque em + para adicionar.</small>`:''}</fieldset>`).join('');
     if(page==='exposure') body = `<fieldset><legend>Organização dos produtos</legend>${this.radios('organization',['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'])}</fieldset><label class="cr-photo"><span aria-hidden="true">▧</span>Adicione uma fotografia.<input type="file" accept="image/*" data-upload="photos" hidden></label>${this.previews('photos')}<fieldset><legend>Necessidade de reposição ou ausência</legend><div class="cr-options">${materials.map(o=>`<label><input type="checkbox" data-array="materials" value="${o}" ${this.data.materials.includes(o)?'checked':''}>${o}</label>`).join('')}</div>${this.data.materials.includes('Outro')?this.field('Qual material?','other','Descreva o material'):''}</fieldset>`;
     if(page==='free') body = `<label class="cr-field cr-writing"><span class="cr-sr">Relatório livre</span><textarea data-field="text" placeholder="Comece a escrever..." maxlength="30000">${escape(this.data.text)}</textarea></label>${this.previews('attachments')}<label class="cr-photo">+ Adicionar imagens<input type="file" accept="image/*" multiple data-upload="attachments" hidden></label>`;
-    if(page==='checkout') {
-      const now = new Date(); const arrival = this.context.arrival ? new Date(this.context.arrival) : null;
-      const duration = arrival && Number.isFinite(arrival.getTime()) ? Math.max(0,Math.floor((now-arrival)/60000)) : null;
-      body = `<h1>Check-out</h1><label class="cr-field">Cliente<strong>${escape(this.context.client)}</strong></label><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Saída<div class="cr-pills"><span>${now.toLocaleDateString('pt-BR')}</span><span>${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div></label>${duration!==null?`<p class="cr-code">Tempo de visita: ${Math.floor(duration/60)}h ${duration%60}min.</p>`:''}<h2>Visita comercial</h2>${this.rows(true)}<h2>Relatório livre</h2><div class="cr-summary">${escape(this.data.text.slice(0,260)) || 'Nenhum relato registrado.'}${this.data.text.length>260?'<button class="cr-text-link" data-page="free" data-review="true">Ver mais</button>':''}</div>${this.previews('attachments')}<fieldset><legend>Feedback</legend><div class="cr-options">${['Indicação do produto correto','Preparação ou aplicação','Argumentos de venda','Reclamação sobre o produto'].map(o=>`<label><input type="checkbox" data-array="feedback" value="${o}" ${this.data.feedback.includes(o)?'checked':''}>${o}</label>`).join('')}</div></fieldset>${this.select('Pendências','pending',['Sem pendências','Retorno comercial','Envio de material','Reposição de produtos','Outro'])}<div class="cr-footer"><button class="cr-primary" data-action="finish">Concluir</button><button class="cr-secondary" data-page="overview">Voltar</button></div>`;
-    }
-    this.root.innerHTML = `<header class="cr-header"><img src="midia/logo-advancecheck.svg" alt="Advance Check"><button type="button" data-action="back" aria-label="${page==='overview'?'Fechar relatório':'Voltar'}">${page==='overview'?'×':'‹'}</button></header>${info?`<h1 tabindex="-1">${info[1]}</h1><p class="cr-subtitle">${page==='free'?'Sinta-se à vontade para dar seu depoimento, anotar acontecimentos ou registrar imagens.':info[2]}</p>`:''}<div class="cr-body">${body}</div>${info?`<div class="cr-footer"><button class="cr-primary" data-action="module-done">${this.review?'Voltar ao check-out':page==='free'?'Salvar relato':'Concluir módulo'}</button></div>`:''}<p class="cr-status" role="status" aria-live="polite"></p>`;
+    this.root.innerHTML = `<header class="relatorio-header-top cr-header"><img src="midia/logo-advancecheck.svg" alt="Advance Check"><button type="button" data-action="back" aria-label="${page==='overview'?'Fechar relatório':'Voltar'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14l-4-4 4-4"></path><path d="M5 10h11a4 4 0 1 1 0 8h-1"></path></svg></button></header>${info?`<h1 tabindex="-1">${info[1]}</h1><p class="cr-subtitle">${page==='free'?'Sinta-se à vontade para dar seu depoimento, anotar acontecimentos ou registrar imagens.':info[2]}</p>`:''}<div class="cr-body">${body}</div>${info?`<div class="cr-footer"><button class="btn-checkin cr-primary" data-action="module-done">${page==='free'?'Salvar relato':'Concluir módulo'}</button></div>`:''}<p class="cr-status" role="status" aria-live="polite"></p>`;
     this.root.querySelectorAll('form[data-product]').forEach(form=>form.addEventListener('submit',e=>{ e.preventDefault(); const value=form.querySelector('input').value.trim(); const list=this.data.products[form.dataset.product]; if(value && !list.some(p=>p.toLocaleLowerCase()===value.toLocaleLowerCase())) list.push(value); this.render(); }));
     window.scrollTo(0,0);
   }
@@ -83,13 +79,12 @@ export class CommercialReport {
   status(text) { this.root.querySelector('.cr-status').textContent=text; }
   click(e) {
     const b=e.target.closest('button'); if(!b) return;
-    if(b.dataset.page) { this.review=!!b.dataset.review; this.page=b.dataset.page; this.render(); this.root.querySelector('h1')?.focus(); }
+    if(b.dataset.page) { this.page=b.dataset.page; this.render(); this.root.querySelector('h1')?.focus(); }
     if(b.dataset.removeProduct) { const [k,i]=b.dataset.removeProduct.split(':'); this.data.products[k].splice(Number(i),1); this.render(); }
     if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); URL.revokeObjectURL(this.data[k][i].url); this.data[k].splice(Number(i),1); this.render(); }
     if(b.dataset.image) { const [k,i]=b.dataset.image.split(':'); const p=this.data[k][i]; const dialog=document.createElement('dialog'); dialog.className='cr-dialog'; dialog.innerHTML=`<button aria-label="Fechar imagem">×</button><img src="${p.url}" alt="${escape(p.name)}">`; dialog.querySelector('button').onclick=()=>dialog.close(); dialog.addEventListener('close',()=>dialog.remove()); this.root.append(dialog); dialog.showModal(); }
-    if(b.dataset.action==='back') { if(this.page!=='overview') { this.page=this.review?'checkout':'overview'; this.review=false; this.render(); } else this.onClose(); }
-    if(b.dataset.action==='module-done') { if(this.page==='contact' && !this.complete('contact')) { this.status('Preencha nome, cargo e objetivo principal.'); return; } if(this.page==='availability' && !this.complete('availability')) { this.status('Responda às três perguntas e informe os produtos para cada resposta Sim.'); return; } this.page=this.review?'checkout':'overview'; this.review=false; this.render(); }
-    if(b.dataset.action==='save') { if(!this.validate()) return; this.saved.set(this.key,JSON.stringify(this.data)); this.render(); this.status('Relatório salvo nesta sessão.'); }
-    if(b.dataset.action==='finish') { if(!this.validate()) return; this.saved.set(this.key,JSON.stringify(this.data)); this.status('Prévia concluída. A visita não foi encerrada no sistema.'); }
+    if(b.dataset.action==='back') { if(this.page!=='overview') { this.page='overview'; this.render(); } else this.onClose(); }
+    if(b.dataset.action==='module-done') { if(this.page==='contact' && !this.complete('contact')) { this.status('Preencha nome, cargo e objetivo principal.'); return; } if(this.page==='availability' && !this.complete('availability')) { this.status('Responda às três perguntas e informe os produtos para cada resposta Sim.'); return; } this.page='overview'; this.render(); }
+    if(b.dataset.action==='save') { if(!this.validate()) return; const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }
   }
 }

@@ -1951,7 +1951,12 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 async function encerrarVisita(id, btn) {
     if (operacaoEmCurso) return;
     if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') {
-        abrirPrototipoComercial('checkout');
+        const local = commercialReport.savedReport(id);
+        if (!local) { window.mostrarAlerta('Atenção', 'Salve o relatório antes de iniciar o check-out.'); return; }
+        commercialReport.deactivate();
+        preencherCheckout(objetoAtividadeGlobal, local, {dataHora:new Date()});
+        document.getElementById('checkout-objetivo').value = commercialReport.drafts.get(id)?.goal || '';
+        checkoutPendenteGlobal.frontendComercial = true;
         return;
     }
     operacaoEmCurso = true;
@@ -2012,7 +2017,8 @@ function atualizarInterfaceVisitaAtual() {
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
     const areaVisitas = document.getElementById('area-visitas');
     const tipoAtual = normalizarTipoVisita(objetoAtividadeGlobal);
-    const temRelatorio = relatorioValidoParaCheckout(objetoRelatorioGlobal, tipoAtual);
+    const relatorioInterface = tipoAtual === 'Visita comercial' ? commercialReport?.savedReport(atividadeSelecionadaId) || objetoRelatorioGlobal : objetoRelatorioGlobal;
+    const temRelatorio = !!(tipoAtual === 'Visita comercial' && commercialReport?.hasSaved(atividadeSelecionadaId)) || relatorioValidoParaCheckout(relatorioInterface, tipoAtual);
 
     const etapas = [{
         titulo: 'Check-in',
@@ -2022,11 +2028,11 @@ function atualizarInterfaceVisitaAtual() {
 
     if (temRelatorio) {
         const revisoesFonte = tipoAtual === ASSISTENCIA_TECNICA_TIPO
-            ? objetoRelatorioGlobal.revisoes
-            : objetoRelatorioGlobal.historico;
+            ? relatorioInterface.revisoes
+            : relatorioInterface.historico;
         const revisoes = Array.isArray(revisoesFonte) && revisoesFonte.length
             ? revisoesFonte
-            : [{ salvoEm: objetoRelatorioGlobal.atualizadoEm }];
+            : [{ salvoEm: relatorioInterface.atualizadoEm }];
 
         revisoes.forEach((registro, index) => {
             const horaReg = formatarDataHoraPT(registro.salvoEm).hora;
@@ -2242,7 +2248,11 @@ async function enviarFechamentoManual() {
     }
 }
 function configurarEventosGlobais() {
-    commercialReport = new CommercialReport(document.getElementById('tela-relatorio'), () => voltarNavegacao('tela-inicio'));
+    commercialReport = new CommercialReport(document.getElementById('tela-relatorio'), () => voltarNavegacao('tela-inicio'), () => {
+        commercialReport.deactivate();
+        navegarParaTela('tela-inicio', { substituir: true, carregar: false });
+        atualizarInterfaceVisitaAtual();
+    });
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 
     document.addEventListener('click', (event) => {
@@ -2287,6 +2297,10 @@ function configurarEventosGlobais() {
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
         if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;
+        if (checkoutPendenteGlobal.frontendComercial) {
+            window.mostrarAlerta('Check-out', 'O relatório está salvo nesta sessão. O encerramento será conectado na etapa de integração.');
+            return;
+        }
 
         const btn = document.getElementById('btn-concluir-checkout');
         const atividadeId = checkoutPendenteGlobal.atividadeId;

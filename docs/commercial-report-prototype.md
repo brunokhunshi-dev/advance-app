@@ -16,8 +16,10 @@ Salvar guarda o rascunho somente em memória nesta aba, por visita. Reabrir mant
 os campos; atualizar/fechar a página perde o protótipo. Logout limpa os rascunhos e
 libera as URLs. Não foram adicionados campos ou coleções no Firestore.
 
-A prévia do check-out exibe módulos, relato, feedback e pendências. Concluir valida
-os campos e confirma a prévia, sem GPS, gravação ou encerramento real da atividade.
+Salvar retorna à tela inicial, que passa a exibir a etapa Relatório adicionado e o
+botão Ver ou editar relatório, usando a mesma timeline existente. Edições geram
+uma etapa Relatório atualizado. O botão de prévia foi removido. Encerrar visita
+usa a tela de check-out existente; sua conclusão ainda não grava no backend.
 Treinamentos e assistência técnica continuam com o fluxo existente.
 
 Para conferir sem login/Firebase, sirva a raiz do repositório por HTTP e abra

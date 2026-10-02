@@ -56,3 +56,16 @@
 .cr-dialog::backdrop { background:#000a; }
 .cr-dialog img { max-width:100%; max-height:75dvh; object-fit:contain; }
 .cr-dialog button { display:block; margin-left:auto; font-size:26px; border:0; background:white; color:#f51e30; }
+/* Share the established activity forms, header and action design. */
+.commercial-report { color:var(--color-dark); padding:0 20px 24px; }
+.cr-header { margin:0 -20px 20px; padding:16px 20px; min-height:62px; }
+.cr-header img { height:30px; max-width:160px; }
+.cr-header>button { left:20px; right:auto; width:32px; height:32px; background:transparent; border-radius:0; }
+.cr-header svg { width:28px; height:28px; fill:none; stroke:var(--color-red); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+.commercial-report h1 { font-size:1.7rem; font-weight:800; }
+.cr-field { font-size:.95rem; }
+.cr-field input,.cr-field select,.cr-field textarea,.cr-pill,.cr-pills span { font-size:1rem; border-radius:28px; }
+.cr-subtitle { font-size:.95rem; margin-bottom:24px; }
+.cr-module strong { font-size:1.1rem; }
+.cr-options label,.commercial-report legend { font-size:1rem; }
+.cr-primary { background:var(--color-red); font-size:1rem; }
