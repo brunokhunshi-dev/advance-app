@@ -37,3 +37,9 @@ os mesmos métodos do editor existente, antes de criar prévias locais.
 
 Fotos de exposição reutilizam também mediaStore, reportMarkup e o visualizador
 compartilhado, com abrir/baixar original local. Upload R2 permanece desconectado.
+
+Check-out comercial: chegada/saída e duração mantêm a tela existente. Abaixo,
+mostra os três módulos para consulta somente leitura, relato resumido com Ver mais,
+quatro checkboxes de feedback e seletor de pendências. O X fixo no canto superior
+direito fecha a consulta e retorna ao check-out. A exposição também recebe o
+indicador Obrigatório. O encerramento permanece sem integração de backend.

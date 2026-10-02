@@ -14,7 +14,7 @@ import { createClientRepository } from './src/data/client-repository.js';
 import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js';
 let technicalEditor;
 let commercialReport;
-function abrirPrototipoComercial(page = 'overview') {
+function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, navegar = true) {
     const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
     const formato = formatarDataHoraPT(chegada);
     commercialReport.open({
@@ -23,8 +23,8 @@ function abrirPrototipoComercial(page = 'overview') {
         code: objetoRelatorioGlobal?.codigo || '#' + atividadeSelecionadaId,
         date: formato.data, time: formato.hora,
         arrival: tempoData(chegada) || null, text: objetoRelatorioGlobal?.textoAtual || ''
-    }, page);
-    navegarParaTela('tela-relatorio', { carregar: false });
+    }, page, reviewCheckout);
+    if(navegar) navegarParaTela('tela-relatorio', { carregar: false });
 }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
@@ -208,6 +208,9 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, saida.dataHora);
 
     const tipo = normalizarTipoVisita(atividade);
+    const comercialLocal = tipo === 'Visita comercial' && commercialReport?.hasSaved(atividade.id);
+    document.getElementById('tela-checkout').classList.toggle('commercial-checkout', !!comercialLocal);
+    if(comercialLocal) commercialReport.renderCheckout(document.getElementById('checkout-commercial-content'));
     document.getElementById('checkout-tecnico-section').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
     document.getElementById('checkout-treinamento-section').style.display = tipo === 'Treinamento' ? 'block' : 'none';
     document.getElementById('checkout-assistencia-section').style.display = tipo === 'Assistência técnica' ? 'block' : 'none';
@@ -695,7 +698,7 @@ function configurarHistoricoNativo() {
         const destino = event.state;
         const telaAtual = estadoNavegacaoAtual?.tela;
         if (telaAtual === 'tela-relatorio' && commercialReport?.backModule()) {
-            history.pushState(estadoNavegacaoAtual, '', urlTela('tela-relatorio'));
+            history.pushState(estadoNavegacaoAtual, '', urlTela(estadoNavegacaoAtual.tela));
             return;
         }
 
@@ -1953,9 +1956,10 @@ async function encerrarVisita(id, btn) {
     if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') {
         const local = commercialReport.savedReport(id);
         if (!local) { window.mostrarAlerta('Atenção', 'Salve o relatório antes de iniciar o check-out.'); return; }
+        abrirPrototipoComercial('overview', false, false);
         commercialReport.deactivate();
         preencherCheckout(objetoAtividadeGlobal, local, {dataHora:new Date()});
-        document.getElementById('checkout-objetivo').value = commercialReport.drafts.get(id)?.goal || '';
+
         checkoutPendenteGlobal.frontendComercial = true;
         return;
     }
@@ -2252,6 +2256,12 @@ function configurarEventosGlobais() {
         commercialReport.deactivate();
         navegarParaTela('tela-inicio', { substituir: true, carregar: false });
         atualizarInterfaceVisitaAtual();
+    }, {
+        reviewModule: page => abrirPrototipoComercial(page, true),
+        returnCheckout: () => {
+            commercialReport.deactivate();
+            navegarParaTela('tela-checkout', { substituir: true, carregar: false });
+        }
     });
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 
