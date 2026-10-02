@@ -1,4 +1,4 @@
-import { TechnicalReportEditor, mediaStore } from '../../technical-report-editor.js';
+import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail } from '../../technical-report-editor.js';
 // Front-end prototype: drafts and image previews live only in this tab's memory.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modules = [
@@ -12,6 +12,7 @@ const materials = ['Catálogo','Cartela de cores','Material de ponto de venda','
 const blank = () => ({name:'',role:'',goal:'',low:'',missing:'',slow:'',products:{low:[],missing:[],slow:[]},organization:'',materials:[],other:'',text:'',blocks:null,photos:[],attachments:[],feedback:[],pending:''});
 export class CommercialReport {
   constructor(host, onClose = () => {}, onSave = () => {}) {
+    this.compressPhoto = compressImage; this.thumbnailPhoto = createThumbnail; this.photoGeneration = 0; this.photoBusy = false;
     this.host = host; this.onClose = onClose; this.onSave = onSave; this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
     this.root = document.createElement('section'); this.root.className = 'commercial-report'; this.root.hidden = true; host.append(this.root);
     this.root.addEventListener('click', e => this.click(e));
@@ -29,31 +30,32 @@ export class CommercialReport {
     this.host.classList.add('commercial-mode'); this.root.hidden = false; this.render();
   }
   clear() {
+    this.photoGeneration++; this.photoBusy=false;
     if (this.editor) this.editor.generation = (this.editor.generation || 0) + 1;
-    for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) URL.revokeObjectURL(photo.url);
+    for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) { URL.revokeObjectURL(photo.url); if(photo.thumbnailUrl) URL.revokeObjectURL(photo.thumbnailUrl); }
     for (const id of this.staged.keys()) mediaStore.clearLocal(id); this.staged.clear();
     this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.revisions.clear(); this.deactivate();
   }
-  backModule() { if(this.page==='free' && this.editor?.busy) { this.status('Aguarde o processamento das imagens.'); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
+  backModule() { if(this.photoBusy || (this.page==='free' && this.editor?.busy)) { this.status('Aguarde o processamento das imagens.'); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
   deactivate() { this.active = false; this.host.classList.remove('commercial-mode'); this.root.hidden = true; }
   complete(key) {
     if(key === 'contact') return !!(this.data.name.trim() && this.data.role && this.data.goal);
     if(key === 'availability') return questions.every(([k]) => this.data[k] && (this.data[k] !== 'Sim' || this.data.products[k].length));
-    if(key === 'exposure') return !!this.data.organization && (!this.data.materials.includes('Outro') || this.data.other.trim());
+    if(key === 'exposure') return !!this.data.organization && this.data.photos.length <= 6 && (this.data.organization === 'Não foi verificado' ? this.data.photos.length === 0 : this.data.organization === 'Organizada e visível' || this.data.photos.length >= 1) && (!this.data.materials.includes('Outro') || this.data.other.trim());
     return !!(this.data.text.trim() || this.data.blocks?.some(block=>block.kind==='media'));
   }
   field(label, key, placeholder) { return `<label class="cr-field">${label}<input data-field="${key}" value="${escape(this.data[key])}" placeholder="${placeholder}" maxlength="180"></label>`; }
   select(label,key,options) { return `<label class="cr-field">${label}<select data-field="${key}"><option value="">Selecione uma opção</option>${options.map(o=>`<option ${this.data[key]===o?'selected':''}>${o}</option>`).join('')}</select></label>`; }
   radios(key,options) { return `<div class="cr-options">${options.map(o=>`<label><input type="radio" name="cr-${key}" data-field="${key}" value="${o}" ${this.data[key]===o?'checked':''}>${o}</label>`).join('')}</div>`; }
-  rows(readOnly = false) { return `<div class="cr-modules">${modules.filter(([k])=>!readOnly || k!=='free').map(([k,title,desc])=>`<button type="button" class="cr-module" data-page="${k}" ${readOnly?'data-review="true"':''}><span><strong>${title}${k==='contact'?'<small class="cr-required">(Obrigatório)</small>':''}</strong><span>${desc}</span><small class="cr-progress">${this.complete(k)?'Preenchido':'Não preenchido'}</small></span><span class="cr-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`; }
-  previews(key) { return `<div class="cr-photo-previews">${this.data[key].map((p,i)=>`<figure class="report-media-block"><button type="button" class="report-media-open" data-image="${key}:${i}" aria-label="Ampliar ${escape(p.name)}"><img src="${p.url}" alt="${escape(p.name)}"></button><button type="button" class="report-media-remove" data-remove-image="${key}:${i}" aria-label="Remover ${escape(p.name)}">×</button></figure>`).join('')}</div>`; }
+  rows(readOnly = false) { return `<div class="cr-modules">${modules.filter(([k])=>!readOnly || k!=='free').map(([k,title,desc])=>`<button type="button" class="cr-module" data-page="${k}" ${readOnly?'data-review="true"':''}><span><strong>${title}${['contact','availability'].includes(k)?'<small class="cr-required">(Obrigatório)</small>':k==='free'?'<small class="cr-progress">(Opcional)</small>':''}</strong><span>${desc}</span><small class="cr-progress">${this.complete(k)?'Preenchido':'Não preenchido'}</small></span><span class="cr-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`; }
+  previews(key) { return `<div class="cr-photo-previews">${this.data[key].map((p,i)=>`<figure class="report-media-block"><button type="button" class="report-media-open" data-image="${key}:${i}" aria-label="Ampliar ${escape(p.name)}"><img src="${p.thumbnailUrl || p.url}" alt="${escape(p.name)}"></button><button type="button" class="report-media-remove" data-remove-image="${key}:${i}" aria-label="Remover ${escape(p.name)}">×</button></figure>`).join('')}</div>`; }
   render() {
     const page = this.page; const info = modules.find(([k])=>k===page);
     let body = '';
     if(page==='overview') body = `<h1>Visita comercial - ${escape(this.context.client)}</h1><p class="cr-code">${escape(this.context.code || '')}</p><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Cliente<div class="cr-pill">${escape(this.context.client)}</div></label>${this.rows()}<div class="cr-footer"><button class="btn-checkin cr-primary" data-action="save">Salvar relatório</button></div>`;
     if(page==='contact') body = this.field('Nome','name','Quem te recebeu?') + this.select('Cargo do responsável','role',['Proprietário(a)','Gerente','Comprador(a)','Vendedor(a)','Outro']) + this.select('Objetivo principal','goal',['Relacionamento','Apresentação de produtos','Reposição de estoque','Prospecção','Acompanhamento comercial','Outro']);
-    if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(p)}">${escape(p)} <span>×</span></button>`).join('')}<form data-product="${k}"><input aria-label="Nome do produto em ${title}" placeholder="Buscar ou digitar produto" maxlength="100"><button type="submit" aria-label="Adicionar produto">+</button></form></div><small>Digite o nome e toque em + para adicionar.</small>`:''}</fieldset>`).join('');
-    if(page==='exposure') body = `<fieldset><legend>Organização dos produtos</legend>${this.radios('organization',['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'])}</fieldset><label class="cr-photo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 5l2-2h4l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="4"/></svg>Adicione uma fotografia.<input type="file" accept="image/*" data-upload="photos" hidden></label>${this.previews('photos')}<fieldset><legend>Necessidade de reposição ou ausência</legend><div class="cr-options">${materials.map(o=>`<label><input type="checkbox" data-array="materials" value="${o}" ${this.data.materials.includes(o)?'checked':''}>${o}</label>`).join('')}</div>${this.data.materials.includes('Outro')?this.field('Qual material?','other','Descreva o material'):''}</fieldset>`;
+    if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(p)}">${escape(p)} <span>×</span></button>`).join('')}<form data-product="${k}"><input aria-label="Nome do produto em ${title}" placeholder="Buscar ou digitar produto" maxlength="100"><button type="submit" aria-label="Adicionar produto">+</button></form></div><button type="button" class="cr-text-link" data-example-product="${k}">Adicionar produto de exemplo</button><small>Catálogo ainda não integrado. Use o exemplo ou digite o nome.</small>`:''}</fieldset>`).join('');
+    if(page==='exposure') body = `<fieldset><legend>Organização dos produtos</legend>${this.radios('organization',['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'])}</fieldset>${this.data.organization && this.data.organization!=='Não foi verificado'?`<label class="cr-photo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 5l2-2h4l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="4"/></svg>Adicione uma fotografia.<input type="file" accept="image/*" data-upload="photos" multiple hidden></label><small>${this.data.organization==='Organizada e visível'?'Fotografia opcional':'Adicione pelo menos uma fotografia'} · ${this.data.photos.length}/6</small>${this.previews('photos')}`:''}<fieldset><legend>Necessidade de reposição ou ausência</legend><div class="cr-options">${materials.map(o=>`<label><input type="checkbox" data-array="materials" value="${o}" ${this.data.materials.includes(o)?'checked':''}>${o}</label>`).join('')}</div>${this.data.materials.includes('Outro')?this.field('Qual material?','other','Descreva o material'):''}</fieldset>`;
     if(page==='free') body = `<section class="relatorio-editor-section cr-shared-editor" aria-label="Conteúdo do relatório"><textarea data-field="text" hidden></textarea><div class="technical-report-editor" role="group" aria-label="Escrever relatório"></div><p class="cr-editor-status" role="status" aria-live="polite"></p></section>`;
     this.root.innerHTML = `<header class="relatorio-header-top cr-header"><img src="midia/logo-advancecheck.svg" alt="Advance Check"><button type="button" data-action="back" aria-label="${page==='overview'?'Fechar relatório':'Voltar'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14l-4-4 4-4"></path><path d="M5 10h11a4 4 0 1 1 0 8h-1"></path></svg></button></header>${info?`<h1 tabindex="-1">${info[1]}</h1><p class="cr-subtitle">${page==='free'?'Sinta-se à vontade para dar seu depoimento, anotar acontecimentos ou registrar imagens.':info[2]}</p>`:''}<div class="cr-body">${body}</div>${info?`<div class="${page==='free'?'relatorio-acoes cr-editor-actions':'cr-footer'}">${page==='free'?'<input class="cr-media-picker" type="file" accept="image/*" multiple hidden><input class="cr-camera-picker" type="file" accept="image/*" capture="environment" hidden><button type="button" class="report-add-media" aria-label="Adicionar imagem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>':''}<button class="btn-checkin cr-primary" data-action="module-done">${page==='free'?'Salvar relato':'Concluir módulo'}</button></div>`:''}<p class="cr-status" role="status" aria-live="polite"></p>`;
     this.root.querySelectorAll('form[data-product]').forEach(form=>form.addEventListener('submit',e=>{ e.preventDefault(); const value=form.querySelector('input').value.trim(); const list=this.data.products[form.dataset.product]; if(value && !list.some(p=>p.toLocaleLowerCase()===value.toLocaleLowerCase())) list.push(value); this.render(); }));
@@ -75,32 +77,52 @@ export class CommercialReport {
   async change(e) {
     const t = e.target;
     if(t.dataset.array) { const list=this.data[t.dataset.array]; this.data[t.dataset.array]=t.checked?[...list,t.value]:list.filter(v=>v!==t.value); if(t.value==='Outro') this.render(); }
-    if(t.dataset.field && t.tagName!=='TEXTAREA') { this.data[t.dataset.field]=t.value; if(t.type==='radio') this.render(); }
+    if(t.dataset.field && t.tagName!=='TEXTAREA') { this.data[t.dataset.field]=t.value; if(t.type==='radio') { if(t.dataset.field==='organization' && t.value==='Não foi verificado') { for(const photo of this.data.photos) { URL.revokeObjectURL(photo.url); if(photo.thumbnailUrl) URL.revokeObjectURL(photo.thumbnailUrl); } this.data.photos=[]; } this.render(); } }
     if(t.dataset.upload) {
-      const key=this.key; const data=this.data; const group=t.dataset.upload;
-      for(const file of t.files) {
-        if(!file.type.startsWith('image/') || file.size>10*1024*1024) { this.status('Escolha imagens de até 10 MB.'); continue; }
-        const url=URL.createObjectURL(file); data[group].push({name:file.name,url});
+      if(this.photoBusy || this.data.organization==='Não foi verificado') return;
+      const files=[...t.files]; const data=this.data; const generation=this.photoGeneration;
+      if(data.photos.length+files.length>6) { t.value=''; this.status('Adicione no máximo seis fotografias.'); return; }
+      this.photoBusy=true;
+      this.root.querySelectorAll('input,select,button').forEach(control=>control.disabled=true);
+      this.status('Comprimindo imagens...');
+      let error='';
+      try {
+        for(const file of files) {
+          const compressed=await this.compressPhoto(file);
+          const thumbnail=await this.thumbnailPhoto(compressed.file);
+          if(generation!==this.photoGeneration) return;
+          data.photos.push({name:compressed.file.name,url:URL.createObjectURL(compressed.file),thumbnailUrl:URL.createObjectURL(thumbnail),size:compressed.file.size,originalSize:file.size});
+        }
+      } catch(e) { error=e.message || 'Não foi possível processar a imagem.'; }
+      finally {
+        if(generation===this.photoGeneration) { this.photoBusy=false; this.render(); if(error) this.status(error); }
       }
-      if(key===this.key) this.render();
     }
+  }
+
+  exposureError() {
+    if(!this.data.organization) return 'Selecione a organização dos produtos.';
+    if(this.data.photos.length>6) return 'Adicione no máximo seis fotografias.';
+    if(!['Organizada e visível','Não foi verificado'].includes(this.data.organization) && !this.data.photos.length) return 'Adicione pelo menos uma fotografia da exposição.';
+    return 'Descreva o outro material.';
   }
   validate() {
     if (!this.complete('contact')) { this.page='contact'; this.render(); this.status('Preencha nome, cargo e objetivo principal para salvar.'); return false; }
-    if (questions.some(([k])=>this.data[k]==='Sim' && !this.data.products[k].length)) { this.page='availability'; this.render(); this.status('Informe os produtos para cada resposta Sim.'); return false; }
-    if (this.data.materials.includes('Outro') && !this.data.other.trim()) { this.page='exposure'; this.render(); this.status('Descreva o outro material.'); return false; }
+    if (!this.complete('availability')) { this.page='availability'; this.render(); this.status('Responda às três perguntas e adicione pelo menos um produto para cada Sim.'); return false; }
+    if (!this.complete('exposure')) { this.page='exposure'; this.render(); this.status(this.exposureError()); return false; }
     return true;
   }
   status(text) { this.root.querySelector('.cr-status').textContent=text; }
   click(e) {
     const b=e.target.closest('button'); if(!b) return;
-    if(this.page==='free' && this.editor?.busy && (b.dataset.action || b.dataset.page)) { this.status('Aguarde o processamento das imagens.'); return; }
+    if((this.photoBusy || (this.page==='free' && this.editor?.busy)) && (b.dataset.action || b.dataset.page)) { this.status('Aguarde o processamento das imagens.'); return; }
     if(b.dataset.page) { this.page=b.dataset.page; this.render(); this.root.querySelector('h1')?.focus(); }
+    if(b.dataset.exampleProduct) { const list=this.data.products[b.dataset.exampleProduct]; if(!list.includes('Produto de exemplo (placeholder)')) list.push('Produto de exemplo (placeholder)'); this.render(); }
     if(b.dataset.removeProduct) { const [k,i]=b.dataset.removeProduct.split(':'); this.data.products[k].splice(Number(i),1); this.render(); }
-    if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); URL.revokeObjectURL(this.data[k][i].url); this.data[k].splice(Number(i),1); this.render(); }
+    if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); URL.revokeObjectURL(this.data[k][i].url); if(this.data[k][i].thumbnailUrl) URL.revokeObjectURL(this.data[k][i].thumbnailUrl); this.data[k].splice(Number(i),1); this.render(); }
     if(b.dataset.image) { const [k,i]=b.dataset.image.split(':'); const p=this.data[k][i]; const dialog=document.createElement('dialog'); dialog.className='cr-dialog'; dialog.innerHTML=`<button aria-label="Fechar imagem">×</button><img src="${p.url}" alt="${escape(p.name)}">`; dialog.querySelector('button').onclick=()=>dialog.close(); dialog.addEventListener('close',()=>dialog.remove()); this.root.append(dialog); dialog.showModal(); }
     if(b.dataset.action==='back') { if(this.page!=='overview') { this.page='overview'; this.render(); } else this.onClose(); }
-    if(b.dataset.action==='module-done') { if(this.page==='contact' && !this.complete('contact')) { this.status('Preencha nome, cargo e objetivo principal.'); return; } if(this.page==='availability' && !this.complete('availability')) { this.status('Responda às três perguntas e informe os produtos para cada resposta Sim.'); return; } this.page='overview'; this.render(); }
+    if(b.dataset.action==='module-done') { if(this.page==='contact' && !this.complete('contact')) { this.status('Preencha nome, cargo e objetivo principal.'); return; } if(this.page==='availability' && !this.complete('availability')) { this.status('Responda às três perguntas e informe os produtos para cada resposta Sim.'); return; } if(this.page==='exposure' && !this.complete('exposure')) { this.status(this.exposureError()); return; } this.page='overview'; this.render(); }
     if(b.dataset.action==='save') { if(!this.validate()) return; const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }
   }
 }

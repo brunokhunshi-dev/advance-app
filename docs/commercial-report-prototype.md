@@ -3,12 +3,13 @@
 Branch: `fix/auditoria-otimizacao-app`.
 
 Ao abrir o relatório de uma visita comercial, o front-end mostra quatro módulos:
-contato na loja (obrigatório), disponibilidade dos produtos, exposição e materiais,
-e relatório livre. O preenchimento indica o estado de cada módulo.
+contato na loja (todos os campos obrigatórios), disponibilidade dos produtos
+(obrigatória), exposição e materiais, e relatório livre (opcional). O preenchimento indica o estado de cada módulo.
 
 As opções de cargo, objetivo e pendências são provisórias no front-end, pois as
 referências mostram os selects fechados. Os produtos são digitados e adicionados
-como chips; ainda não existe consulta de catálogo. Para respostas Sim, exige-se
+como chips; ainda não existe consulta de catálogo. Cada Sim oferece também
+um botão para selecionar Produto de exemplo (placeholder). Para respostas Sim, exige-se
 pelo menos um produto. Material Outro exige descrição.
 
 O relatório livre reutiliza TechnicalReportEditor e as classes existentes em styles.css.
@@ -27,3 +28,9 @@ Treinamentos e assistência técnica continuam com o fluxo existente.
 Para conferir sem login/Firebase, sirva a raiz do repositório por HTTP e abra
 `commercial-preview.html`. Esta página usa somente o componente local e dados de
 exemplo; as fontes externas são opcionais e têm fallback sans-serif.
+
+Na exposição, a organização deve ser selecionada. Organizada e visível permite
+fotos opcionais; Não foi verificado oculta o seletor e remove as fotos dessa seção.
+Necessidade de organização e Ausência de exposição exigem de uma a seis fotos.
+A seção limita todas as opções a seis fotos e usa compressImage e createThumbnail,
+os mesmos métodos do editor existente, antes de criar prévias locais.
