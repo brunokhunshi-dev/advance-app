@@ -11,7 +11,9 @@ referências mostram os selects fechados. Os produtos são digitados e adicionad
 como chips; ainda não existe consulta de catálogo. Para respostas Sim, exige-se
 pelo menos um produto. Material Outro exige descrição.
 
-Imagens são prévias locais com URLs de objeto, removíveis e ampliáveis, sem uploads.
+O relatório livre reutiliza TechnicalReportEditor e as classes existentes em styles.css.
+Texto e imagens permanecem em blocos intercalados, com seleção no cursor, compressão,
+miniaturas de 96 px, abertura do original e remoção. Nenhum upload é realizado.
 Salvar guarda o rascunho somente em memória nesta aba, por visita. Reabrir mantém
 os campos; atualizar/fechar a página perde o protótipo. Logout limpa os rascunhos e
 libera as URLs. Não foram adicionados campos ou coleções no Firestore.

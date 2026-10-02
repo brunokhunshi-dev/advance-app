@@ -40,13 +40,8 @@
 .cr-products form button { background:transparent; border:0; color:#f51e30; font-size:26px; width:40px; }
 .cr-photo { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; background:#fff3f5; border-radius:16px; padding:16px; color:#f51e30; font-size:13px; cursor:pointer; }
 .cr-photo>span { font-size:24px; }
-.cr-previews { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
-.cr-previews>div { position:relative; width:96px; height:96px; }
-.cr-previews button:first-child { border:0; padding:0; background:transparent; width:100%; height:100%; }
-.cr-previews img { width:96px; height:96px; border-radius:12px; object-fit:cover; }
-.cr-remove { position:absolute; right:0; top:0; width:25px; height:25px; border:0; border-radius:50%; color:white; background:#f51e30; }
-.cr-writing { flex:1; }
-.cr-writing textarea { resize:vertical; flex:1; min-height:52dvh; border-radius:18px; line-height:1.5; }
+.cr-photo-previews { margin:12px 0; }
+.cr-photo-previews img { width:96px; height:96px; object-fit:cover; }
 .cr-summary { border-radius:18px; background:#f8f8fa; padding:18px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .cr-text-link { color:#f51e30; background:none; border:0; text-decoration:underline; font-weight:600; }
 .cr-status { margin-top:12px; font-size:14px; color:#6e6e90; }
@@ -69,3 +64,10 @@
 .cr-module strong { font-size:1.1rem; }
 .cr-options label,.commercial-report legend { font-size:1rem; }
 .cr-primary { background:var(--color-red); font-size:1rem; }
+
+/* Layout only; editor text, images, remove buttons and add control use styles.css. */
+.cr-shared-editor { margin:0 -20px; display:flex; flex-direction:column; cursor:text; min-height:45dvh; }
+.cr-editor-actions { margin:0 -20px -24px; }
+.cr-editor-actions .cr-primary { flex:1; width:auto; }
+.cr-editor-status { font-size:12px; line-height:1.5; color:#a12331; margin-top:8px; }
+.cr-editor-status:empty { display:none; }

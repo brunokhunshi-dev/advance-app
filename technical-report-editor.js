@@ -556,10 +556,10 @@ export class TechnicalReportEditor {
         dialog.showModal();
     }
 
-    reset({ activityId, text, blocks } = {}) {
+    reset({ activityId, text, blocks, preserveLocal = false } = {}) {
         this.generation = (this.generation || 0) + 1;
         this.status.textContent = '';
-        clearAllLocalMedia();
+        if (!preserveLocal) clearAllLocalMedia();
         this.activityId = String(activityId || '');
         this.pendingDeletes.clear();
 
