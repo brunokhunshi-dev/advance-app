@@ -31,7 +31,7 @@ export class CommercialReport {
     this.host.classList.add('commercial-mode'); this.root.hidden = false; this.render();
   }
   clear() {
-    this.photoGeneration++; this.photoBusy=false;
+    this.photoGeneration++; this.photoBusy=false; this.checkoutResizeObserver?.disconnect();
     if (this.editor) this.editor.generation = (this.editor.generation || 0) + 1;
     for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) this.releasePhoto(photo);
     for (const id of this.staged.keys()) mediaStore.clearLocal(id); this.staged.clear();
@@ -77,7 +77,18 @@ export class CommercialReport {
   renderCheckout(host) {
     const draft = this.drafts.get(this.key);
     const data = {...JSON.parse(this.saved.get(this.key)), feedback:draft.feedback, pending:draft.pending};
-    host.innerHTML = `<section class="checkout-tipo-section"><h2>Visita comercial</h2>${this.rows(true)}</section><section class="checkout-relatorio-section"><label>Relatório livre</label><div class="checkout-relatorio-box cr-summary">${escape(data.text.slice(0,260)) || 'Nenhum relato registrado.'}${data.text || data.blocks?.some(block=>block.kind==='media')?'<button type="button" class="cr-text-link" data-review-module="free">Ver mais</button>':''}</div></section><section class="checkout-tipo-section"><h2>Feedback</h2><div class="cr-options">${['Indicação do produto correto','Preparação ou aplicação','Argumentos de venda','Reclamação sobre o produto'].map(value=>`<label><input type="checkbox" data-checkout-feedback value="${value}" ${data.feedback.includes(value)?'checked':''}>${value}</label>`).join('')}</div></section><section class="checkout-tipo-section"><h2>Pendências</h2><div class="select-wrapper"><select class="input-box" data-checkout-pending><option value="">Selecione uma opção</option>${['Sem pendências','Retorno comercial','Envio de material','Reposição de produtos','Outro'].map(value=>`<option ${data.pending===value?'selected':''}>${value}</option>`).join('')}</select></div></section>`;
+    host.innerHTML = `<section class="checkout-tipo-section"><h2>Visita comercial</h2>${this.rows(true)}</section><section class="checkout-relatorio-section"><label>Relatório livre</label><div class="checkout-relatorio-box cr-summary"><div class="cr-summary-text">${escape(data.text) || 'Nenhum relato registrado.'}</div><button type="button" class="cr-text-link" data-review-module="free" hidden>Ver mais</button></div></section><section class="checkout-tipo-section"><h2>Feedback</h2><div class="cr-options">${['Indicação do produto correto','Preparação ou aplicação','Argumentos de venda','Reclamação sobre o produto'].map(value=>`<label><input type="checkbox" data-checkout-feedback value="${value}" ${data.feedback.includes(value)?'checked':''}>${value}</label>`).join('')}</div></section><section class="checkout-tipo-section"><h2>Pendências</h2><div class="select-wrapper"><select class="input-box" data-checkout-pending><option value="">Selecione uma opção</option>${['Pedido ou entrega','Solicitação comercial','Reclamação ou atendimento técnico','Material de apoio','Treinamento','Outra'].map(value=>`<option ${data.pending===value?'selected':''}>${value}</option>`).join('')}</select></div></section>`;
+    const summary = host.querySelector('.cr-summary-text');
+    const more = host.querySelector('[data-review-module="free"]');
+    const updateOverflow = () => { more.hidden = !summary.clientHeight || summary.scrollHeight <= summary.clientHeight + 1; };
+    this.checkoutResizeObserver?.disconnect();
+    if (typeof ResizeObserver !== 'undefined') {
+      this.checkoutResizeObserver = new ResizeObserver(updateOverflow);
+      this.checkoutResizeObserver.observe(summary);
+    }
+    updateOverflow();
+    window.requestAnimationFrame?.(updateOverflow);
+    document.fonts?.ready.then(updateOverflow);
     host.onclick = event => { const button=event.target.closest('[data-page],[data-review-module]'); if(button) this.reviewCallbacks.reviewModule?.(button.dataset.page || button.dataset.reviewModule); };
     host.onchange = event => { const input=event.target; if(input.matches('[data-checkout-feedback]')) draft.feedback=input.checked?[...draft.feedback,input.value]:draft.feedback.filter(value=>value!==input.value); if(input.matches('[data-checkout-pending]')) draft.pending=input.value; };
   }

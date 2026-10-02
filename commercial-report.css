@@ -88,3 +88,6 @@
 .commercial-checkout .cr-summary { border-radius:24px; font-size:1rem; line-height:1.4; padding:18px; }
 .commercial-checkout .select-wrapper select { background:var(--color-bg); border:0; border-radius:28px; padding:16px; width:100%; font:inherit; color:var(--color-dark); }
 .commercial-checkout .checkout-acoes { margin-top:32px; }
+
+.commercial-checkout .cr-summary-text { max-height:5.6em; line-height:1.4; overflow:hidden; }
+.commercial-checkout .cr-summary .cr-text-link[hidden] { display:none; }
