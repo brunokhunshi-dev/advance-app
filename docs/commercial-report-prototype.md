@@ -6,8 +6,8 @@ Ao abrir o relatório de uma visita comercial, o front-end mostra quatro módulo
 contato na loja (todos os campos obrigatórios), disponibilidade dos produtos
 (obrigatória), exposição e materiais, e relatório livre (opcional). O preenchimento indica o estado de cada módulo.
 
-As opções de cargo, objetivo e pendências são provisórias no front-end, pois as
-referências mostram os selects fechados. Os produtos são digitados e adicionados
+Cargo e objetivo usam as opções fornecidas pelo usuário, com seleção única
+obrigatória. Os produtos são digitados e adicionados
 como chips; ainda não existe consulta de catálogo. Cada Sim oferece também
 um botão para selecionar Produto de exemplo (placeholder). Para respostas Sim, exige-se
 pelo menos um produto. Material Outro exige descrição.
@@ -34,3 +34,6 @@ fotos opcionais; Não foi verificado oculta o seletor e remove as fotos dessa se
 Necessidade de organização e Ausência de exposição exigem de uma a seis fotos.
 A seção limita todas as opções a seis fotos e usa compressImage e createThumbnail,
 os mesmos métodos do editor existente, antes de criar prévias locais.
+
+Fotos de exposição reutilizam também mediaStore, reportMarkup e o visualizador
+compartilhado, com abrir/baixar original local. Upload R2 permanece desconectado.

@@ -1,4 +1,4 @@
-import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail } from '../../technical-report-editor.js';
+import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail, reportMarkup } from '../../technical-report-editor.js';
 // Front-end prototype: drafts and image previews live only in this tab's memory.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modules = [
@@ -32,7 +32,7 @@ export class CommercialReport {
   clear() {
     this.photoGeneration++; this.photoBusy=false;
     if (this.editor) this.editor.generation = (this.editor.generation || 0) + 1;
-    for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) { URL.revokeObjectURL(photo.url); if(photo.thumbnailUrl) URL.revokeObjectURL(photo.thumbnailUrl); }
+    for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) this.releasePhoto(photo);
     for (const id of this.staged.keys()) mediaStore.clearLocal(id); this.staged.clear();
     this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.revisions.clear(); this.deactivate();
   }
@@ -48,12 +48,19 @@ export class CommercialReport {
   select(label,key,options) { return `<label class="cr-field">${label}<select data-field="${key}"><option value="">Selecione uma opção</option>${options.map(o=>`<option ${this.data[key]===o?'selected':''}>${o}</option>`).join('')}</select></label>`; }
   radios(key,options) { return `<div class="cr-options">${options.map(o=>`<label><input type="radio" name="cr-${key}" data-field="${key}" value="${o}" ${this.data[key]===o?'checked':''}>${o}</label>`).join('')}</div>`; }
   rows(readOnly = false) { return `<div class="cr-modules">${modules.filter(([k])=>!readOnly || k!=='free').map(([k,title,desc])=>`<button type="button" class="cr-module" data-page="${k}" ${readOnly?'data-review="true"':''}><span><strong>${title}${['contact','availability'].includes(k)?'<small class="cr-required">(Obrigatório)</small>':k==='free'?'<small class="cr-progress">(Opcional)</small>':''}</strong><span>${desc}</span><small class="cr-progress">${this.complete(k)?'Preenchido':'Não preenchido'}</small></span><span class="cr-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`; }
-  previews(key) { return `<div class="cr-photo-previews">${this.data[key].map((p,i)=>`<figure class="report-media-block"><button type="button" class="report-media-open" data-image="${key}:${i}" aria-label="Ampliar ${escape(p.name)}"><img src="${p.thumbnailUrl || p.url}" alt="${escape(p.name)}"></button><button type="button" class="report-media-remove" data-remove-image="${key}:${i}" aria-label="Remover ${escape(p.name)}">×</button></figure>`).join('')}</div>`; }
+  previews(key) { return `<div class="cr-photo-previews">${this.data[key].map((photo,i)=>`<figure class="report-media-block">${reportMarkup([photo],this.key)}<button type="button" class="report-media-remove" data-remove-image="${key}:${i}" aria-label="Remover ${escape(photo.name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg></button></figure>`).join('')}</div>`; }
+  releasePhoto(photo) {
+    if(photo.url) URL.revokeObjectURL(photo.url);
+    if(photo.thumbnailUrl) URL.revokeObjectURL(photo.thumbnailUrl);
+    if(photo.id) { mediaStore.clearLocal(photo.id); this.staged.delete(photo.id); }
+  }
+
   render() {
     const page = this.page; const info = modules.find(([k])=>k===page);
     let body = '';
+    for(const photo of this.data.photos) { const local=this.staged.get(photo.id); if(local && !mediaStore.local(photo.id)) mediaStore.stage(photo.id,local.file,local.thumbnail); }
     if(page==='overview') body = `<h1>Visita comercial - ${escape(this.context.client)}</h1><p class="cr-code">${escape(this.context.code || '')}</p><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Cliente<div class="cr-pill">${escape(this.context.client)}</div></label>${this.rows()}<div class="cr-footer"><button class="btn-checkin cr-primary" data-action="save">Salvar relatório</button></div>`;
-    if(page==='contact') body = this.field('Nome','name','Quem te recebeu?') + this.select('Cargo do responsável','role',['Proprietário(a)','Gerente','Comprador(a)','Vendedor(a)','Outro']) + this.select('Objetivo principal','goal',['Relacionamento','Apresentação de produtos','Reposição de estoque','Prospecção','Acompanhamento comercial','Outro']);
+    if(page==='contact') body = this.field('Nome','name','Quem te recebeu?') + this.select('Cargo do responsável','role',['Proprietário','Gerente','Comprador','Vendedor','Responsável técnico']) + this.select('Objetivo principal','goal',['Relacionamento e levantamento de necessidades','Apoio às vendas ou reposição','Apresentação de produto ou lançamento','Orientação aos vendedores','Acompanhamento de pendência']);
     if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(p)}">${escape(p)} <span>×</span></button>`).join('')}<form data-product="${k}"><input aria-label="Nome do produto em ${title}" placeholder="Buscar ou digitar produto" maxlength="100"><button type="submit" aria-label="Adicionar produto">+</button></form></div><button type="button" class="cr-text-link" data-example-product="${k}">Adicionar produto de exemplo</button><small>Catálogo ainda não integrado. Use o exemplo ou digite o nome.</small>`:''}</fieldset>`).join('');
     if(page==='exposure') body = `<fieldset><legend>Organização dos produtos</legend>${this.radios('organization',['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'])}</fieldset>${this.data.organization && this.data.organization!=='Não foi verificado'?`<label class="cr-photo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 5l2-2h4l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="4"/></svg>Adicione uma fotografia.<input type="file" accept="image/*" data-upload="photos" multiple hidden></label><small>${this.data.organization==='Organizada e visível'?'Fotografia opcional':'Adicione pelo menos uma fotografia'} · ${this.data.photos.length}/6</small>${this.previews('photos')}`:''}<fieldset><legend>Necessidade de reposição ou ausência</legend><div class="cr-options">${materials.map(o=>`<label><input type="checkbox" data-array="materials" value="${o}" ${this.data.materials.includes(o)?'checked':''}>${o}</label>`).join('')}</div>${this.data.materials.includes('Outro')?this.field('Qual material?','other','Descreva o material'):''}</fieldset>`;
     if(page==='free') body = `<section class="relatorio-editor-section cr-shared-editor" aria-label="Conteúdo do relatório"><textarea data-field="text" hidden></textarea><div class="technical-report-editor" role="group" aria-label="Escrever relatório"></div><p class="cr-editor-status" role="status" aria-live="polite"></p></section>`;
@@ -77,7 +84,7 @@ export class CommercialReport {
   async change(e) {
     const t = e.target;
     if(t.dataset.array) { const list=this.data[t.dataset.array]; this.data[t.dataset.array]=t.checked?[...list,t.value]:list.filter(v=>v!==t.value); if(t.value==='Outro') this.render(); }
-    if(t.dataset.field && t.tagName!=='TEXTAREA') { this.data[t.dataset.field]=t.value; if(t.type==='radio') { if(t.dataset.field==='organization' && t.value==='Não foi verificado') { for(const photo of this.data.photos) { URL.revokeObjectURL(photo.url); if(photo.thumbnailUrl) URL.revokeObjectURL(photo.thumbnailUrl); } this.data.photos=[]; } this.render(); } }
+    if(t.dataset.field && t.tagName!=='TEXTAREA') { this.data[t.dataset.field]=t.value; if(t.type==='radio') { if(t.dataset.field==='organization' && t.value==='Não foi verificado') { for(const photo of this.data.photos) this.releasePhoto(photo); this.data.photos=[]; } this.render(); } }
     if(t.dataset.upload) {
       if(this.photoBusy || this.data.organization==='Não foi verificado') return;
       const files=[...t.files]; const data=this.data; const generation=this.photoGeneration;
@@ -91,7 +98,8 @@ export class CommercialReport {
           const compressed=await this.compressPhoto(file);
           const thumbnail=await this.thumbnailPhoto(compressed.file);
           if(generation!==this.photoGeneration) return;
-          data.photos.push({name:compressed.file.name,url:URL.createObjectURL(compressed.file),thumbnailUrl:URL.createObjectURL(thumbnail),size:compressed.file.size,originalSize:file.size});
+          const id=crypto.randomUUID(); mediaStore.stage(id,compressed.file,thumbnail); this.staged.set(id,mediaStore.local(id));
+          data.photos.push({kind:'media',id,name:compressed.file.name,type:compressed.file.type,storage:'pending',size:compressed.file.size,originalSize:file.size});
         }
       } catch(e) { error=e.message || 'Não foi possível processar a imagem.'; }
       finally {
@@ -119,8 +127,7 @@ export class CommercialReport {
     if(b.dataset.page) { this.page=b.dataset.page; this.render(); this.root.querySelector('h1')?.focus(); }
     if(b.dataset.exampleProduct) { const list=this.data.products[b.dataset.exampleProduct]; if(!list.includes('Produto de exemplo (placeholder)')) list.push('Produto de exemplo (placeholder)'); this.render(); }
     if(b.dataset.removeProduct) { const [k,i]=b.dataset.removeProduct.split(':'); this.data.products[k].splice(Number(i),1); this.render(); }
-    if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); URL.revokeObjectURL(this.data[k][i].url); if(this.data[k][i].thumbnailUrl) URL.revokeObjectURL(this.data[k][i].thumbnailUrl); this.data[k].splice(Number(i),1); this.render(); }
-    if(b.dataset.image) { const [k,i]=b.dataset.image.split(':'); const p=this.data[k][i]; const dialog=document.createElement('dialog'); dialog.className='cr-dialog'; dialog.innerHTML=`<button aria-label="Fechar imagem">×</button><img src="${p.url}" alt="${escape(p.name)}">`; dialog.querySelector('button').onclick=()=>dialog.close(); dialog.addEventListener('close',()=>dialog.remove()); this.root.append(dialog); dialog.showModal(); }
+    if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); this.releasePhoto(this.data[k][i]); this.data[k].splice(Number(i),1); this.render(); }
     if(b.dataset.action==='back') { if(this.page!=='overview') { this.page='overview'; this.render(); } else this.onClose(); }
     if(b.dataset.action==='module-done') { if(this.page==='contact' && !this.complete('contact')) { this.status('Preencha nome, cargo e objetivo principal.'); return; } if(this.page==='availability' && !this.complete('availability')) { this.status('Responda às três perguntas e informe os produtos para cada resposta Sim.'); return; } if(this.page==='exposure' && !this.complete('exposure')) { this.status(this.exposureError()); return; } this.page='overview'; this.render(); }
     if(b.dataset.action==='save') { if(!this.validate()) return; const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }

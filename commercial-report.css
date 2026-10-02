@@ -71,3 +71,6 @@
 .cr-editor-actions .cr-primary { flex:1; width:auto; }
 .cr-editor-status { font-size:12px; line-height:1.5; color:#a12331; margin-top:8px; }
 .cr-editor-status:empty { display:none; }
+
+.commercial-report .report-text-block:focus,
+.commercial-report .report-text-block:focus-visible { outline:none; box-shadow:none; }
