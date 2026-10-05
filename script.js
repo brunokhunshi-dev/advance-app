@@ -616,7 +616,6 @@ function mostrarApenasTela(idTelaAlvo) {
 
         document.getElementById('tela-relatorio').style.display = 'flex';
 
-        document.getElementById('header-principal').style.display = 'none';
 
         document.querySelector('.bottom-nav').style.display = 'none';
 
@@ -624,7 +623,6 @@ function mostrarApenasTela(idTelaAlvo) {
 
         document.getElementById('tela-checkout').style.display = 'block';
 
-        document.getElementById('header-principal').style.display = 'none';
 
         document.querySelector('.bottom-nav').style.display = 'none';
 
@@ -632,13 +630,11 @@ function mostrarApenasTela(idTelaAlvo) {
 
         document.getElementById('tela-visualizador-visita').style.display = 'block';
 
-        document.getElementById('header-principal').style.display = 'none';
 
         document.querySelector('.bottom-nav').style.display = 'none';
 
     } else {
 
-        document.getElementById('header-principal').style.display = 'flex';
 
         document.querySelector('.bottom-nav').style.display = 'flex';
 
