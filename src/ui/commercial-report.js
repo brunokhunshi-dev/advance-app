@@ -1,5 +1,5 @@
 import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail, reportMarkup } from '../../technical-report-editor.js';
-// Front-end prototype: drafts and image previews live only in this tab's memory.
+// Drafts are staged locally; the application injects database persistence.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modules = [
   ['contact','Contato na loja','Dados do responsável de te receber'],
@@ -14,7 +14,7 @@ export class CommercialReport {
   constructor(host, onClose = () => {}, onSave = () => {}, review = {}) {
     this.reviewCallbacks = review;
     this.compressPhoto = compressImage; this.thumbnailPhoto = createThumbnail; this.photoGeneration = 0; this.photoBusy = false;
-    this.host = host; this.onClose = onClose; this.onSave = onSave; this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
+    this.host = host; this.onClose = onClose; this.onSave = onSave; this.baseReports = new Map(); this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
     this.root = document.createElement('section'); this.root.className = 'commercial-report'; this.root.hidden = true; host.append(this.root);
     this.root.addEventListener('click', e => this.click(e));
     this.root.addEventListener('input', e => this.input(e));
@@ -22,7 +22,43 @@ export class CommercialReport {
     window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   get dirty() { return this.active && !this.reviewCheckout && JSON.stringify(this.data) !== (this.saved.get(this.key) || this.initial.get(this.key)); }
-  savedReport(key) { const snapshot=this.saved.get(key); if(!snapshot) return null; const data=JSON.parse(snapshot); return {textoAtual:data.text, conteudoRelatorio:{versao:1,blocos:data.blocks || []}, historico:this.revisions.get(key) || [], atualizadoEm:this.revisions.get(key)?.at(-1)?.salvoEm}; }
+  savedReport(key) { const snapshot=this.saved.get(key); if(!snapshot) return null; const data=JSON.parse(snapshot); return {...this.baseReports?.get(key), dadosComerciais:{versao:1,...data}, textoAtual:data.text, conteudoRelatorio:{versao:1,blocos:data.blocks || []}, historico:this.revisions.get(key) || [], atualizadoEm:this.revisions.get(key)?.at(-1)?.salvoEm}; }
+  hydrate(key, report, force = false) {
+    if (!force && this.drafts.has(key)) return;
+    const data = {...blank(), ...(report?.dadosComerciais || {}), text:report?.textoAtual || '', blocks:report?.conteudoRelatorio?.blocos || null};
+    delete data.versao;
+    data.products = {...blank().products, ...data.products};
+    this.baseReports.set(key, report || null);
+    this.drafts.set(key, data);
+    this.initial.set(key, JSON.stringify(data));
+    if (report) this.saved.set(key, JSON.stringify(data));
+    else this.saved.delete(key);
+    this.revisions.set(key, report?.historico || []);
+  }
+  async savePersisted() {
+    if (this.saving) return;
+    this.saving = true;
+    const key = this.key, generation = this.photoGeneration;
+    this.root.querySelectorAll('button,input,select').forEach(control => control.disabled = true);
+    this.status('Salvando relatório...');
+    try {
+      const report = await this.reviewCallbacks.persist(key, structuredClone(this.data), this.baseReports.get(key));
+      if (generation !== this.photoGeneration) return;
+      for (const photo of [...(report.dadosComerciais?.photos || []), ...(report.conteudoRelatorio?.blocos || [])]) {
+        if (photo.storage === 'r2') this.staged.delete(photo.id);
+      }
+      this.hydrate(key, report, true);
+      this.data = this.drafts.get(key);
+      this.onSave(key);
+    } catch (error) {
+      if (generation === this.photoGeneration) this.status(error.message || 'Não foi possível salvar. Tente novamente.');
+    } finally {
+      if (generation === this.photoGeneration) {
+        this.saving = false;
+        this.root.querySelectorAll('button,input,select').forEach(control => control.disabled = false);
+      }
+    }
+  }
   hasSaved(key) { return this.saved.has(key); }
   open(context, page = 'overview', reviewCheckout = false) {
     this.key = context.id; this.context = context; this.reviewCheckout = reviewCheckout;
@@ -31,13 +67,13 @@ export class CommercialReport {
     this.host.classList.add('commercial-mode'); this.root.hidden = false; this.render();
   }
   clear() {
-    this.photoGeneration++; this.photoBusy=false; this.checkoutResizeObserver?.disconnect();
+    this.photoGeneration++; this.photoBusy=false; this.saving=false; this.checkoutResizeObserver?.disconnect();
     if (this.editor) this.editor.generation = (this.editor.generation || 0) + 1;
     for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) this.releasePhoto(photo);
     for (const id of this.staged.keys()) mediaStore.clearLocal(id); this.staged.clear();
-    this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.revisions.clear(); this.deactivate();
+    this.baseReports.clear(); this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.revisions.clear(); this.deactivate();
   }
-  backModule() { if(this.photoBusy || (this.page==='free' && this.editor?.busy)) { this.status('Aguarde o processamento das imagens.'); return true; } if(this.reviewCheckout) { this.reviewCallbacks.returnCheckout?.(); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
+  backModule() { if(this.saving || this.photoBusy || (this.page==='free' && this.editor?.busy)) { this.status('Aguarde o processamento das imagens.'); return true; } if(this.reviewCheckout) { this.reviewCallbacks.returnCheckout?.(); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
   deactivate() { this.active = false; this.host.classList.remove('commercial-mode'); this.root.hidden = true; }
   complete(key, data = this.data) {
     if(key === 'contact') return !!(data.name.trim() && data.role && data.goal);
@@ -147,7 +183,7 @@ export class CommercialReport {
   status(text) { this.root.querySelector('.cr-status').textContent=text; }
   click(e) {
     const b=e.target.closest('button'); if(!b) return;
-    if((this.photoBusy || (this.page==='free' && this.editor?.busy)) && (b.dataset.action || b.dataset.page)) { this.status('Aguarde o processamento das imagens.'); return; }
+    if((this.saving || this.photoBusy || (this.page==='free' && this.editor?.busy)) && (b.dataset.action || b.dataset.page)) { this.status('Aguarde o processamento das imagens.'); return; }
     if(b.dataset.page) { this.page=b.dataset.page; this.render(); this.root.querySelector('h1')?.focus(); }
     if(b.dataset.exampleProduct) { const list=this.data.products[b.dataset.exampleProduct]; if(!list.includes('Produto de exemplo (placeholder)')) list.push('Produto de exemplo (placeholder)'); this.render(); }
     if(b.dataset.removeProduct) { const [k,i]=b.dataset.removeProduct.split(':'); this.data.products[k].splice(Number(i),1); this.render(); }
@@ -155,6 +191,6 @@ export class CommercialReport {
     if(this.reviewCheckout && (b.dataset.action==='back' || b.dataset.action==='module-done')) { this.reviewCallbacks.returnCheckout?.(); return; }
     if(b.dataset.action==='back') { if(this.page!=='overview') { this.page='overview'; this.render(); } else this.onClose(); }
     if(b.dataset.action==='module-done') { this.page='overview'; this.render(); }
-    if(b.dataset.action==='save') { const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }
+    if(b.dataset.action==='save') { if(this.reviewCallbacks?.persist) return this.savePersisted(); const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }
   }
 }

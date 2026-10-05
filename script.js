@@ -1,17 +1,18 @@
+import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
 import './src/ui/pwa.js';
 import { escaparHtml, tempoData, lerDataHora, formatarDataHoraPT, formatarDataAgenda, formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, serializarEstavel } from './src/domain/formatters.js';
 import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, gerarIdClienteProvisorio, cnpjValido } from './src/domain/identifiers.js';
-import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao } from './src/domain/reports.js';
+import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
 import { buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia, validarPrecisaoGps } from './src/services/location.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
-import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi } from './technical-report-editor.js';
+import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 let technicalEditor;
 let commercialReport;
 function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, navegar = true) {
@@ -208,7 +209,7 @@ function preencherCheckout(atividade, relatorio, saida) {
     document.getElementById('checkout-duracao').textContent = formatarDuracaoVisita(atividade.checkinDataHora, saida.dataHora);
 
     const tipo = normalizarTipoVisita(atividade);
-    const comercialLocal = tipo === 'Visita comercial' && commercialReport?.hasSaved(atividade.id);
+    const comercialLocal = tipo === 'Visita comercial' && relatorio?.dadosComerciais?.versao === 1;
     document.getElementById('tela-checkout').classList.toggle('commercial-checkout', !!comercialLocal);
     if(comercialLocal) commercialReport.renderCheckout(document.getElementById('checkout-commercial-content'));
     document.getElementById('checkout-tecnico-section').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
@@ -792,6 +793,7 @@ async function carregarAtividadesPendentes() {
             atividadeSelecionadaId = atividade.id; clienteSelecionadoId = atividade.clienteId; clienteSelecionadoNome = nomeCliente;
 
             objetoAtividadeGlobal = atividade; objetoRelatorioGlobal = relatorio;
+            if (normalizarTipoVisita(atividade) === 'Visita comercial') commercialReport.hydrate(atividade.id, relatorio);
 
             atualizarInterfaceVisitaAtual(); return;
 
@@ -1953,16 +1955,6 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
 async function encerrarVisita(id, btn) {
     if (operacaoEmCurso) return;
-    if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') {
-        const local = commercialReport.savedReport(id);
-        if (!local) { window.mostrarAlerta('Atenção', 'Salve o relatório antes de iniciar o check-out.'); return; }
-        abrirPrototipoComercial('overview', false, false);
-        commercialReport.deactivate();
-        preencherCheckout(objetoAtividadeGlobal, local, {dataHora:new Date()});
-
-        checkoutPendenteGlobal.frontendComercial = true;
-        return;
-    }
     operacaoEmCurso = true;
     btn.disabled = true;
     btn.textContent = 'Obtendo GPS de saída...';
@@ -2005,6 +1997,11 @@ async function encerrarVisita(id, btn) {
         const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
         objetoAtividadeGlobal = atividade;
         objetoRelatorioGlobal = relatorio;
+        if (tipo === 'Visita comercial' && relatorio.dadosComerciais?.versao === 1) {
+            commercialReport.hydrate(id, relatorio, true);
+            abrirPrototipoComercial('overview', false, false);
+            commercialReport.deactivate();
+        }
         preencherCheckout(atividade, relatorio, saida);
     } catch (erro) {
         if (erro instanceof ErroCheckoutLocalizacao) abrirModalFechamentoManual(id, erro.message);
@@ -2088,10 +2085,6 @@ function atualizarInterfaceVisitaAtual() {
 
     const acaoAbrirRelatorio = async () => {
         if (operacaoEmCurso || !atividadeSelecionadaId) return;
-        if (normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial') {
-            abrirPrototipoComercial();
-            return;
-        }
         commercialReport.deactivate();
 
         try {
@@ -2138,6 +2131,14 @@ function atualizarInterfaceVisitaAtual() {
                 const dataPura = new Date();
                 codigoRelatorio = '#' + dataPura.getFullYear() + String(dataPura.getMonth() + 1).padStart(2, '0') + String(dataPura.getDate()).padStart(2, '0') + obterIniciais(nomeUsuarioLogado || 'TEC') + '-' + atividadeSelecionadaId;
                 document.getElementById('rel-texto').value = '';
+            }
+
+            if (tipo === 'Visita comercial') {
+                const existing = commercialReport.drafts.get(atividadeSelecionadaId);
+                const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeSelecionadaId) || commercialReport.initial.get(atividadeSelecionadaId));
+                commercialReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                abrirPrototipoComercial();
+                return;
             }
 
             mostrarEditorRelatorioPorTipo(tipo);
@@ -2220,6 +2221,9 @@ async function enviarFechamentoManual() {
             const relatorio = relSnap.data();
             if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, normalizarTipoVisita(atividade))) throw new Error('O relatório não está válido.');
 
+            const pendentes = modulosComerciaisPendentes(relatorio);
+            if (pendentes.length) throw new Error('Conclua os módulos obrigatórios antes do fechamento: ' + pendentes.join(', ') + '.');
+
             const agora = new Date();
             const manual = {
                 resultado: 'Pendente de análise',
@@ -2251,12 +2255,61 @@ async function enviarFechamentoManual() {
         btn.textContent = 'ENVIAR';
     }
 }
+async function salvarRelatorioComercial(atividadeId, data, base) {
+    if (operacaoEmCurso) throw new Error('Aguarde a operação atual antes de salvar.');
+    const sessao = sessaoAtual();
+    if (!atividadeId || atividadeId !== atividadeSelecionadaId) throw new Error('Reabra a visita antes de salvar.');
+    if (data.text.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
+    if (data.photos.length > 6 || (data.blocks || []).filter(block => block.kind === 'media').length > 20) throw new Error('O limite de imagens foi excedido.');
+    const novoId = gerarIdRelatorio(new Date(), nomeUsuarioLogado);
+    operacaoEmCurso = true;
+    try {
+        const saved = await persistCommercialMedia({activityId:atividadeId, data, base:base?.dadosComerciais || {blocks:base?.conteudoRelatorio?.blocos || []}, media:mediaStore,
+            validateSession:() => exigirSessao(sessao),
+            commit:prepared => runTransaction(db, async tx => {
+                exigirSessao(sessao);
+                const atvRef = doc(db, 'atividades', atividadeId);
+                const atvSnap = await tx.get(atvRef);
+                if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
+                const atividade = atvSnap.data();
+                validarResponsavel(atividade, sessao);
+                if (atividade.status !== 'Em andamento' || normalizarTipoVisita(atividade) !== 'Visita comercial') throw new Error('A visita foi alterada ou encerrada. Reabra o relatório.');
+                const colecao = atividade.relatorioId ? colecaoRelatorioDaAtividade(atividade) : colecaoRelatorioPorTipo('Visita comercial');
+                const relRef = doc(db, colecao, atividade.relatorioId || novoId);
+                const relSnap = await tx.get(relRef);
+                const anterior = relSnap.exists() ? relSnap.data() : null;
+                if (anterior && (anterior.atividadeId !== atividadeId || anterior.ptvId !== sessao.id)) throw new Error('O relatório não corresponde a esta visita.');
+                const compare = report => serializarEstavel({dados:report?.dadosComerciais || null, texto:report?.textoAtual ?? null, conteudo:report?.conteudoRelatorio || null});
+                if (compare(anterior) !== compare(base)) throw new Error('O relatório foi alterado em outra sessão. Volte ao início e reabra o relatório antes de salvar.');
+                const agora = new Date();
+                const historico = [...(anterior?.historico || []), {texto:prepared.text, salvoEm:agora}];
+                const resultado = {...anterior, id:relRef.id, atividadeId, clienteId:atividade.clienteId, ptvId:sessao.id, tipoVisita:'Visita comercial',
+                    codigo:anterior?.codigo || '#' + atividadeId, criadoEm:anterior?.criadoEm || agora, atualizadoEm:agora,
+                    textoAtual:prepared.text, historico, dadosComerciais:{versao:1,...prepared}, conteudoRelatorio:{versao:1,blocos:prepared.blocks || []}};
+                if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) throw new Error('O relatório está muito grande. Solicite o arquivamento do histórico.');
+                tx.set(relRef, resultado);
+                tx.update(atvRef, {relatorioId:relRef.id, relatorioColecao:colecao, atualizadoEm:agora});
+                return {...resultado, colecao};
+            })
+        });
+        exigirSessao(sessao);
+        objetoRelatorioGlobal = saved.result;
+        objetoAtividadeGlobal.relatorioId = saved.result.id;
+        objetoAtividadeGlobal.relatorioColecao = saved.result.colecao;
+        if (saved.cleanupFailed) window.mostrarAlerta('Relatório salvo', 'Alguns arquivos removidos não puderam ser excluídos. Os dados foram salvos.');
+        return saved.result;
+    } finally {
+        operacaoEmCurso = false;
+    }
+}
+
 function configurarEventosGlobais() {
     commercialReport = new CommercialReport(document.getElementById('tela-relatorio'), () => voltarNavegacao('tela-inicio'), () => {
         commercialReport.deactivate();
         navegarParaTela('tela-inicio', { substituir: true, carregar: false });
         atualizarInterfaceVisitaAtual();
     }, {
+        persist: salvarRelatorioComercial,
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
             commercialReport.deactivate();
@@ -2307,21 +2360,12 @@ function configurarEventosGlobais() {
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
         if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;
-        if (checkoutPendenteGlobal.frontendComercial) {
-            const pendentes = commercialReport.pendingCheckoutModules(checkoutPendenteGlobal.atividadeId);
-            if (pendentes.length) {
-                window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos obrigatórios antes de finalizar o check-out: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
-                return;
-            }
-            window.mostrarAlerta('Check-out', 'O relatório está salvo nesta sessão. O encerramento será conectado na etapa de integração.');
-            return;
-        }
-
         const btn = document.getElementById('btn-concluir-checkout');
         const atividadeId = checkoutPendenteGlobal.atividadeId;
         const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
 
-        const objetivo = document.getElementById('checkout-objetivo').value.trim();
+        const modular = tipo === 'Visita comercial' && objetoRelatorioGlobal?.dadosComerciais?.versao === 1;
+        const objetivo = modular ? objetoRelatorioGlobal.dadosComerciais.goal : document.getElementById('checkout-objetivo').value.trim();
         const oportunidade = document.querySelector('input[name="checkoutOportunidade"]:checked')?.value || '';
         const categoria = document.getElementById('checkout-categoria').value.trim();
         const participantesTexto = document.getElementById('checkout-participantes').value.trim();
@@ -2341,6 +2385,9 @@ function configurarEventosGlobais() {
             if (!atAcoes) return window.mostrarAlerta('Atenção', 'Informe as ações definidas.');
             if (!atConclusao) return window.mostrarAlerta('Atenção', 'Informe a conclusão técnica.');
             if (!atResultado) return window.mostrarAlerta('Atenção', 'Selecione o resultado da assistência.');
+        } else if (modular) {
+            const pendentes = modulosComerciaisPendentes(objetoRelatorioGlobal);
+            if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos obrigatórios antes de finalizar o check-out: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
         } else {
             if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita comercial.');
             if (!oportunidade) return window.mostrarAlerta('Atenção', 'Informe se houve oportunidade identificada.');
@@ -2374,6 +2421,11 @@ function configurarEventosGlobais() {
                 if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorioAtual, tipo)) {
                     throw new Error('O relatório não está válido.');
                 }
+
+                if (tipo === 'Visita comercial' && (relatorioAtual.dadosComerciais?.versao === 1) !== modular) throw new Error('O relatório foi alterado. Reabra o check-out.');
+                const pendentes = modulosComerciaisPendentes(relatorioAtual);
+                if (pendentes.length) throw new Error('Conclua os módulos obrigatórios: ' + pendentes.join(', ') + '.');
+                if (modular && serializarEstavel(relatorioAtual.dadosComerciais) !== serializarEstavel(objetoRelatorioGlobal.dadosComerciais)) throw new Error('O relatório foi alterado em outra sessão. Reabra o check-out.');
 
                 const agora = new Date();
                 const dadosCheckout = {
@@ -2419,6 +2471,12 @@ function configurarEventosGlobais() {
                         revisoes,
                         atualizadoEm: agora
                     };
+                } else if (modular) {
+                    const draft = commercialReport.drafts.get(atividadeId);
+                    dadosCheckout.objetivo = relatorioAtual.dadosComerciais.goal;
+                    dadosCheckout.feedback = draft?.feedback || [];
+                    dadosCheckout.pendencia = draft?.pending || '';
+                    atualizacaoRelatorio = {...dadosCheckout, atualizadoEm:agora, dadosComerciais:{...relatorioAtual.dadosComerciais, feedback:dadosCheckout.feedback, pending:dadosCheckout.pendencia}};
                 } else {
                     dadosCheckout.objetivo = objetivo;
                     dadosCheckout.oportunidadeIdentificada = oportunidade;

@@ -97,8 +97,25 @@ export function secoesAssistenciaParaDocumento(dados = {}) {
     };
 }
 
+export function modulosComerciaisPendentes(relatorio) {
+    const data = relatorio?.dadosComerciais;
+    if (!data || data.versao !== 1) return [];
+    const pending = [];
+    const roles = ['Proprietário','Gerente','Comprador','Vendedor','Responsável técnico'];
+    const goals = ['Relacionamento e levantamento de necessidades','Apoio às vendas ou reposição','Apresentação de produto ou lançamento','Orientação aos vendedores','Acompanhamento de pendência'];
+    if (!String(data.name || '').trim() || !roles.includes(data.role) || !goals.includes(data.goal)) pending.push('Contato na loja');
+    if (!['low','missing','slow'].every(key => ['Sim','Não'].includes(data[key]) && (data[key] !== 'Sim' || data.products?.[key]?.some(product => String(product).trim())))) pending.push('Disponibilidade dos produtos');
+    const photos = data.photos || [];
+    const organization = data.organization;
+    if (!['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'].includes(organization) || photos.length > 6 ||
+        (organization === 'Não foi verificado' ? photos.length !== 0 : organization !== 'Organizada e visível' && photos.length < 1) ||
+        (data.materials?.includes('Outro') && !String(data.other || '').trim())) pending.push('Exposição e materiais');
+    return pending;
+}
+
 export function relatorioValidoParaCheckout(relatorio, tipo) {
     if (!relatorio) return false;
+    if (tipo === 'Visita comercial' && relatorio.dadosComerciais?.versao === 1) return true;
     if (tipo === 'Assistência técnica') {
         const dados = dadosAssistenciaDoRelatorio(relatorio);
         return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());

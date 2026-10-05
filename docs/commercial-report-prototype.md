@@ -1,51 +1,21 @@
-# Visita comercial: protótipo de módulos
+# Visita comercial: módulos integrados
 
 Branch: `fix/auditoria-otimizacao-app`.
 
-Ao abrir o relatório de uma visita comercial, o front-end mostra quatro módulos:
-contato na loja (todos os campos obrigatórios), disponibilidade dos produtos
-(obrigatória), exposição e materiais, e relatório livre (opcional). O preenchimento indica o estado de cada módulo.
+O relatório apresenta contato na loja, disponibilidade dos produtos, exposição e materiais e relato livre. Salvar relatório permite preenchimento parcial, retorna ao início e atualiza a timeline existente. Salvar módulo retorna à lista; a gravação no banco acontece ao tocar em Salvar relatório.
 
-Cargo e objetivo usam as opções fornecidas pelo usuário, com seleção única
-obrigatória. Os produtos são digitados e adicionados
-como chips; ainda não existe consulta de catálogo. Cada Sim oferece também
-um botão para selecionar Produto de exemplo (placeholder). Para respostas Sim, exige-se
-pelo menos um produto. Material Outro exige descrição.
+## Persistência
 
-O relatório livre reutiliza TechnicalReportEditor e as classes existentes em styles.css.
-Texto e imagens permanecem em blocos intercalados, com seleção no cursor, compressão,
-miniaturas de 96 px, abertura do original e remoção. Nenhum upload é realizado.
-Salvar guarda o rascunho somente em memória nesta aba, por visita. Reabrir mantém
-os campos; atualizar/fechar a página perde o protótipo. Logout limpa os rascunhos e
-libera as URLs. Não foram adicionados campos ou coleções no Firestore.
+A gravação usa a infraestrutura Firebase existente. Uma transação valida o usuário responsável, a visita em andamento e a versão aberta antes de gravar o relatório e seu vínculo na atividade. Novos relatórios usam `relatorios_comerciais`; documentos antigos continuam em sua coleção original.
 
-Salvar retorna à tela inicial, que passa a exibir a etapa Relatório adicionado e o
-botão Ver ou editar relatório, usando a mesma timeline existente. Edições geram
-uma etapa Relatório atualizado. O botão de prévia foi removido. Encerrar visita
-usa a tela de check-out existente; sua conclusão ainda não grava no backend.
-Treinamentos e assistência técnica continuam com o fluxo existente.
+`dadosComerciais` contém `versao: 1`, os campos dos módulos, produtos selecionados, metadados das fotografias, feedback e pendência. `textoAtual` e `conteudoRelatorio.blocos` mantêm o formato do editor existente. O histórico registra o horário e o texto de cada gravação. O app recupera os módulos do relatório vinculado à atividade após recarregar a página, sem depender de armazenamento local.
 
-Para conferir sem login/Firebase, sirva a raiz do repositório por HTTP e abra
-`commercial-preview.html`. Esta página usa somente o componente local e dados de
-exemplo; as fontes externas são opcionais e têm fallback sans-serif.
+Fotos de exposição e relato usam a mesma compressão, miniaturas, mediaStore e API R2 autenticada dos outros relatórios. Apenas metadados são gravados no Firestore, sem URLs temporárias. Uploads precedem a transação; falhas desfazem os novos uploads e mantêm o rascunho para tentar novamente. Exclusões acontecem após confirmação no banco.
 
-Na exposição, a organização deve ser selecionada. Organizada e visível permite
-fotos opcionais; Não foi verificado oculta o seletor e remove as fotos dessa seção.
-Necessidade de organização e Ausência de exposição exigem de uma a seis fotos.
-A seção limita todas as opções a seis fotos e usa compressImage e createThumbnail,
-os mesmos métodos do editor existente, antes de criar prévias locais.
+## Check-out
 
-Fotos de exposição reutilizam também mediaStore, reportMarkup e o visualizador
-compartilhado, com abrir/baixar original local. Upload R2 permanece desconectado.
+O encerramento usa o fluxo existente de localização, precisão, distância da loja e transação de conclusão. A obrigatoriedade dos três módulos é validada na conclusão sobre o documento lido pela transação. O fechamento manual também valida os módulos. Relato livre é opcional. Feedback e pendência são gravados ao concluir; relatórios antigos continuam compatíveis.
 
-Check-out comercial: chegada/saída e duração mantêm a tela existente. Abaixo,
-mostra os três módulos para consulta somente leitura, relato resumido com Ver mais,
-quatro checkboxes de feedback e seletor de pendências. O X fixo no canto superior
-direito fecha a consulta e retorna ao check-out. A exposição também recebe o
-indicador Obrigatório. O encerramento permanece sem integração de backend.
+Contato exige nome, cargo e objetivo. Cada resposta Sim em disponibilidade exige um produto. O catálogo continua sem integração: os chips digitados e o produto de exemplo permanecem disponíveis. Exposição organizada permite fotos opcionais; Não foi verificado exige ausência de fotos; as outras opções exigem uma a seis. Outro material exige descrição.
 
-Salvar relatório e Salvar módulo aceitam preenchimento parcial, sem validar
-obrigatoriedades. O relatório pode ser reaberto para continuar na mesma sessão.
-Ao concluir o check-out, os módulos obrigatórios são validados sobre o último
-relatório salvo. Campos preenchidos mas ainda não salvos não liberam a conclusão.
-Relatório livre continua opcional. O envio ao backend permanece desconectado.
+`commercial-preview.html` permanece uma demonstração local sem login nem persistência. Os testes usam Firebase/transações e armazenamento simulados; não gravam dados de produção.

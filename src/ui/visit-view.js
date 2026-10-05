@@ -1,4 +1,4 @@
-import { formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, formatarDataHoraPT } from '../domain/formatters.js';
+import { formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, formatarDataHoraPT, escaparHtml } from '../domain/formatters.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico } from '../domain/history.js';
 import { normalizarTipoVisita, dadosAssistenciaDoRelatorio, ASSISTENCIA_TECNICA_TIPO, blocosPersistidosRelatorio } from '../domain/reports.js';
 import { renderFichaAssistencia } from './assistance.js';
@@ -24,6 +24,18 @@ export function formatarGpsVisualizador(gps, accuracy) {
 export function preencherCelulaPdf(id, valor) {
     const el = document.getElementById(id);
     if (el) el.textContent = valor == null || String(valor).trim() === '' ? '—' : String(valor);
+}
+
+export function resumoComercial(relatorio) {
+    const data = relatorio?.dadosComerciais;
+    if (data?.versao !== 1) return [];
+    const answers = [['Estoque baixo','low'],['Falta de produto','missing'],['Produto com baixo giro','slow']];
+    return [
+        ['Nome',data.name],['Cargo',data.role],['Objetivo principal',data.goal],
+        ...answers.map(([label,key]) => [label, [data[key], ...(data[key] === 'Sim' ? data.products?.[key] || [] : [])].filter(Boolean).join(' · ')]),
+        ['Exposição e materiais',data.organization],['Materiais',(data.materials || []).join(', ')],['Outro material',data.other],
+        ['Feedback',(data.feedback || []).join(', ')],['Pendência',data.pending]
+    ];
 }
 
 export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nomeUsuarioLogado) {
@@ -67,7 +79,8 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
     preencherCelulaPdf('pdf-at-resultado', dadosAssistencia.resultado);
 
     preencherCelulaPdf('pdf-nota', atividade.nota);
-    preencherCelulaPdf('pdf-relatorio', relatorio?.textoAtual);
+    const comercial = resumoComercial(relatorio);
+    preencherCelulaPdf('pdf-relatorio', comercial.length ? [...comercial.map(([label,value]) => label + ': ' + (value || 'Não informado')), 'Relatório livre: ' + (relatorio.textoAtual || 'Nenhum relato registrado.')].join('\n') : relatorio?.textoAtual);
     const relatorioTextoTable = document.getElementById('pdf-relatorio-texto-table');
     if (relatorioTextoTable) relatorioTextoTable.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'table';
 
@@ -127,6 +140,12 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
 
     preencherCampoVisualizador('visu-nota', atividade.nota, 'Nenhuma nota registrada.');
     preencherConteudoRelatorio('visu-relatorio', relatorio, 'Nenhum relatório registrado.');
+    const comercial = resumoComercial(relatorio);
+    if (comercial.length) {
+        const element = document.getElementById('visu-relatorio');
+        if (element) element.innerHTML = comercial.map(([label,value]) => `<p><strong>${escaparHtml(label)}:</strong> ${escaparHtml(value || 'Não informado')}</p>`).join('') +
+            reportMarkup(relatorio.dadosComerciais.photos || [], atividade.id) + '<p><strong>Relatório livre</strong></p>' + element.innerHTML;
+    }
 
     const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
     document.getElementById('visu-manual').style.display = manual ? 'block' : 'none';
