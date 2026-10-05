@@ -62,7 +62,7 @@ test('checkout transaction revalidates server modules and persists feedback, pen
     Object.assign(app.context,{checkoutPendenteGlobal:{atividadeId:'visit',posicao:{lat:1,lng:2,accuracy:10,endereco:'Loja'}},
         document:{getElementById:get,querySelector:()=>null},
         referenciaRelatorio:()=>({path:'relatorios_comerciais/report'}),
-        commercialReport:{drafts:new Map([['visit',{feedback:['Argumentos de venda'],pending:'Treinamento'}]])},
+        commercialReport:{drafts:new Map([['visit',{feedback:['Argumentos de venda'],pending:'Sem pendências'}]])},
         coordenadasValidas:()=>true,informarErro:(_,error)=>{throw error;}});
     const start=source.indexOf("    document.getElementById('btn-concluir-checkout')?.addEventListener");
     const end=source.indexOf("    document.querySelectorAll('input[name=\"atEspecificacao\"]')",start);
@@ -73,6 +73,6 @@ test('checkout transaction revalidates server modules and persists feedback, pen
     await handler();
     assert.equal(app.records.get('atividades/visit').status,'Concluída');
     const saved=app.records.get('relatorios_comerciais/report');
-    assert.equal(saved.dadosComerciais.pending,'Treinamento');assert.equal(saved.dadosComerciais.feedback[0],'Argumentos de venda');
+    assert.equal(saved.dadosComerciais.pending,'Sem pendências');assert.equal(saved.dadosComerciais.feedback[0],'Argumentos de venda');
     assert.equal(saved.checkoutGps,'1, 2');
 });

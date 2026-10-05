@@ -16,9 +16,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=scheduling-17">
-    <link rel="stylesheet" href="commercial-report.css?v=commercial-7">
-    <link rel="stylesheet" href="pwa-mobile.css?v=scheduling-17">
+    <link rel="stylesheet" href="styles.css?v=design-29">
+    <link rel="stylesheet" href="commercial-report.css?v=design-29">
+    <link rel="stylesheet" href="pwa-mobile.css?v=design-29">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
@@ -572,11 +572,10 @@
         <!-- TELA 6: RELATÓRIO TÉCNICO -->
         <div id="tela-relatorio" class="tela-relatorio-container">
             <header class="relatorio-header-top">
-                <button class="btn-back" id="btn-voltar-relatorio" type="button">
-                    <svg viewBox="0 0 24 24"><path d="M9 14l-4-4 4-4"></path><path d="M5 10h11a4 4 0 1 1 0 8h-1"></path></svg>
+                <button class="screen-close" id="btn-voltar-relatorio" type="button" aria-label="Fechar relatório">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg>
                 </button>
                 <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
-                <div style="width: 44px;"></div>
             </header>
 
             <div class="relatorio-info-section">
@@ -831,7 +830,8 @@
         </div>
 
         <!-- TELA 6.5: CHECK-OUT / CONCLUSÃO DA VISITA -->
-        <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none; padding-bottom: 40px;">
+        <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none;">
+            <button class="screen-close" id="btn-voltar-checkout" type="button" aria-label="Fechar check-out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg></button>
             <div class="checkout-logo">
                 <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
             </div>
@@ -977,7 +977,6 @@
 
             <div class="checkout-acoes">
                 <button class="btn-checkin" id="btn-concluir-checkout">Concluir</button>
-                <button class="btn-voltar" id="btn-voltar-checkout">Voltar</button>
             </div>
         </main>
 
@@ -1049,7 +1048,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=commercial-28"></script>
+    <script type="module" src="script.js?v=commercial-29"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

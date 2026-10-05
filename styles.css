@@ -1,7 +1,23 @@
 /* 1. VARIÁVEIS DE COR E BASE */
-:root { --color-dark: #040438; --color-blue: #0F2960; --color-red: #F51E30; --color-bg: #F9F9FA; --color-white: #FFFFFF; }
+/* Tokens compartilhados por telas, formulários e relatórios. */
+:root {
+    --color-dark: #040438;
+    --color-blue: #0F2960;
+    --color-red: #F51E30;
+    --color-bg: #F9F9FA;
+    --color-white: #FFFFFF;
+    --color-muted: #6E6E90;
+    --color-border: #E6E6ED;
+    --color-placeholder: #8A8A96;
+    --radius-control: 28px;
+    --radius-card: 24px;
+    --radius-field: 20px;
+    --radius-close: 14px;
+    --control-height: 52px;
+    --font-body: 'Outfit', sans-serif;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); color: var(--color-dark); min-height: 100vh; display: flex; flex-direction: column; }
+body { font-family: var(--font-body); background-color: var(--color-bg); color: var(--color-dark); line-height: 1.45; min-height: 100vh; display: flex; flex-direction: column; }
 
 /* 2. TELA DE LOGIN */
 .tela-login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 20px; background-color: var(--color-white); width: 100%; }
@@ -21,9 +37,9 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
 .page-title { font-size: 1.7rem; font-weight: 800; color: var(--color-dark); margin-bottom: 25px; }
 .card-link { font-size: 0.85rem; font-weight: 500; color: var(--color-red); text-decoration: underline; cursor: pointer; }
 .btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps, .fab-nova-visita, .visualizador-exportar {
-    min-height: 52px;
+    min-height: var(--control-height);
     padding: 15px 20px;
-    border-radius: 28px;
+    border-radius: var(--radius-control);
     font-size: 1rem;
     font-weight: 400;
     font-family: inherit;
@@ -36,33 +52,30 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--color-bg); col
     color: var(--color-white);
     border: 1px solid var(--color-red);
 }
-.btn-voltar, .btn-outline-red, .btn-gps {
-    border: 1px solid var(--color-red);
-}
 .btn-checkin:active, .btn-iniciar:active, .btn-voltar:active, .btn-outline-red:active, .btn-gps:active, .fab-nova-visita:active, .visualizador-exportar:active { opacity: .78; }
 .btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps, .visualizador-exportar { width: 100%; }
-.fab-nova-visita { width: auto; font-size: .95rem; }
+.fab-nova-visita { width: auto; }
 .visualizador-exportar { margin-top: 16px; }
 .char-count { text-align: right; font-size: 0.75rem; color: #888; margin-top: 4px; padding-right: 5px; }
 
 /* 5. TELA INICIAL E FORMS */
-.card-visita { background-color: var(--color-white); border-radius: 24px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; margin-bottom: 15px;}
+.card-visita { background-color: var(--color-white); border-radius: var(--radius-card); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; margin-bottom: 15px;}
 .card-info { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; margin-right: 15px; }
 .card-titulo { font-size: 1.05rem; font-weight: 700; color: var(--color-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 0.95rem; font-weight: 500; color: var(--color-dark); margin-bottom: 8px; }
 .row-inputs { display: flex; gap: 12px; }
-.input-box { width: 100%; background-color: var(--color-bg); border: none; border-radius: 25px; padding: 16px 20px; font-family: inherit; font-size: 0.95rem; color: var(--color-dark); outline: none; transition: background 0.2s; }
+.input-box { width: 100%; background-color: var(--color-bg); border: none; border-radius: var(--radius-control); padding: 16px 20px; font-family: inherit; font-size: 0.95rem; color: var(--color-dark); outline: none; transition: background 0.2s; }
 .box-cinza { background-color: #F3F4F6; }
 .input-center { text-align: center; }
 .input-box:read-only { color: #555; }
-.textarea-box { resize: none; min-height: 90px; border-radius: 20px; }
+.textarea-box { resize: none; min-height: 90px; border-radius: var(--radius-field); }
 
 /* 5.1 RADIO BUTTONS PERSONALIZADOS */
 .radio-group { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
 .radio-label { display: flex; align-items: center; gap: 12px; font-size: 1rem; color: var(--color-dark); cursor: pointer; font-weight: 500; }
 .radio-label input[type="radio"] { display: none; }
-.radio-custom { width: 24px; height: 24px; background-color: #EAEAEA; border: 2px solid #EAEAEA; position: relative; transition: all 0.2s; flex-shrink: 0; }
+.radio-custom { background-color: #EAEAEA; border: 2px solid #EAEAEA; position: relative; transition: all 0.2s; flex-shrink: 0; }
 .radio-label input[type="radio"]:checked + .radio-custom { background-color: var(--color-red); border-color: var(--color-red); }
 
 /* 5.2 DETALHES DA VISITA (ICONES E MAPA) */
@@ -77,7 +90,7 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 /* 6. TELA DE AGENDA & HISTÓRICO */
 #tela-agenda { padding-bottom: 130px; }
 .section-subtitle { font-size: 1.1rem; font-weight: 800; color: var(--color-dark); margin: 25px 0 10px 0; }
-.card-agenda { background-color: var(--color-white); border-radius: 24px; padding: 20px; box-shadow: none; margin-bottom: 15px; position: relative; }
+.card-agenda { background-color: var(--color-white); border-radius: var(--radius-card); padding: 20px; box-shadow: none; margin-bottom: 15px; position: relative; }
 .agenda-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .agenda-data { font-size: 1.6rem; font-weight: 400; color: var(--color-dark); }
 .agenda-btn-ficha { color: var(--color-red); cursor: pointer; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
@@ -89,10 +102,9 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 .agenda-motivo { font-size: 0.9rem; color: var(--color-dark); font-weight: 600; margin-top: 15px; margin-bottom: 20px; }
 .btn-gps { width: 100%; padding: 14px; border-radius: 30px; border: 1px solid #EAEAEA; background: var(--color-white); color: var(--color-red); font-size: 1.05rem; font-weight: 500; font-family: inherit; cursor: pointer; }
 .fab-nova-visita { position: fixed; bottom: 85px; right: 20px; background-color: var(--color-red); color: var(--color-white); border: none; border-radius: 30px; padding: 16px 24px; font-size: 0.9rem; font-weight: 800; font-family: inherit; box-shadow: none; cursor: pointer; z-index: 999; }
-.card-historico { background-color: var(--color-white); border-radius: 20px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; margin-bottom: 12px; }
-.hist-cliente { font-weight: 700; }
+.card-historico { background-color: var(--color-white); border-radius: var(--radius-field); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: none; margin-bottom: 12px; }
 .hist-data { font-size: 0.85rem; color: #888; font-weight: 500; margin-top: 4px; }
-.hist-status { font-size: 0.75rem; font-weight: 700; color: #28a745; background-color: #e8f5e9; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
+.hist-status { color: #28a745; background-color: #e8f5e9; }
 
 /* 7. AUTOCOMPLETE */
 .autocomplete-wrapper { position: relative; }
@@ -123,10 +135,10 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 
 /* 9. MODAIS NATIVOS (POPOUTS) */
 .alert-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 20px; }
-.alert-box { background: white; border-radius: 14px; width: 85%; max-width: 320px; text-align: center; box-shadow: none; overflow: hidden; display: flex; flex-direction: column; }
+.alert-box { background: var(--color-white); border-radius: var(--radius-card); width: 85%; max-width: 320px; text-align: center; box-shadow: none; overflow: hidden; display: flex; flex-direction: column; }
 .alert-content { padding: 24px 20px; }
 .alert-box h3 { font-size: 1.1rem; color: var(--color-dark); font-weight: 800; margin-bottom: 10px; }
-.alert-box p { font-size: 0.95rem; color: #333; margin: 0; line-height: 1.35; }
+.alert-box p { font-size: 0.95rem; color: var(--color-muted); margin: 0; line-height: 1.35; }
 .alert-actions { display: flex; border-top: 1px solid #EBEBEB; }
 .alert-actions button { flex: 1; background: none; border: none; padding: 16px; font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .alert-actions button:active { background: #F5F5F5; }
@@ -135,28 +147,25 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .alert-btn-black { color: var(--color-dark); }
 
 /* 10. TELA VISITA EM ANDAMENTO (Timeline) */
-.card-visita-atual { background-color: var(--color-white); border-radius: 28px; padding: 24px; box-shadow: none; }
+.card-visita-atual { background-color: var(--color-white); border-radius: var(--radius-control); padding: 24px; box-shadow: none; }
 .va-titulo { font-size: 1.2rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
 .va-status { font-size: 0.75rem; font-weight: 600; color: var(--color-red); text-transform: uppercase; margin-bottom: 20px; }
 .va-divider { border: 0; border-top: 1px solid #EAEAEA; margin: 24px 0; }
-.timeline-container { padding-left: 20px; margin-bottom: 10px;}
-.timeline-line { position: absolute; left: 4px; bottom: 0; width: 6px; background-color: #EFEFEF; border-radius: 4px; z-index: 1;}
+.timeline-container { margin-bottom: 10px;}
+.timeline-line { position: absolute; background-color: #EFEFEF; z-index: 1;}
 .timeline-item { position: relative; margin-bottom: 30px; z-index: 2; display: flex;}
 .timeline-item:last-child { margin-bottom: 0; }
 .timeline-dot-gray { width: 14px; height: 14px; background-color: #EFEFEF; border-radius: 50%; margin-top: 5px; flex-shrink: 0; position: absolute; left: -16px; z-index: 3;}
 .timeline-dot-blue { width: 14px; height: 14px; background-color: var(--color-dark); border-radius: 50%; margin-top: 5px; flex-shrink: 0; position: absolute; left: -16px; z-index: 3;}
-.timeline-content { flex: 1; margin-left: 10px; }
-.timeline-header { align-items: center; }
-.timeline-header strong { font-size: 1.05rem; color: var(--color-dark); }
-.timeline-header span { font-size: 0.9rem; font-weight: 500; }
-.timeline-desc { font-size: 0.85rem; color: #666; }
+.timeline-content { flex: 1; }
+.timeline-header strong { color: var(--color-dark); }
+.timeline-header span { font-weight: 500; }
+.timeline-desc { color: #666; }
 .card-box { background: #FAFAFC; border: 1px solid #EFEFEF; border-radius: 16px; padding: 24px; }
 
 /* 11. TELA RELATÓRIO TÉCNICO */
 .tela-relatorio-container { display: none; flex-direction: column; min-height: 100vh; background-color: var(--color-white); width: 100%; }
-.relatorio-header-top { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background-color: var(--color-white); }
-.btn-back { border: 1px solid #EAEAEA; border-radius: 12px; width: 44px; height: 44px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-.btn-back svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.relatorio-header-top { display: flex; justify-content: center; align-items: center; padding: 16px 20px; background-color: var(--color-white); }
 .relatorio-info-section { padding: 0 20px 20px 20px; background-color: var(--color-white); }
 .rel-codigo { font-size: 0.85rem; font-weight: 600; color: #A0A0A0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
 .select-wrapper { position: relative; }
@@ -178,7 +187,7 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .historico-filtro-btn { width:50px; min-width:50px; height:50px; min-height:50px; border:0; border-radius:16px; background:var(--color-white); color:var(--color-red); display:grid; place-items:center; box-shadow: none; }
 .historico-filtro-btn svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
 .historico-filtro[hidden] { display:none; }
-.historico-filtro { background:var(--color-white); border-radius:20px; padding:16px; margin:0 0 22px; box-shadow: none; }
+.historico-filtro { background:var(--color-white); border-radius: var(--radius-field); padding:16px; margin:0 0 22px; box-shadow: none; }
 .historico-filtro-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .historico-filtro label { display:flex; flex-direction:column; gap:7px; color:var(--color-dark); font-size:.78rem; font-weight:700; }
 .historico-filtro .input-box { min-height:46px; padding:10px 12px; }
@@ -187,14 +196,10 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .historico-periodo-titulo { font-size:1rem; font-weight:800; color:var(--color-dark); margin:0 0 11px; }
 .historico-dia { margin:0 0 18px; }
 .historico-dia-titulo { font-size:1.55rem; line-height:1; font-weight:500; color:var(--color-dark); margin:0 0 11px; letter-spacing:-.02em; }
-.historico-card { background:var(--color-white); border-radius:24px; padding:23px 22px; margin-bottom:12px; box-shadow: none; }
+.historico-card { background:var(--color-white); border-radius: var(--radius-card); padding:23px 22px; margin-bottom:12px; box-shadow: none; }
 .historico-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
 .hist-cliente { font-size:1.05rem; font-weight:800; color:var(--color-dark); line-height:1.15; }
-.hist-status { font-size:.72rem; line-height:1; font-weight:800; padding-top:4px; }
-.hist-status-resolvido { color:#22a928; }
-.hist-status-nao-resolvido { color:#f51e30; }
-.hist-status-cancelada { color:#999; }
-.hist-status-concluida { color:#777; }
+.hist-status { padding-top:4px; }
 .hist-info { display:flex; align-items:center; gap:7px; color:#9a9ab5; font-size:.76rem; font-weight:500; margin-top:9px; }
 .hist-info svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
 .hist-vazio { color:#777; text-align:center; padding:28px 10px; font-size:.9rem; }
@@ -203,46 +208,34 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 /* === CHECK-OUT / CONCLUSÃO DA VISITA === */
 .tela-checkout { background-color: var(--color-white); }
 .checkout-logo { display:flex; justify-content:center; margin:0 0 48px; }
-.checkout-titulo { color:var(--color-dark); font-size:2rem; margin:0 0 38px; }
-.checkout-bloco { margin-bottom:30px; }
+.checkout-titulo { color:var(--color-dark); margin:0 0 38px; }
 .checkout-bloco > label, .checkout-campo > label, .checkout-relatorio-section > label {
-    display:block; color:var(--color-dark); font-size:1rem; margin-bottom:10px;
+    display:block; color:var(--color-dark);
 }
-.checkout-cliente { color:var(--color-dark); font-size:1.2rem; text-transform:uppercase; line-height:1.25; }
-.checkout-horarios { display:flex; flex-direction:column; gap:22px; }
-.checkout-pill-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.checkout-pill {
-    min-height:70px; border:2px solid #D8D8D8; border-radius:38px; display:flex;
-    align-items:center; justify-content:center; color:var(--color-dark); font-size:1.05rem;
+.checkout-cliente { color:var(--color-dark); text-transform:uppercase; line-height:1.25; }
+.checkout-horarios { display:flex; flex-direction:column; }
+.checkout-pill-row { display:grid; grid-template-columns:1fr 1fr; }
+.checkout-pill { display:flex;
+    align-items:center; justify-content:center; color:var(--color-dark);
 }
-.checkout-duracao { color:#9A9AB5; font-size:.92rem; font-weight:700; margin-top:-4px; }
-.checkout-tipo-section { margin-top:42px; }
-.checkout-tipo-section h2 { color:var(--color-dark); font-size:1.8rem; font-weight:500; margin:0 0 28px; }
-.checkout-campo { margin-bottom:28px; }
-.checkout-campo .input-box { width:100%; min-height:58px; border:1.5px solid #DEDEDE; border-radius:14px; background:var(--color-white); color:var(--color-dark); }
-.checkout-radio-group { display:flex; flex-direction:column; gap:18px; }
-.checkout-radio-label { display:flex; align-items:center; font-size:1rem; cursor:pointer; }
+.checkout-duracao { color:#9A9AB5; margin-top:-4px; }
+.checkout-tipo-section h2 { color:var(--color-dark); }
+.checkout-campo .input-box { width:100%; color:var(--color-dark); }
+.checkout-radio-group { display:flex; flex-direction:column; }
+.checkout-radio-label { display:flex; align-items:center; cursor:pointer; }
 .checkout-radio-label input { position:absolute; opacity:0; pointer-events:none; }
-.checkout-radio-custom {
-    width:34px; height:34px; background:#DFE5F1; position:relative; flex:0 0 auto;
+.checkout-radio-custom { position:relative;
 }
 .checkout-radio-label input:checked + .checkout-radio-custom { background:var(--color-red); }
 .checkout-radio-label input:checked + .checkout-radio-custom::after {
     content:""; position:absolute; border-radius:50%; background:var(--color-red);
 }
-.checkout-relatorio-section { margin-top:40px; }
 .checkout-relatorio-box {
-    background:#F1F1F3; border-radius:40px; padding:38px 34px; color:#676783;
-    font-size:1rem; line-height:1.42; white-space:pre-wrap; overflow-wrap:anywhere;
-    min-height:160px;
+    background:#F1F1F3; color:#676783; line-height:1.42; white-space:pre-wrap; overflow-wrap:anywhere;
 }
-.checkout-acoes { display:flex; flex-direction:column; gap:12px; margin-top:44px; }
-.checkout-acoes .btn-checkin, .checkout-acoes .btn-voltar { min-height:72px; }
+.checkout-acoes { display:flex; flex-direction:column; }
 @media (max-width:420px) {
-    .checkout-logo { margin-bottom:40px; }
-    .checkout-titulo { font-size:1.9rem; margin-bottom:34px; }
     .checkout-pill-row { gap:12px; }
-    .checkout-pill { min-height:68px; font-size:1rem; }
     .checkout-relatorio-box { border-radius:36px; padding:32px 28px; }
 }
 
@@ -253,19 +246,13 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .fechamento-manual-label { display:block; text-align:left; color:var(--color-dark); font-size:.84rem; font-weight:700; margin:14px 0 8px; }
 .fechamento-manual-textarea { width:100%; min-height:110px; resize:vertical; box-sizing:border-box; }
 .fechamento-manual-contador { text-align:right; color:#999; font-size:.72rem; margin-top:4px; }
-.hist-status-pendente-analise { color:#9b7a00; }
 
 /* === VISUALIZADOR DE VISITAS === */
 .tela-visualizador-visita { min-height:100vh; background:#fff; }
 .visualizador-logo { display:flex; justify-content:center; margin:0 0 46px; }
-.visualizador-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:6px; }
-.visualizador-titulo { margin:0 0 8px; font-size:2rem; }
-.visualizador-fechar {
-    width:50px; height:50px; border:0; border-radius:16px; background:#F8F8F8;
-    color:var(--color-red); font-size:2rem; cursor:pointer;
-    display:grid; place-items:center;
-}
-.visualizador-resultado { font-size:.75rem; font-weight:800; margin-bottom:16px; }
+.visualizador-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+
+.visualizador-resultado { margin-bottom:16px; }
 .visualizador-resolvido { color:#22a928; }
 .visualizador-nao-resolvido { color:#f51e30; }
 .visualizador-cancelada { color:#999; }
@@ -294,7 +281,7 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 }
 .visualizador-relatorio-box { min-height:150px; }
 .visualizador-manual {
-    margin-top:32px; padding:20px; border:1.5px solid #E6E0B8; border-radius:24px; background:#FFFEF5;
+    margin-top:32px; padding:20px; border:1.5px solid #E6E0B8; border-radius: var(--radius-card); background:#FFFEF5;
 }
 .visualizador-manual-status { color:#9b7a00; font-size:.8rem; font-weight:800; margin-bottom:18px; }
 .visualizador-detalhes {
@@ -309,8 +296,6 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .visualizador-voltar, .visualizador-exportar { margin-top:16px; }
 .visualizador-exportar { background:var(--color-red); color:var(--color-white); border:0; border-radius:30px; padding:17px 16px; font-size:1.05rem; font-weight:600; font-family:inherit; width:100%; cursor:pointer; }
 @media (max-width:420px) {
-    .visualizador-logo { margin-bottom:38px; }
-    .visualizador-titulo { font-size:1.9rem; }
     .visualizador-pill { min-height:60px; font-size:.95rem; }
     .visualizador-texto-box { border-radius:30px; padding:24px 20px; }
 }
@@ -466,20 +451,6 @@ select.input-box, .select-wrapper .input-box {
     background-position: right 17px center;
     background-size: 18px 18px;
 }
-.radio-custom {
-    min-width: 24px;
-    max-width: 24px;
-    min-height: 24px;
-    flex: 0 0 24px;
-}
-.checkout-radio-custom {
-    width: 30px !important;
-    min-width: 30px;
-    max-width: 30px;
-    height: 30px !important;
-    min-height: 30px;
-    flex: 0 0 30px;
-}
 
 /* === CONSISTÊNCIA DE TIPOGRAFIA E INTERAÇÃO === */
 button { font-weight: 400; }
@@ -487,16 +458,8 @@ button { font-weight: 400; }
 .historico-filtro-limpar,
 .nav-item,
 .nav-item.active { font-weight: 400; }
-.btn-back,
 .historico-filtro-btn,
-.visualizador-fechar {
-    box-shadow: none;
-}
-.btn-back {
-    background: var(--color-white);
-    color: var(--color-red);
-    border-color: var(--color-red);
-}
+
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
@@ -504,9 +467,8 @@ button:focus-visible {
     outline: 2px solid rgba(245, 30, 48, .35);
     outline-offset: 2px;
 }
-.input-box::placeholder { color: #8A8A96; opacity: 1; }
+.input-box::placeholder { color: var(--color-placeholder); opacity: 1; }
 select.input-box { color: var(--color-dark); }
-
 
 /* === AJUSTES SOLICITADOS === */
 .btn-voltar, .btn-outline-red, .btn-gps {
@@ -531,51 +493,22 @@ select.input-box { color: var(--color-dark); }
 .checkout-radio-custom {
     box-sizing: border-box;
     display: block;
-    width: 34px !important;
-    min-width: 34px !important;
-    max-width: 34px !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    max-height: 34px !important;
-    flex: 0 0 34px !important;
     aspect-ratio: 1 / 1;
     border-radius: 50%;
 }
 .screen-form-sheet { padding-bottom: 120px !important; }
 .screen-form-sheet .page-title { padding-right: 58px; }
-.screen-close {
-    position: fixed;
-    top: calc(12px + env(safe-area-inset-top));
-    right: 16px;
-    z-index: 1150;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    border: 1px solid rgba(0, 0, 0, 0.10);
-    border-radius: 50%;
-    background: var(--color-white);
-    color: var(--color-dark);
-    font-family: Arial, sans-serif;
-    font-size: 30px;
-    font-weight: 300;
-    line-height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: none;
-}
-.screen-action-dock {
+
+.botoes-acao.screen-action-dock {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 1100;
     width: 100%;
-    margin: 0 !important;
-    max-width: none !important;
+    margin: 0 auto;
+    max-width: 720px;
+    margin-inline: auto;
     padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
     background: var(--color-white);
     border-top: 1px solid rgba(0, 0, 0, 0.10);
@@ -632,7 +565,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .rel-cliente-readonly {
     display: flex;
     align-items: center;
-    min-height: 52px;
+    min-height: var(--control-height);
     cursor: default;
 }
 #rel-texto:focus,
@@ -641,10 +574,10 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     box-shadow: none !important;
 }
 
-
 /* === REFINO DE PADRÃO: CHECKOUT / HISTÓRICO / VISUALIZADOR === */
-.tela-checkout {
-    padding-bottom: 40px !important;
+.main-content.tela-checkout {
+    padding-top: max(24px, calc(8px + env(safe-area-inset-top)));
+    padding-bottom: max(40px, env(safe-area-inset-bottom));
 }
 .checkout-logo {
     margin-bottom: 30px;
@@ -675,9 +608,9 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     gap: 10px;
 }
 .checkout-pill {
-    min-height: 52px;
+    min-height: var(--control-height);
     border: 1px solid #D4D4D4;
-    border-radius: 28px;
+    border-radius: var(--radius-control);
     font-size: 0.95rem;
     font-weight: 500;
 }
@@ -697,10 +630,10 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     margin-bottom: 20px;
 }
 .checkout-campo .input-box {
-    min-height: 52px;
+    min-height: var(--control-height);
     border: 0;
-    border-radius: 25px;
-    background: var(--color-bg);
+    border-radius: var(--radius-control);
+    background-color: var(--color-bg);
     font-size: 0.95rem;
 }
 .checkout-radio-group {
@@ -726,7 +659,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     margin-top: 30px;
 }
 .checkout-relatorio-box {
-    border-radius: 20px;
+    border-radius: var(--radius-field);
     padding: 22px 20px;
     font-size: 0.95rem;
     min-height: 120px;
@@ -737,12 +670,11 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 }
 .checkout-acoes .btn-checkin,
 .checkout-acoes .btn-voltar {
-    min-height: 52px;
+    min-height: var(--control-height);
 }
 
 /* Histórico: status textual, sem cápsula. */
 .hist-status {
-    font-size: 0.72rem !important;
     white-space: nowrap;
 }
 .hist-status-concluida { color: #777 !important; }
@@ -769,23 +701,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     font-weight: 700;
 }
 .visualizador-concluida { color: #777; }
-.visualizador-fechar {
-    position: fixed;
-    top: calc(12px + env(safe-area-inset-top));
-    right: 16px;
-    z-index: 2200;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    border: 1px solid rgba(0, 0, 0, 0.10);
-    border-radius: 50%;
-    background: var(--color-white);
-    color: var(--color-dark);
-    font-size: 28px;
-    font-weight: 300;
-    line-height: 1;
-}
+
 .visualizador-voltar {
     display: none !important;
 }
@@ -798,7 +714,6 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     .visualizador-titulo { font-size: 1.55rem; }
 }
 
-
 /* === RADIO BUTTONS — CORREÇÃO VISUAL === */
 .radio-label,
 .checkout-radio-label {
@@ -810,11 +725,21 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     line-height: 1.25;
 }
 
+/* Mantém os radios acessíveis pelo teclado mesmo com o visual customizado. */
 .radio-label input[type="radio"],
 .checkout-radio-label input[type="radio"] {
+    display: block;
     position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
     opacity: 0;
     pointer-events: none;
+}
+.radio-label input:focus-visible + .radio-custom,
+.checkout-radio-label input:focus-visible + .checkout-radio-custom {
+    outline: 2px solid var(--color-red);
+    outline-offset: 3px;
 }
 
 .radio-custom,
@@ -852,6 +777,8 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     position: absolute;
     width: 8px;
     height: 8px;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
     min-width: 8px;
     min-height: 8px;
     max-width: 8px;
@@ -865,7 +792,6 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     font-size: 0.95rem;
     font-weight: 500;
 }
-
 
 /* === TIMELINE RECONSTRUÍDA — EIXO E CONECTORES === */
 .timeline-container {
@@ -966,39 +892,34 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     line-height: 1.4;
 }
 
-/* === X DO TOPO — 48 / #F9F9FA / 24 / VERMELHO / SEM BORDA === */
+/* Fechar: mesmo controle quadrado em todas as telas. */
 .screen-close,
 .visualizador-fechar {
     position: fixed;
     top: calc(8px + env(safe-area-inset-top));
-    right: 16px;
+    right: max(16px, calc((100vw - 720px) / 2 + 16px));
     z-index: 2200;
-    width: 48px !important;
-    min-width: 48px !important;
-    max-width: 48px !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    max-height: 48px !important;
-    padding: 0 !important;
-    border: none !important;
-    border-width: 0 !important;
-    border-radius: 50% !important;
-    background: #F9F9FA !important;
-    color: #F51E30 !important;
-    display: flex !important;
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-close);
+    background-color: var(--color-bg);
+    color: var(--color-red);
+    display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: none !important;
+    box-shadow: none;
+    font: inherit;
+    line-height: 1;
 }
 .screen-close svg,
 .visualizador-fechar svg {
     display: block;
-    width: 24px !important;
-    height: 24px !important;
-    min-width: 24px !important;
-    min-height: 24px !important;
-    max-width: 24px !important;
-    max-height: 24px !important;
+    width: 24px;
+    height: 24px;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
@@ -1025,7 +946,6 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .visualizador-cancelada { color: #555555 !important; }
 .hist-status-andamento,
 .visualizador-andamento { color: #040438 !important; }
-
 
 /* === SPLASH SCREEN DO PWA === */
 .pwa-splash {
@@ -1066,7 +986,6 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     letter-spacing: -0.01em;
 }
 
-
 /* === ASSISTÊNCIA TÉCNICA === */
 .relatorio-assistencia-section{
     flex:1;
@@ -1075,7 +994,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 }
 .assistencia-form-card{
     background:var(--color-white);
-    border-radius:24px;
+    border-radius: var(--radius-card);
     padding:20px;
     margin-bottom:14px;
 }
@@ -1140,7 +1059,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     align-items:center;
     gap:13px;
     padding:14px 16px;
-    border-radius:24px;
+    border-radius: var(--radius-card);
     background:#F5F5F7;
     cursor:pointer;
 }
@@ -1208,7 +1127,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     align-items:center;
     justify-content:center;
     padding:10px 12px;
-    border-radius:24px;
+    border-radius: var(--radius-card);
     background:var(--color-bg);
     color:#666;
     font-size:.88rem;
@@ -1221,7 +1140,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 }
 #checkout-assistencia-section textarea.input-box{
     min-height:112px;
-    border-radius:20px;
+    border-radius: var(--radius-field);
     resize:vertical;
 }
 #visu-assistencia .visualizador-info{
@@ -1241,7 +1160,6 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
         width:100%;
     }
 }
-
 
 /* === LEITURA DO FORMULÁRIO DE ASSISTÊNCIA === */
 .assistencia-form-view-section{
@@ -1314,14 +1232,13 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .report-media-remove { position: absolute; z-index: 1; top: -5px; right: -5px; width: 28px; height: 28px; min-height: 28px; min-width: 28px; box-sizing: border-box; padding: 6px; display: grid; place-items: center; border: 2px solid var(--color-bg); border-radius: 50%; background: #263348; color: #fff; cursor: pointer; }
 .report-media-remove svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
 .technical-report-paragraph { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
-.report-media-dialog { position: fixed; inset: 0; width: min(90vw, 800px); max-height: 90dvh; margin: auto; box-sizing: border-box; border: 0; border-radius: 20px; padding: 20px; overflow: auto; }
+.report-media-dialog { position: fixed; inset: 0; width: min(90vw, 800px); max-height: 90dvh; margin: auto; box-sizing: border-box; border: 0; border-radius: var(--radius-field); padding: 20px; overflow: auto; }
 .report-media-dialog::backdrop { background: rgba(0,0,0,.75); }
 .report-media-dialog h2 { font-size: 16px; overflow-wrap: anywhere; margin: 12px 0; }
 .report-media-dialog img, .report-media-dialog video { display: block; max-width: 100%; max-height: 65dvh; margin: 16px auto; }
 .report-media-dialog audio { width: 100%; margin: 20px 0; }
-.report-media-close { display: block; margin-left: auto; padding: 10px 16px; background: #eef1f6; border: 0; border-radius: 20px; cursor: pointer; }
+.report-media-close { display: block; margin-left: auto; padding: 10px 16px; background: #eef1f6; border: 0; border-radius: var(--radius-field); cursor: pointer; }
 .report-media-dialog a { display: inline-block; color: #062666; padding: 12px 0; }
-
 
 /* === FONTE DE IMAGEM DO RELATÓRIO === */
 .report-media-source-dialog {
@@ -1351,7 +1268,7 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .report-media-source-action,
 .report-media-source-cancel {
     width: 100%;
-    min-height: 52px;
+    min-height: var(--control-height);
     border: 0;
     border-radius: 16px;
     font: inherit;
