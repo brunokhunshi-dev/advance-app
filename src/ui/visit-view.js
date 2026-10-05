@@ -1,3 +1,4 @@
+import {nomeProduto} from '../domain/products.js';
 import { formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, formatarDataHoraPT, escaparHtml } from '../domain/formatters.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico } from '../domain/history.js';
 import { normalizarTipoVisita, dadosAssistenciaDoRelatorio, ASSISTENCIA_TECNICA_TIPO, blocosPersistidosRelatorio } from '../domain/reports.js';
@@ -32,7 +33,7 @@ export function resumoComercial(relatorio) {
     const answers = [['Estoque baixo','low'],['Falta de produto','missing'],['Produto com baixo giro','slow']];
     return [
         ['Nome',data.name],['Cargo',data.role],['Objetivo principal',data.goal],
-        ...answers.map(([label,key]) => [label, [data[key], ...(data[key] === 'Sim' ? data.products?.[key] || [] : [])].filter(Boolean).join(' · ')]),
+        ...answers.map(([label,key]) => [label, [data[key], ...(data[key] === 'Sim' ? (data.products?.[key] || []).map(nomeProduto) : [])].filter(Boolean).join(' · ')]),
         ['Exposição e materiais',data.organization],['Materiais',(data.materials || []).join(', ')],['Outro material',data.other],
         ['Feedback',(data.feedback || []).join(', ')],['Pendência',data.pending]
     ];

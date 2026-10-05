@@ -1,3 +1,4 @@
+import {buscarProdutos, nomeProduto, idProduto} from '../domain/products.js';
 import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail, reportMarkup } from '../../technical-report-editor.js';
 // Drafts are staged locally; the application injects database persistence.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13,12 +14,19 @@ const blank = () => ({name:'',role:'',goal:'',low:'',missing:'',slow:'',products
 export class CommercialReport {
   constructor(host, onClose = () => {}, onSave = () => {}, review = {}) {
     this.reviewCallbacks = review;
+    this.productCatalog = []; this.productQueries = {}; this.productLoading = false; this.productLoaded = false; this.productError = '';
     this.compressPhoto = compressImage; this.thumbnailPhoto = createThumbnail; this.photoGeneration = 0; this.photoBusy = false;
     this.host = host; this.onClose = onClose; this.onSave = onSave; this.baseReports = new Map(); this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
     this.root = document.createElement('section'); this.root.className = 'commercial-report'; this.root.hidden = true; host.append(this.root);
     this.root.addEventListener('click', e => this.click(e));
     this.root.addEventListener('input', e => this.input(e));
     this.root.addEventListener('change', e => this.change(e));
+    this.root.addEventListener('keydown', e => {
+      const key = e.target.dataset.productSearch;
+      if (key && e.key === 'ArrowDown') { e.preventDefault(); this.root.querySelector('#cr-results-' + key + ' button')?.focus(); }
+      if (e.target.dataset.selectProduct && ['ArrowDown','ArrowUp'].includes(e.key)) { e.preventDefault(); (e.key === 'ArrowDown' ? e.target.nextElementSibling : e.target.previousElementSibling)?.focus(); }
+      if (e.target.dataset.selectProduct && e.key === 'Escape') this.root.querySelector('[data-product-search="' + e.target.dataset.productQuestion + '"]')?.focus();
+    });
     window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   get dirty() { return this.active && !this.reviewCheckout && JSON.stringify(this.data) !== (this.saved.get(this.key) || this.initial.get(this.key)); }
@@ -67,6 +75,7 @@ export class CommercialReport {
     this.host.classList.add('commercial-mode'); this.root.hidden = false; this.render();
   }
   clear() {
+    this.productCatalog=[]; this.productQueries={}; this.productLoaded=false; this.productLoading=false; this.productError='';
     this.photoGeneration++; this.photoBusy=false; this.saving=false; this.checkoutResizeObserver?.disconnect();
     if (this.editor) this.editor.generation = (this.editor.generation || 0) + 1;
     for (const data of this.drafts.values()) for (const key of ['photos','attachments']) for (const photo of data[key]) this.releasePhoto(photo);
@@ -98,11 +107,11 @@ export class CommercialReport {
     for(const photo of this.data.photos) { const local=this.staged.get(photo.id); if(local && !mediaStore.local(photo.id)) mediaStore.stage(photo.id,local.file,local.thumbnail); }
     if(page==='overview') body = `<h1>Visita comercial - ${escape(this.context.client)}</h1><p class="cr-code">${escape(this.context.code || '')}</p><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Cliente<div class="cr-pill">${escape(this.context.client)}</div></label>${this.rows()}<div class="cr-footer"><button class="btn-checkin cr-primary" data-action="save">Salvar relatório</button></div>`;
     if(page==='contact') body = this.field('Nome','name','Quem te recebeu?') + this.select('Cargo do responsável','role',['Proprietário','Gerente','Comprador','Vendedor','Responsável técnico']) + this.select('Objetivo principal','goal',['Relacionamento e levantamento de necessidades','Apoio às vendas ou reposição','Apresentação de produto ou lançamento','Orientação aos vendedores','Acompanhamento de pendência']);
-    if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(p)}">${escape(p)} <span>×</span></button>`).join('')}<form data-product="${k}"><input aria-label="Nome do produto em ${title}" placeholder="Buscar ou digitar produto" maxlength="100"><button type="submit" aria-label="Adicionar produto">+</button></form></div><button type="button" class="cr-text-link" data-example-product="${k}">Adicionar produto de exemplo</button><small>Catálogo ainda não integrado. Use o exemplo ou digite o nome.</small>`:''}</fieldset>`).join('');
+    if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(nomeProduto(p))}">${escape(nomeProduto(p))} <span>×</span></button>`).join('')}<div class="cr-product-search"><input type="search" data-product-search="${k}" value="${escape(this.productQueries[k] || '')}" aria-label="Buscar produto em ${title}" placeholder="Buscar produto por nome" role="combobox" aria-autocomplete="list" aria-controls="cr-results-${k}" aria-expanded="false" autocomplete="off"><div id="cr-results-${k}" class="cr-product-results" role="listbox" aria-label="Produtos encontrados"></div></div></div>`:''}</fieldset>`).join('');
     if(page==='exposure') body = `<fieldset><legend>Organização dos produtos</legend>${this.radios('organization',['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'])}</fieldset>${this.data.organization && this.data.organization!=='Não foi verificado'?`<label class="cr-photo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 5l2-2h4l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="4"/></svg>Adicione uma fotografia.<input type="file" accept="image/*" data-upload="photos" multiple hidden></label><small>${this.data.organization==='Organizada e visível'?'Fotografia opcional':'Adicione pelo menos uma fotografia'} · ${this.data.photos.length}/6</small>${this.previews('photos')}`:''}<fieldset><legend>Necessidade de reposição ou ausência</legend><div class="cr-options">${materials.map(o=>`<label><input type="checkbox" data-array="materials" value="${o}" ${this.data.materials.includes(o)?'checked':''}>${o}</label>`).join('')}</div>${this.data.materials.includes('Outro')?this.field('Qual material?','other','Descreva o material'):''}</fieldset>`;
     if(page==='free') body = `<section class="relatorio-editor-section cr-shared-editor" aria-label="Conteúdo do relatório"><textarea data-field="text" hidden></textarea><div class="technical-report-editor" role="group" aria-label="Escrever relatório"></div><p class="cr-editor-status" role="status" aria-live="polite"></p></section>`;
     this.root.innerHTML = `<header class="relatorio-header-top cr-header"><img src="midia/logo-advancecheck.svg" alt="Advance Check"><button type="button" class="screen-close" data-action="back" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></header>${info?`<h1 tabindex="-1">${info[1]}</h1><p class="cr-subtitle">${page==='free'?'Sinta-se à vontade para dar seu depoimento, anotar acontecimentos ou registrar imagens.':info[2]}</p>`:''}<div class="cr-body">${body}</div>${info?`<div class="${page==='free'?'relatorio-acoes cr-editor-actions':'cr-footer'}">${page==='free'?'<input class="cr-media-picker" type="file" accept="image/*" multiple hidden><input class="cr-camera-picker" type="file" accept="image/*" capture="environment" hidden><button type="button" class="report-add-media" aria-label="Adicionar imagem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>':''}<button class="btn-checkin cr-primary" data-action="module-done">${this.reviewCheckout?'Fechar':page==='free'?'Salvar relato':'Salvar módulo'}</button></div>`:''}<p class="cr-status" role="status" aria-live="polite"></p>`;
-    this.root.querySelectorAll('form[data-product]').forEach(form=>form.addEventListener('submit',e=>{ e.preventDefault(); const value=form.querySelector('input').value.trim(); const list=this.data.products[form.dataset.product]; if(value && !list.some(p=>p.toLocaleLowerCase()===value.toLocaleLowerCase())) list.push(value); this.render(); }));
+    if (page === 'availability') { this.updateProductResults(); void this.loadProducts(); }
     if (page === 'free') this.mountEditor();
     if(this.reviewCheckout) {
       this.root.querySelectorAll('input,select,textarea,.report-add-media,.report-media-remove,[data-example-product]').forEach(control=>control.disabled=true);
@@ -128,6 +137,34 @@ export class CommercialReport {
     host.onclick = event => { const button=event.target.closest('[data-page],[data-review-module]'); if(button) this.reviewCallbacks.reviewModule?.(button.dataset.page || button.dataset.reviewModule); };
     host.onchange = event => { const input=event.target; if(input.matches('[data-checkout-feedback]')) draft.feedback=input.checked?[...draft.feedback,input.value]:draft.feedback.filter(value=>value!==input.value); if(input.matches('[data-checkout-pending]')) draft.pending=input.value; };
   }
+  async loadProducts(refresh = false) {
+    if (this.productLoading || (this.productLoaded && !refresh && Date.now() < this.productExpiresAt)) return;
+    this.productLoading = true; this.productError = '';
+    const generation = this.photoGeneration;
+    this.updateProductResults();
+    try {
+      if (!this.reviewCallbacks.loadProducts) throw new Error('Catálogo indisponível nesta prévia.');
+      const products = await this.reviewCallbacks.loadProducts({refresh});
+      if (generation !== this.photoGeneration) return;
+      this.productCatalog = products; this.productLoaded = true; this.productExpiresAt = Date.now() + 10 * 60 * 1000;
+    } catch (error) {
+      if (generation === this.photoGeneration) this.productError = 'Não foi possível carregar os produtos. Tente novamente.';
+    } finally {
+      if (generation === this.photoGeneration) { this.productLoading = false; this.updateProductResults(); }
+    }
+  }
+  updateProductResults() {
+    if (this.page !== 'availability' || this.reviewCheckout) return;
+    for (const input of this.root.querySelectorAll('[data-product-search]')) {
+      const key = input.dataset.productSearch;
+      const results = this.root.querySelector('#cr-results-' + key);
+      const query = this.productQueries[key] || '';
+      const products = buscarProdutos(this.productCatalog, query, this.data.products[key]);
+      const message = this.productLoading ? 'Carregando produtos...' : this.productError || (!this.productCatalog.length && this.productLoaded ? 'Nenhum produto cadastrado no catálogo.' : query.trim() && !products.length ? 'Nenhum produto encontrado.' : '');
+      results.innerHTML = message ? `<p role="status">${escape(message)}</p>${this.productError?'<button type="button" data-retry-products>Tentar novamente</button>':''}` : products.map(product => `<button type="button" role="option" aria-selected="false" data-select-product="${escape(idProduto(product))}" data-product-question="${key}">${escape(nomeProduto(product))}</button>`).join('');
+      input.setAttribute('aria-expanded', String(products.length > 0));
+    }
+  }
   mountEditor() {
     const input=this.root.querySelector('[data-field="text"]'); input.value=this.data.text;
     for (const block of this.data.blocks || []) { const local=this.staged.get(block.id); if(local && !mediaStore.local(block.id)) mediaStore.stage(block.id,local.file,local.thumbnail); }
@@ -139,7 +176,7 @@ export class CommercialReport {
       for (const block of editor.blocks) { const local=mediaStore.local(block.id); if(local) this.staged.set(block.id,local); }
     });
   }
-  input(e) { if(e.target.dataset.field) this.data[e.target.dataset.field] = e.target.value; }
+  input(e) { if(e.target.dataset.productSearch) { this.productQueries[e.target.dataset.productSearch] = e.target.value; this.updateProductResults(); } if(e.target.dataset.field) this.data[e.target.dataset.field] = e.target.value; }
   async change(e) {
     const t = e.target;
     if(t.dataset.array) { const list=this.data[t.dataset.array]; this.data[t.dataset.array]=t.checked?[...list,t.value]:list.filter(v=>v!==t.value); if(t.value==='Outro') this.render(); }
@@ -185,7 +222,13 @@ export class CommercialReport {
     const b=e.target.closest('button'); if(!b) return;
     if((this.saving || this.photoBusy || (this.page==='free' && this.editor?.busy)) && (b.dataset.action || b.dataset.page)) { this.status('Aguarde o processamento das imagens.'); return; }
     if(b.dataset.page) { this.page=b.dataset.page; this.render(); this.root.querySelector('h1')?.focus(); }
-    if(b.dataset.exampleProduct) { const list=this.data.products[b.dataset.exampleProduct]; if(!list.includes('Produto de exemplo (placeholder)')) list.push('Produto de exemplo (placeholder)'); this.render(); }
+    if(b.dataset.retryProducts !== undefined) void this.loadProducts(true);
+    if(b.dataset.selectProduct && !this.reviewCheckout) {
+      const product = this.productCatalog.find(product => idProduto(product) === b.dataset.selectProduct);
+      const key = b.dataset.productQuestion;
+      if(product && !this.data.products[key].some(item => idProduto(item) === idProduto(product))) this.data.products[key].push({id:idProduto(product),title:nomeProduto(product)});
+      this.productQueries[key] = ''; this.render();
+    }
     if(b.dataset.removeProduct) { const [k,i]=b.dataset.removeProduct.split(':'); this.data.products[k].splice(Number(i),1); this.render(); }
     if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); this.releasePhoto(this.data[k][i]); this.data[k].splice(Number(i),1); this.render(); }
     if(this.reviewCheckout && (b.dataset.action==='back' || b.dataset.action==='module-done')) { this.reviewCallbacks.returnCheckout?.(); return; }

@@ -16,6 +16,6 @@ Fotos de exposição e relato usam a mesma compressão, miniaturas, mediaStore e
 
 O encerramento usa o fluxo existente de localização, precisão, distância da loja e transação de conclusão. A obrigatoriedade dos três módulos é validada na conclusão sobre o documento lido pela transação. O fechamento manual também valida os módulos. Relato livre é opcional. Feedback e pendência são gravados ao concluir; relatórios antigos continuam compatíveis.
 
-Contato exige nome, cargo e objetivo. Cada resposta Sim em disponibilidade exige um produto. O catálogo continua sem integração: os chips digitados e o produto de exemplo permanecem disponíveis. Exposição organizada permite fotos opcionais; Não foi verificado exige ausência de fotos; as outras opções exigem uma a seis. Outro material exige descrição.
+Contato exige nome, cargo e objetivo. Cada resposta Sim em disponibilidade exige um produto. A disponibilidade consulta a coleção `produtos` do Firestore e filtra por nome, sem diferenciar acentos ou maiúsculas. Os itens selecionados guardam ID e nome; relatórios antigos com nomes em texto continuam legíveis. Exposição organizada permite fotos opcionais; Não foi verificado exige ausência de fotos; as outras opções exigem uma a seis. Outro material exige descrição.
 
 `commercial-preview.html` permanece uma demonstração local sem login nem persistência. Os testes usam Firebase/transações e armazenamento simulados; não gravam dados de produção.

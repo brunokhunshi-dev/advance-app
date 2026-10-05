@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-commercial-v26';
+const CACHE_NAME = 'advance-pwa-commercial-v27';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -6,6 +6,8 @@ const APP_SHELL = [
   './midia/logo-advancecheck.svg', './midia/iconspwa/favicon.svg',
   './midia/iconspwa/advancecheck192.png', './midia/iconspwa/advancecheck512.png',
   './src/data/client-repository.js',
+  './src/data/product-repository.js',
+  './src/domain/products.js',
   './src/data/cnpj-lookup.js',
   './src/domain/formatters.js',
   './src/domain/history.js',

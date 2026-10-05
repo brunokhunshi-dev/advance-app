@@ -1,3 +1,4 @@
+import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
@@ -13,6 +14,10 @@ import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssisten
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
 import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
+const productRepository = createProductRepository(async () => {
+    const snapshot = await getDocs(collection(db, 'produtos'));
+    return snapshot.docs.map(document => ({...document.data(), id:document.id}));
+});
 let technicalEditor;
 let commercialReport;
 function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, navegar = true) {
@@ -376,6 +381,7 @@ function inicializarAplicativo() {
     onAuthStateChanged(auth, async user => {
 
         const versao = ++versaoSessao;
+        productRepository.clear();
         commercialReport?.clear();
 
         idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
@@ -2310,6 +2316,7 @@ function configurarEventosGlobais() {
         atualizarInterfaceVisitaAtual();
     }, {
         persist: salvarRelatorioComercial,
+        loadProducts: options => productRepository.list(options),
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
             commercialReport.deactivate();

@@ -1,3 +1,4 @@
+import {nomeProduto} from './products.js';
 const COLECOES_RELATORIO = Object.freeze({
     'Visita comercial': 'relatorios_comerciais',
     'Treinamento': 'relatorios_treinamentos',
@@ -104,7 +105,7 @@ export function modulosComerciaisPendentes(relatorio) {
     const roles = ['Proprietário','Gerente','Comprador','Vendedor','Responsável técnico'];
     const goals = ['Relacionamento e levantamento de necessidades','Apoio às vendas ou reposição','Apresentação de produto ou lançamento','Orientação aos vendedores','Acompanhamento de pendência'];
     if (!String(data.name || '').trim() || !roles.includes(data.role) || !goals.includes(data.goal)) pending.push('Contato na loja');
-    if (!['low','missing','slow'].every(key => ['Sim','Não'].includes(data[key]) && (data[key] !== 'Sim' || data.products?.[key]?.some(product => String(product).trim())))) pending.push('Disponibilidade dos produtos');
+    if (!['low','missing','slow'].every(key => ['Sim','Não'].includes(data[key]) && (data[key] !== 'Sim' || data.products?.[key]?.some(product => nomeProduto(product).trim())))) pending.push('Disponibilidade dos produtos');
     const photos = data.photos || [];
     const organization = data.organization;
     if (!['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'].includes(organization) || photos.length > 6 ||
