@@ -2,6 +2,7 @@ import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
+import { AgendaCalendar } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
 import './src/ui/pwa.js';
@@ -104,6 +105,7 @@ let historicoCarregado = null;
 let clienteVisualizadorAtual = null;
 
 let listaAtividadesAgenda = []; // Nova lista para edição de visitas
+const agendaCalendar = new AgendaCalendar(document.getElementById('agenda-calendar'));
 
 let nvClienteSelecionadoId = null;
 
@@ -417,6 +419,7 @@ function inicializarAplicativo() {
         idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
 
         limparEstadoVisita(); listaClientes = []; listaAtividadesAgenda = []; nvClienteSelecionadoId = null;
+        agendaCalendar.reset();
 
         limparCadastroCliente();
 
@@ -866,6 +869,7 @@ async function carregarAgenda() {
     const sessao = sessaoAtual(), pedido = ++sequenciaAgenda;
 
     const areaAgenda = document.getElementById('area-agenda');
+    agendaCalendar.setActivities([]);
 
     areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar agenda...</p>`;
 
@@ -903,6 +907,7 @@ async function carregarAgenda() {
         if (!sessaoValida(sessao) || pedido !== sequenciaAgenda) return;
 
         listaAtividadesAgenda = atividadesCarregadas.sort((a, b) => tempoData(a.data) - tempoData(b.data));
+        agendaCalendar.setActivities(listaAtividadesAgenda);
 
         const cardsAgenda = [];
 
