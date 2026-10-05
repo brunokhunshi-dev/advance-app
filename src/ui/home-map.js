@@ -95,21 +95,35 @@ export class HomeVisitMap {
             });
             map.on('load', () => { loaded = true; failed = false; updateStatus(); });
             map.on('error', () => { failed = true; updateStatus(); });
-            const marker = (person, position, label, secondary = false) => {
+            const marker = (person, position, label, secondary = false, store = null) => {
                 const element = this.canvas.ownerDocument.createElement('div');
                 element.className = person ? 'home-map-person' : secondary ? 'home-map-destination home-map-secondary' : 'home-map-destination';
                 element.setAttribute('role', 'img');
                 element.setAttribute('aria-label', label);
                 element.title = label;
                 if (!person) element.innerHTML = PIN;
+                const popup = new gl.Popup({ offset: 20, ...(person ? {} : { className: 'home-store-popup', maxWidth: '280px' }) });
+                if (person) popup.setText(label);
+                else {
+                    const iframe = this.canvas.ownerDocument.createElement('iframe');
+                    iframe.className = 'home-store-embed';
+                    iframe.title = 'Google Maps — ' + label;
+                    iframe.referrerPolicy = 'no-referrer-when-downgrade';
+                    const address = store?.enderecoCompleto?.trim() || `${position[1]},${position[0]}`;
+                    const url = `https://maps.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+                    popup.setDOMContent(iframe);
+                    // Load only the selected store, and release its iframe on close.
+                    popup.on('open', () => { iframe.src = url; });
+                    popup.on('close', () => { iframe.removeAttribute('src'); });
+                }
                 return new gl.Marker({ element, anchor: person ? 'center' : 'bottom' })
-                    .setLngLat(position).setPopup(new gl.Popup({ offset: 20 }).setText(label)).addTo(map);
+                    .setLngLat(position).setPopup(popup).addTo(map);
             };
             for (const secundario of clientesSecundarios.slice(0, 4)) {
                 if (!coordenadasValidas(secundario?.lat, secundario?.lng)) continue;
-                marker(false, [Number(secundario.lng), Number(secundario.lat)], 'Visita seguinte: ' + (secundario.nome || 'Loja'), true);
+                marker(false, [Number(secundario.lng), Number(secundario.lat)], 'Visita seguinte: ' + (secundario.nome || 'Loja'), true, secundario);
             }
-            if (destino) marker(false, destino, cliente.nome || 'Próxima visita');
+            if (destino) marker(false, destino, cliente.nome || 'Próxima visita', false, cliente);
             try {
                 position = position || await this.getPosition();
                 if (version !== this.version) return;

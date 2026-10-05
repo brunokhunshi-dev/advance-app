@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-loading-v42';
+const CACHE_NAME = 'advance-pwa-map-embed-v43';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',

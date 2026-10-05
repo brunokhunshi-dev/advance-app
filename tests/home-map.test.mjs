@@ -5,7 +5,7 @@ import { AgendaCalendar, filtrarAgenda } from '../src/ui/agenda-calendar.js';
 
 function setup(getPosition) {
     const markers = [], bounds = [], removed = [], maps = [];
-    const canvas = { replaceChildren() {}, ownerDocument: { createElement: () => ({ setAttribute() {} }) } }, status = { textContent: '' };
+    const canvas = { replaceChildren() {}, ownerDocument: { createElement: () => ({ setAttribute() {}, removeAttribute(name) { delete this[name]; } }) } }, status = { textContent: '' };
     const gl = {
         Map: class {
             constructor(options) { this.options = options; this.handlers = {}; this.paint = []; this.layout = []; this.touchZoomRotate = { disableRotation() {} }; maps.push(this); }
@@ -19,12 +19,12 @@ function setup(getPosition) {
             setLayoutProperty(...args) { this.layout.push(args); }
         },
         AttributionControl: class {},
-        Popup: class { setText(text) { this.text = text; return this; } },
+        Popup: class { constructor() { this.handlers = {}; } setText(text) { this.text = text; return this; } setDOMContent(node) { this.node = node; return this; } on(event, handler) { this.handlers[event] = handler; return this; } },
         LngLatBounds: class { constructor(point) { this.points = [point]; } extend(point) { this.points.push(point); return this; } },
         Marker: class {
             constructor(options) { this.options = options; }
             setLngLat(position) { this.position = position; return this; }
-            setPopup(popup) { this.popup = popup.text; return this; }
+            setPopup(popup) { this.popup = popup; return this; }
             addTo() { markers.push(this); return this; }
         }
     };
@@ -38,7 +38,8 @@ test('home map shows real person and destination positions and fits both into vi
     const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
     await s.controller.update(cliente);
     assert.equal(s.markers.length, 2);
-    assert.equal(s.markers[0].popup, '<Loja>');
+    assert.equal(s.markers[0].popup.node.title, 'Google Maps — <Loja>');
+    assert.equal(s.markers[1].popup.text, 'Você está aqui');
     assert.equal(s.maps[0].options.dragPan, true);
     assert.equal(s.maps[0].options.cooperativeGestures, false);
     assert.equal(s.maps[0].options.scrollZoom, false);
@@ -161,4 +162,30 @@ test('map dependency failure leaves an explicit connection message and no marker
     await s.controller.update(cliente);
     assert.equal(s.markers.length, 0);
     assert.match(s.status.textContent, /conexão/);
+});
+
+test('store embed loads its encoded address only on open and releases it on close', async () => {
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
+    const address = 'Rua João, 10 & esquina — Indaiatuba - SP';
+    await s.controller.update({ ...cliente, enderecoCompleto: address });
+    const popup = s.markers[0].popup;
+    assert.equal(popup.node.src, undefined);
+    popup.handlers.open();
+    const url = new URL(popup.node.src);
+    assert.equal(url.origin, 'https://maps.google.com');
+    assert.equal(url.searchParams.get('q'), address);
+    assert.equal(url.searchParams.get('output'), 'embed');
+    popup.handlers.close();
+    assert.equal(popup.node.src, undefined);
+    popup.handlers.open();
+    assert.equal(new URL(popup.node.src).searchParams.get('q'), address);
+});
+
+test('secondary store embed falls back to coordinates when address is absent', async () => {
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
+    await s.controller.update(cliente, [{ nome: 'Outra loja', lat: -22, lng: -46 }]);
+    const popup = s.markers[0].popup;
+    popup.handlers.open();
+    assert.equal(new URL(popup.node.src).searchParams.get('q'), '-22,-46');
+    assert.deepEqual(s.bounds[0], [[-47.21, -23.09], [-47.2, -23.1]]);
 });

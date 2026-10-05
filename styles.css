@@ -1360,3 +1360,10 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .loading-card-compact .loading-kicker { display: none; }
 @keyframes loading-shimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .loading-block::after { animation: none; display: none; } }
+
+/* Keep the embedded map fully inside the 200px location card. */
+.home-visit-map .home-store-popup { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%) !important; width: min(280px, calc(100% - 24px)); z-index: 6; }
+.home-store-popup .maplibregl-popup-tip { display: none; }
+.home-store-popup .maplibregl-popup-content { width: 100%; padding: 26px 8px 8px; box-sizing: border-box; }
+.home-store-popup .maplibregl-popup-close-button { width: 28px; height: 26px; font-size: 20px; line-height: 1; }
+.home-store-embed { display: block; width: 100%; height: 140px; border: 0; border-radius: 8px; background: #F8F9FA; }
