@@ -2,7 +2,7 @@ import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
-import { AgendaCalendar } from './src/ui/agenda-calendar.js';
+import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
 import './src/ui/pwa.js';
@@ -105,7 +105,10 @@ let historicoCarregado = null;
 let clienteVisualizadorAtual = null;
 
 let listaAtividadesAgenda = []; // Nova lista para edição de visitas
-const agendaCalendar = new AgendaCalendar(document.getElementById('agenda-calendar'));
+const agendaCalendar = new AgendaCalendar(document.getElementById('agenda-calendar'), () => {
+    if (!agendaCarregando) renderizarAgenda();
+});
+let agendaCarregando = false;
 
 let nvClienteSelecionadoId = null;
 
@@ -869,6 +872,8 @@ async function carregarAgenda() {
     const sessao = sessaoAtual(), pedido = ++sequenciaAgenda;
 
     const areaAgenda = document.getElementById('area-agenda');
+    agendaCarregando = true;
+    listaAtividadesAgenda = [];
     agendaCalendar.setActivities([]);
 
     areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar agenda...</p>`;
@@ -885,7 +890,6 @@ async function carregarAgenda() {
 
         listaAtividadesAgenda = [];
 
-        if (querySnapshot.empty) { areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">Nenhuma visita agendada.</p>`; return; }
 
         const atividadesCarregadas = await Promise.all(querySnapshot.docs.map(async documento => {
 
@@ -909,60 +913,52 @@ async function carregarAgenda() {
         listaAtividadesAgenda = atividadesCarregadas.sort((a, b) => tempoData(a.data) - tempoData(b.data));
         agendaCalendar.setActivities(listaAtividadesAgenda);
 
-        const cardsAgenda = [];
+        agendaCarregando = false;
+        renderizarAgenda();
 
-        listaAtividadesAgenda.forEach((atividade, index) => {
+    } catch (error) { if (sessaoValida(sessao) && pedido === sequenciaAgenda) { agendaCarregando = false; areaAgenda.textContent = 'Não foi possível carregar a agenda.'; informarErro('Erro na agenda', error); } }
 
-            const fData = formatarDataAgenda(atividade.data);
+}
 
-            const tituloSecao = index === 0 ? "Visitas agendadas" : "";
+function renderizarAgenda() {
+    const areaAgenda = document.getElementById('area-agenda');
+    const cardsAgenda = [];
+    const filtradas = filtrarAgenda(listaAtividadesAgenda, agendaCalendar.mes, agendaCalendar.selecionado);
+    let diaAnterior = '';
+    if (!filtradas.length) {
+        areaAgenda.innerHTML = `<p class="agenda-empty">${agendaCalendar.selecionado ? 'Nenhuma visita agendada para este dia.' : 'Nenhuma visita agendada neste período do mês.'}</p>`;
+        return;
+    }
 
-            if (tituloSecao) cardsAgenda.push(`<h2 class="section-subtitle">${tituloSecao}</h2>`);
+    filtradas.forEach(({ atividade, index }) => {
 
-            const botaoGpsHTML = atividade.enderecoCompleto ? `<button class="btn-gps" data-gps-index="${index}">Abrir no GPS</button>` : '<p>Endereço não cadastrado.</p>';
+        const fData = formatarDataAgenda(atividade.data);
 
-            const iconeFicha = `<button class="agenda-btn-ficha" data-ficha-index="${index}" title="Gerenciar Visita"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><rect x="6" y="8" width="4" height="4" rx="1"></rect><line x1="13" y1="9" x2="18" y2="9"></line><line x1="13" y1="12" x2="18" y2="12"></line><line x1="13" y1="15" x2="18" y2="15"></line></svg></button>`;
+        if (diaAnterior !== fData.diaMes) {
+            cardsAgenda.push(`<h2 class="agenda-day-heading">${fData.diaMes}</h2>`);
+            diaAnterior = fData.diaMes;
+        }
 
-            // Badge para mostrar que está em andamento
+        // Badge para mostrar que está em andamento
 
-            const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
+        const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
 
-            cardsAgenda.push(`
+        cardsAgenda.push(`
+            <button type="button" class="card-agenda" data-ficha-index="${index}" aria-label="Ver agendamento de ${escaparHtml(atividade.nomeCliente)} às ${fData.hora}">
+                <span class="agenda-motivo">${escaparHtml(normalizarTipoVisita(atividade))}</span>
+                <span class="agenda-cliente">${escaparHtml(atividade.nomeCliente)} ${badgeAndamento}</span>
+                <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>${fData.hora}</span></span>
+                <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v-5m0-9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-7 13c-2 1-3 2-3 3 0 2 4 3 10 3s10-1 10-3c0-1-1-2-3-3"/></svg><span>${escaparHtml(atividade.enderecoCompleto || 'Endereço não cadastrado')}</span></span>
+            </button>
+        `);
 
-                <div class="card-agenda">
+    });
+    areaAgenda.innerHTML = cardsAgenda.join('');
 
-                    <div class="agenda-header"><span class="agenda-data">${fData.diaMes}</span>${iconeFicha}</div>
+    areaAgenda.querySelectorAll('[data-ficha-index]').forEach(btn => btn.addEventListener('click', () => {
+        if (!operacaoEmCurso) window.abrirDetalhesVisita(Number(btn.dataset.fichaIndex));
+    }));
 
-                    <div class="agenda-cliente">${escaparHtml(atividade.nomeCliente)} ${badgeAndamento}</div>
-
-                    <div class="agenda-info-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>${fData.hora}</div>
-
-                    <div class="agenda-info-row"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>${escaparHtml(atividade.enderecoCompleto)}</div>
-
-                    <div class="agenda-motivo">${escaparHtml(normalizarTipoVisita(atividade))}</div>
-
-                    ${botaoGpsHTML}
-
-                </div>
-
-            `);
-
-        });
-        areaAgenda.innerHTML = cardsAgenda.join('');
-
-        areaAgenda.querySelectorAll('[data-ficha-index]').forEach(btn => btn.addEventListener('click', () => {
-            if (!operacaoEmCurso) window.abrirDetalhesVisita(Number(btn.dataset.fichaIndex));
-        }));
-
-        areaAgenda.querySelectorAll('[data-gps-index]').forEach(btn => btn.addEventListener('click', () => {
-
-            const atividade = listaAtividadesAgenda[Number(btn.dataset.gpsIndex)];
-
-            if (atividade?.enderecoCompleto) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(atividade.enderecoCompleto)}`, '_blank', 'noopener,noreferrer');
-
-        }));
-
-    } catch (error) { if (sessaoValida(sessao) && pedido === sequenciaAgenda) { areaAgenda.textContent = 'Não foi possível carregar a agenda.'; informarErro('Erro na agenda', error); } }
 
 }
 

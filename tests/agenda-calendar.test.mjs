@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diasCalendario, AgendaCalendar } from '../src/ui/agenda-calendar.js';
+import { diasCalendario, AgendaCalendar, filtrarAgenda } from '../src/ui/agenda-calendar.js';
 
 test('calendar aligns October 2026 to Thursday, with complete Sunday-first weeks', () => {
     const dias = diasCalendario(2026, 9);
@@ -69,5 +69,40 @@ test('swipe ignores taps, vertical scroll and cancelled gestures; supports right
     handlers.keydown({ key: 'ArrowRight', preventDefault() {} });
     assert.equal(calendar.mes.getMonth(), 0);
     assert.equal(calendar.mes.getFullYear(), 2026);
-    assert.doesNotMatch(root.innerHTML, /data-calendar-month|<button/);
+    assert.doesNotMatch(root.innerHTML, /data-calendar-month/);
+});
+
+test('monthly agenda starts today, sorts chronologically and retains original card indices', () => {
+    const hoje = new Date(2026, 9, 5, 15);
+    const atividades = [
+        { data: new Date(2026, 9, 6, 10) }, { data: new Date(2026, 9, 4, 10) },
+        { data: new Date(2026, 9, 5, 9) }, { data: new Date(2026, 9, 5, 8) },
+        { data: new Date(2026, 10, 1, 10) }, { data: null }
+    ];
+    assert.deepEqual(filtrarAgenda(atividades, hoje, null, hoje).map(item => item.index), [3, 2, 0]);
+    assert.deepEqual(filtrarAgenda(atividades, hoje, new Date(2026, 9, 4), hoje).map(item => item.index), [1]);
+    assert.deepEqual(filtrarAgenda(atividades, new Date(2026, 10, 1), null, hoje).map(item => item.index), [4]);
+    assert.equal(filtrarAgenda(atividades, hoje, new Date(2026, 9, 7), hoje).length, 0);
+});
+
+test('selecting a day updates the list, toggles back to month and clears on swipe', () => {
+    const handlers = {};
+    const root = { innerHTML: '', addEventListener: (name, fn) => { handlers[name] = fn; } };
+    let changes = 0;
+    const calendar = new AgendaCalendar(root, () => changes++);
+    const date = new Date(2026, 9, 5, 12);
+    const target = { closest: () => ({ dataset: { calendarDay: String(date.getTime()) } }) };
+    handlers.pointerdown({ pointerId: 1, button: 0, clientX: 100, clientY: 100, target });
+    handlers.pointerup({ pointerId: 1, clientX: 102, clientY: 101 });
+    assert.equal(calendar.selecionado.getTime(), date.getTime());
+    assert.equal(changes, 1);
+    assert.match(root.innerHTML, /aria-pressed="true"/);
+    handlers.click({ target, detail: 1 });
+    assert.equal(changes, 1, 'browser click after tap must not toggle selection twice');
+    handlers.click({ target, detail: 0 });
+    assert.equal(calendar.selecionado, null);
+    calendar.selectDay(new Date(2026, 8, 30, 12));
+    assert.equal(calendar.mes.getMonth(), 8);
+    calendar.changeMonth(1);
+    assert.equal(calendar.selecionado, null);
 });
