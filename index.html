@@ -16,8 +16,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-    <link rel="stylesheet" href="styles.css?v=design-37">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="styles.css?v=design-38">
     <link rel="stylesheet" href="commercial-report.css?v=design-29">
     <link rel="stylesheet" href="pwa-mobile.css?v=design-29">
     <script>
@@ -71,10 +71,13 @@
             <div id="area-visitas">
                 <p style="text-align: center; color: #777; margin-top: 20px;">A carregar dados...</p>
             </div>
-            <section class="home-visit-map" aria-label="Sua localização e próxima visita">
+            <h2 class="page-title home-section-title" id="home-location-title">Localização</h2>
+            <p id="home-location-address" class="home-location-address"></p>
+            <section class="home-visit-map" aria-labelledby="home-location-title">
                 <div id="home-map-canvas" class="home-map-canvas"></div>
                 <p id="home-map-status" class="home-map-status" role="status"></p>
             </section>
+            <h2 class="page-title home-section-title">Minha agenda</h2>
             <section id="home-calendar" class="agenda-calendar" tabindex="0" aria-labelledby="home-calendar-title" aria-description="Arraste para mudar o mês. Toque em um dia com visita para abrir a agenda nessa data."></section>
         </main>
 
@@ -1055,7 +1058,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=home-37"></script>
+    <script type="module" src="script.js?v=home-38"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

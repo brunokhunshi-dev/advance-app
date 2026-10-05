@@ -1,30 +1,50 @@
 import { coordenadasValidas } from '../services/location.js';
-import { escaparHtml } from '../domain/formatters.js';
 
-let leafletPending;
-export function loadLeaflet() {
-    if (window.L) return Promise.resolve(window.L);
-    if (!leafletPending) {
-        leafletPending = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-            script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
-            script.crossOrigin = '';
-            const timer = setTimeout(() => fail(), 15000);
-            const fail = () => { clearTimeout(timer); script.remove(); reject(new Error('Mapa indisponível. Confira sua conexão.')); };
-            script.onerror = fail;
-            script.onload = () => { clearTimeout(timer); window.L ? resolve(window.L) : fail(); };
-            document.head.append(script);
-        }).catch(error => { leafletPending = null; throw error; });
+let mapLibraryPending;
+export function loadMapLibrary() {
+    if (!mapLibraryPending) {
+        mapLibraryPending = import('https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.mjs')
+            .catch(error => { mapLibraryPending = null; throw error; });
     }
-    return leafletPending;
+    return mapLibraryPending;
 }
 
-const PERSON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M6 20v-3a6 6 0 0 1 12 0v3"/></svg>';
-const PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 23S3 14 3 9a9 9 0 1 1 18 0c0 5-9 14-9 14Z"/><circle cx="12" cy="9" r="3"/></svg>';
+// Paleta familiar: água azul, parques verdes, ruas claras e edificações cinza.
+// Preserva filtros, geometria e espessuras da base cartográfica OpenFreeMap.
+export function mapTheme(style) {
+    return style.layers.map(layer => {
+        const source = layer['source-layer'], id = layer.id.toLowerCase();
+        const paint = {}, layout = {};
+        if (layer.type === 'background') paint['background-color'] = '#F8F9FA';
+        if (layer.type === 'fill') {
+            if (source === 'water') paint['fill-color'] = '#A3C7F3';
+            else if (source === 'building') paint['fill-color'] = '#E8EAED';
+            else if (source === 'park' || source === 'landcover') paint['fill-color'] = '#CFE8CC';
+            else if (source === 'landuse') paint['fill-color'] = ['match', ['get', 'class'],
+                ['park', 'cemetery', 'grass', 'recreation_ground', 'garden'], '#CFE8CC',
+                ['hospital', 'school', 'university'], '#F1F3F4', '#F8F9FA'];
+        }
+        if (layer.type === 'line') {
+            if (source === 'waterway') paint['line-color'] = '#A3C7F3';
+            else if (source === 'transportation' && !/rail|ferry|aerialway/.test(id)) {
+                paint['line-color'] = /case|casing/.test(id) ? '#DADCE0'
+                    : ['match', ['get', 'class'], ['motorway', 'trunk'], '#C6D0DE', '#FFFFFF'];
+            }
+        }
+        if (layer.type === 'symbol' && layer.layout?.['text-field']) {
+            paint['text-color'] = source === 'water_name' ? '#5079A3' : '#5F6368';
+            paint['text-halo-color'] = '#FFFFFF';
+            paint['text-halo-width'] = 1.5;
+        }
+        if (source === 'poi' || source === 'housenumber' || layer.type === 'fill-extrusion') layout.visibility = 'none';
+        return { id: layer.id, paint, layout };
+    });
+}
+
+const PIN = '<svg viewBox="0 0 24 32" aria-hidden="true"><path fill="#EA4335" d="M12 0C5.4 0 0 5.4 0 12c0 8.6 12 20 12 20s12-11.4 12-20C24 5.4 18.6 0 12 0Z"/><circle fill="#FFFFFF" cx="12" cy="12" r="4"/></svg>';
 
 export class HomeVisitMap {
-    constructor(canvas, status, { getPosition, loadLibrary = loadLeaflet }) {
+    constructor(canvas, status, { getPosition, loadLibrary = loadMapLibrary }) {
         this.canvas = canvas;
         this.status = status;
         this.getPosition = getPosition;
@@ -47,35 +67,60 @@ export class HomeVisitMap {
             return;
         }
         try {
-            const L = await this.loadLibrary();
+            const gl = await this.loadLibrary();
             if (version !== this.version) return;
-            const destino = [Number(cliente.lat), Number(cliente.lng)];
-            this.map = L.map(this.canvas, { zoomControl: false, scrollWheelZoom: false, dragging: false, touchZoom: true, attributionControl: true });
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>'
-            }).addTo(this.map);
-            const icon = (person) => L.divIcon({ className: person ? 'home-map-person' : 'home-map-destination',
-                html: person ? PERSON : PIN, iconSize: [32, 36], iconAnchor: person ? [16, 18] : [16, 36] });
-            L.marker(destino, { icon: icon(false), title: cliente.nome || 'Próxima visita', alt: 'Local da próxima visita' })
-                .addTo(this.map).bindPopup(escaparHtml(cliente.nome || 'Próxima visita'));
-            this.map.setView(destino, 15);
-            this.status.textContent = 'Localizando você…';
+            const destino = [Number(cliente.lng), Number(cliente.lat)];
+            const map = new gl.Map({ container: this.canvas, style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: destino, zoom: 15, dragPan: true, scrollZoom: false, cooperativeGestures: false,
+                dragRotate: false, pitchWithRotate: false, touchZoomRotate: true, attributionControl: false });
+            this.map = map;
+            map.touchZoomRotate.disableRotation();
+            map.addControl(new gl.AttributionControl({ compact: false }), 'bottom-right');
+            let loaded = false, failed = false, locating = true, gpsMessage = '';
+            const updateStatus = () => {
+                if (version !== this.version) return;
+                this.status.textContent = failed ? 'Não foi possível carregar a base do mapa. Confira sua conexão.'
+                    : gpsMessage || (!loaded ? 'Carregando mapa…' : locating ? 'Localizando você…' : '');
+            };
+            map.on('style.load', () => {
+                if (version !== this.version) return;
+                for (const layer of mapTheme(map.getStyle())) {
+                    for (const [key, value] of Object.entries(layer.paint)) map.setPaintProperty(layer.id, key, value);
+                    for (const [key, value] of Object.entries(layer.layout)) map.setLayoutProperty(layer.id, key, value);
+                }
+            });
+            map.on('load', () => { loaded = true; failed = false; updateStatus(); });
+            map.on('error', () => { failed = true; updateStatus(); });
+            const marker = (person, position, label) => {
+                const element = this.canvas.ownerDocument.createElement('div');
+                element.className = person ? 'home-map-person' : 'home-map-destination';
+                element.setAttribute('role', 'img');
+                element.setAttribute('aria-label', label);
+                element.title = label;
+                if (!person) element.innerHTML = PIN;
+                return new gl.Marker({ element, anchor: person ? 'center' : 'bottom' })
+                    .setLngLat(position).setPopup(new gl.Popup({ offset: 20 }).setText(label)).addTo(map);
+            };
+            marker(false, destino, cliente.nome || 'Próxima visita');
             try {
                 const position = await this.getPosition();
                 if (version !== this.version) return;
                 const lat = position?.coords?.latitude, lng = position?.coords?.longitude;
                 if (!coordenadasValidas(lat, lng)) throw new Error('Localização indisponível.');
-                const pessoa = [Number(lat), Number(lng)];
-                L.marker(pessoa, { icon: icon(true), title: 'Você está aqui', alt: 'Sua localização' }).addTo(this.map).bindPopup('Você está aqui');
-                this.map.invalidateSize();
-                this.map.fitBounds([destino, pessoa], { padding: [32, 32], maxZoom: 16, animate: false });
-                this.status.textContent = '';
+                const pessoa = [Number(lng), Number(lat)];
+                marker(true, pessoa, 'Você está aqui');
+                map.resize();
+                map.fitBounds(new gl.LngLatBounds(destino, destino).extend(pessoa), { padding: 36, maxZoom: 16, duration: 0 });
+                locating = false;
+                updateStatus();
             } catch (error) {
                 if (version !== this.version) return;
-                this.status.textContent = error.message || 'Não foi possível obter sua localização.';
+                locating = false;
+                gpsMessage = error.message || 'Não foi possível obter sua localização.';
+                updateStatus();
             }
         } catch (error) {
-            if (version === this.version) this.status.textContent = error.message || 'Não foi possível carregar o mapa.';
+            if (version === this.version) this.status.textContent = 'Não foi possível carregar o mapa. Confira sua conexão.';
         }
     }
 }

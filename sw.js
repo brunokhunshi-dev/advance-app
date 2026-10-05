@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-home-v37';
+const CACHE_NAME = 'advance-pwa-home-v38';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',

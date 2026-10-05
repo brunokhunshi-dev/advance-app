@@ -434,6 +434,7 @@ function inicializarAplicativo() {
         agendaCalendar.reset();
         homeCalendar.reset();
         homeVisitMap.clear();
+        document.getElementById('home-location-address').textContent = '';
 
         limparCadastroCliente();
 
@@ -600,7 +601,7 @@ function mostrarApenasTela(idTelaAlvo) {
 
     telas.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (id === idTelaAlvo) ? 'block' : 'none'; });
 
-    if (idTelaAlvo === 'tela-inicio') homeVisitMap.map?.invalidateSize();
+    if (idTelaAlvo === 'tela-inicio') homeVisitMap.map?.resize();
 
     const indice = { 'tela-inicio': 0, 'tela-agenda': 1, 'tela-historico': 2, 'tela-perfil': 3 }[idTelaAlvo];
 
@@ -816,6 +817,7 @@ async function carregarAtividadesPendentes() {
     area.textContent = 'Carregando visitas...';
     homeCalendar.setActivities([]);
     homeVisitMap.clear('Carregando mapa…');
+    document.getElementById('home-location-address').textContent = '';
 
     try {
 
@@ -850,6 +852,7 @@ async function carregarAtividadesPendentes() {
 
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
+        document.getElementById('home-location-address').textContent = cliente?.enderecoCompleto || '';
         void homeVisitMap.update(cliente);
 
         limparEstadoVisita();
