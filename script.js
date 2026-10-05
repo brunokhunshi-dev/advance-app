@@ -4,6 +4,7 @@ import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
 import { cardAgenda, proximasVisitas, visitasSecundarias } from './src/ui/agenda-cards.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
+import { loadingMarkup } from './src/ui/loading.js';
 import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
@@ -813,9 +814,9 @@ async function carregarAtividadesPendentes() {
 
     const area = document.getElementById('area-visitas');
 
-    area.textContent = 'Carregando visitas...';
+    area.innerHTML = loadingMarkup(1);
     homeCalendar.setActivities([]);
-    document.getElementById('home-upcoming-visits').textContent = 'Carregando agendamentos…';
+    document.getElementById('home-upcoming-visits').innerHTML = loadingMarkup();
     document.getElementById('home-agenda-more').hidden = true;
     homeVisitMap.clear('Carregando mapa…');
     document.getElementById('home-location-address').textContent = '';
@@ -940,7 +941,7 @@ async function carregarAgenda() {
     listaAtividadesAgenda = [];
     agendaCalendar.setActivities([]);
 
-    areaAgenda.innerHTML = `<p style="text-align: center; color: #777; margin-top: 20px;">A carregar agenda...</p>`;
+    areaAgenda.innerHTML = loadingMarkup();
 
     try {
 
@@ -1126,7 +1127,7 @@ async function carregarHistoricoVisitas() {
     const sessao = sessaoAtual(), pedido = ++sequenciaHistorico;
     const areaHistorico = document.getElementById('area-historico-visitas');
 
-    areaHistorico.innerHTML = '<p class="hist-vazio">Carregando histórico...</p>';
+    areaHistorico.innerHTML = loadingMarkup();
 
     try {
         const q = query(

@@ -1,4 +1,5 @@
 import {buscarProdutos, nomeProduto, idProduto} from '../domain/products.js';
+import { loadingMarkup } from './loading.js';
 import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail, reportMarkup } from '../../technical-report-editor.js';
 // Drafts are staged locally; the application injects database persistence.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -161,6 +162,11 @@ export class CommercialReport {
       const results = this.root.querySelector('#cr-results-' + key);
       const query = this.productQueries[key] || '';
       const products = buscarProdutos(this.productCatalog, query, this.data.products[key]);
+      if (this.productLoading) {
+        results.innerHTML = loadingMarkup(3, true);
+        input.setAttribute('aria-expanded', 'false');
+        continue;
+      }
       const message = this.productLoading ? 'Carregando produtos...' : this.productError || (!this.productCatalog.length && this.productLoaded ? 'Nenhum produto cadastrado no catálogo.' : query.trim() && !products.length ? 'Nenhum produto encontrado.' : '');
       results.innerHTML = message ? `<p role="status">${escape(message)}</p>${this.productError?'<button type="button" data-retry-products>Tentar novamente</button>':''}` : products.map(product => `<button type="button" role="option" aria-selected="false" data-select-product="${escape(idProduto(product))}" data-product-question="${key}">${escape(nomeProduto(product))}</button>`).join('');
       input.setAttribute('aria-expanded', String(products.length > 0));

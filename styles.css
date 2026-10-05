@@ -495,8 +495,6 @@ button { font-weight: 400; }
 .historico-filtro-limpar,
 .nav-item,
 .nav-item.active { font-weight: 400; }
-.historico-filtro-btn,
-
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
@@ -504,6 +502,7 @@ button:focus-visible {
     outline: 2px solid rgba(245, 30, 48, .35);
     outline-offset: 2px;
 }
+.historico-filtro-btn:focus-visible { outline-color: #A6AFBD; }
 .input-box::placeholder { color: var(--color-placeholder); opacity: 1; }
 select.input-box { color: var(--color-dark); }
 
@@ -1347,3 +1346,17 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .home-map-secondary svg circle { fill: #F8F9FA; }
 .card-empty-description { color: var(--color-muted); font-size: .85rem; line-height: 1.4; }
 .card-visita-empty .card-titulo { white-space: normal; }
+
+/* Placeholders mirror cards without shifting the layout while data loads. */
+.loading-card { display: flex; flex-direction: column; gap: 14px; padding: 24px; margin-bottom: 16px; border-radius: 24px; background: var(--color-white); }
+.loading-block { display: block; position: relative; overflow: hidden; height: 12px; border-radius: 6px; background: #ECEEF1; }
+.loading-block::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent); animation: loading-shimmer 1.6s ease-in-out infinite; }
+.loading-kicker { width: 32%; height: 10px; }
+.loading-title { width: 72%; height: 20px; margin-bottom: 4px; }
+.loading-detail { width: 60%; }
+.loading-short { width: 44%; }
+.loading-card-compact { padding: 14px 12px; gap: 9px; margin-bottom: 8px; background: var(--color-bg); border-radius: 12px; }
+.loading-card-compact .loading-title { height: 14px; margin: 0; }
+.loading-card-compact .loading-kicker { display: none; }
+@keyframes loading-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .loading-block::after { animation: none; display: none; } }
