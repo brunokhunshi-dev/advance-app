@@ -16,8 +16,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=r2-media-12">
-    <link rel="stylesheet" href="pwa-mobile.css?v=nativeback-1">
+    <link rel="stylesheet" href="styles.css?v=design-29">
+    <link rel="stylesheet" href="commercial-report.css?v=design-29">
+    <link rel="stylesheet" href="pwa-mobile.css?v=design-29">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
@@ -60,7 +61,7 @@
     <div id="app-container" style="display: none; flex-direction: column; min-height: 100vh; width: 100%;">
 
         <header class="app-header" id="header-principal">
-            <div id="btn-logout" class="app-logo-button" title="Clique para sair"><img class="app-logo" src="midia/logo-advancecheck.svg" alt="Advance Check"></div>
+            <div class="app-logo-button"><img class="app-logo" src="midia/logo-advancecheck.svg" alt="Advance Check"></div>
         </header>
 
         <!-- TELA 1: INÍCIO -->
@@ -571,11 +572,10 @@
         <!-- TELA 6: RELATÓRIO TÉCNICO -->
         <div id="tela-relatorio" class="tela-relatorio-container">
             <header class="relatorio-header-top">
-                <button class="btn-back" id="btn-voltar-relatorio" type="button">
-                    <svg viewBox="0 0 24 24"><path d="M9 14l-4-4 4-4"></path><path d="M5 10h11a4 4 0 1 1 0 8h-1"></path></svg>
+                <button class="screen-close" id="btn-voltar-relatorio" type="button" aria-label="Fechar relatório">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg>
                 </button>
                 <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
-                <div style="width: 44px;"></div>
             </header>
 
             <div class="relatorio-info-section">
@@ -779,7 +779,7 @@
             <div class="card-box" style="text-align: center; margin-top: 20px;">
                 <p style="color: #777; margin-bottom: 20px;">Gerencie a sua conta e preferências aqui.</p>
                 <button class="btn-outline-red" id="btn-configuracoes">Configurações</button>
-                <button class="btn-outline-red" id="btn-exportar-schema" style="margin-top: 12px;">Exportar schema do banco</button>
+                <button class="btn-outline-red" id="btn-logout" style="margin-top: 12px;">Sair da conta</button>
                 <p style="color: #777; font-size: 0.78rem; line-height: 1.4; margin: 12px 0 0;">Exporta somente a estrutura do Firestore, sem dados dos documentos.</p>
             </div>
         </main>
@@ -830,7 +830,8 @@
         </div>
 
         <!-- TELA 6.5: CHECK-OUT / CONCLUSÃO DA VISITA -->
-        <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none; padding-bottom: 40px;">
+        <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none;">
+            <button class="screen-close" id="btn-voltar-checkout" type="button" aria-label="Fechar check-out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg></button>
             <div class="checkout-logo">
                 <img class="app-logo app-logo-small" src="midia/logo-advancecheck.svg" alt="Advance Check">
             </div>
@@ -963,6 +964,7 @@
                 </div>
             </section>
 
+            <div id="checkout-commercial-content"></div>
             <section class="checkout-relatorio-section" id="checkout-relatorio-texto-section">
                 <label>Relatório final</label>
                 <div class="checkout-relatorio-box" id="checkout-relatorio-final">Nenhum relatório salvo.</div>
@@ -975,7 +977,6 @@
 
             <div class="checkout-acoes">
                 <button class="btn-checkin" id="btn-concluir-checkout">Concluir</button>
-                <button class="btn-voltar" id="btn-voltar-checkout">Voltar</button>
             </div>
         </main>
 
@@ -1047,8 +1048,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=r2-media-12"></script>
-    <script type="module" src="schema-exporter.js"></script>
+    <script type="module" src="script.js?v=commercial-31"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

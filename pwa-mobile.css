@@ -1,4 +1,4 @@
-/* Camada mobile-first carregada junto com a configuração do Firebase. */
+/* Ajustes de viewport e controles do aplicativo móvel. */
 :root {
   --mobile-gutter: clamp(16px, 5vw, 28px);
   --safe-bottom: max(20px, env(safe-area-inset-bottom));
@@ -16,23 +16,23 @@ button:disabled { opacity: .6; cursor: wait; }
 .main-content { padding: 24px var(--mobile-gutter) calc(104px + var(--safe-bottom)); }
 .page-title { font-size: clamp(1.5rem, 6vw, 2rem); line-height: 1.15; margin-bottom: 22px; }
 
-.input-box { min-height: 52px; font-size: 16px; padding: 14px 16px; }
+.input-box { min-height: var(--control-height); font-size: 16px; padding: 14px 16px; }
 .textarea-box { min-height: 112px; }
 .row-inputs { gap: 10px; }
 .row-inputs > * { min-width: 0; }
-.btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps { min-height: 52px; }
+.btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps { min-height: var(--control-height); }
 
-.card-visita, .card-agenda, .card-historico, .card-visita-atual { border-radius: 20px; }
+.card-visita, .card-agenda, .card-historico, .card-visita-atual { border-radius: var(--radius-card); }
 .card-visita { gap: 12px; align-items: stretch; flex-direction: column; }
 .card-info { margin-right: 0; }
 .card-visita .btn-checkin { width: 100% !important; }
 .card-titulo, .agenda-cliente, .hist-cliente { white-space: normal; overflow-wrap: anywhere; }
 
-.bottom-nav { padding: 8px 8px var(--safe-bottom); min-height: 72px; box-shadow: none; }
+.bottom-nav { max-width:720px; right:0; margin-inline:auto; padding: 8px 8px var(--safe-bottom); min-height: 72px; box-shadow: none; }
 .nav-item { min-width: 64px; min-height: 56px; gap: 3px; color: #697080; }
 .nav-item.active { color: var(--color-red); }
 .nav-item svg { width: 22px; height: 22px; }
-.fab-nova-visita { right: var(--mobile-gutter); bottom: calc(78px + var(--safe-bottom)); min-height: 52px; box-shadow: none; }
+.fab-nova-visita { right: max(var(--mobile-gutter), calc((100vw - 720px) / 2 + var(--mobile-gutter))); bottom: calc(78px + var(--safe-bottom)); box-shadow: none; }
 
 .tela-fullscreen { min-height: 100dvh; height: 100dvh; overflow-y: auto; padding: max(32px, env(safe-area-inset-top)) var(--mobile-gutter) var(--safe-bottom); }
 .titulo-confirmacao { font-size: clamp(1.7rem, 8vw, 2.2rem); margin-bottom: 28px; }
@@ -57,12 +57,19 @@ button:disabled { opacity: .6; cursor: wait; }
 .app-logo-small { height: 29px; max-width: 155px; }
 .app-logo-button { min-height: 32px; }
 .btn-checkin, .btn-iniciar, .btn-voltar, .btn-outline-red, .btn-gps, .visualizador-exportar {
-  min-height: 52px;
+  min-height: var(--control-height);
   font-weight: 400;
   padding: 15px 20px;
 }
-.fab-nova-visita { min-height: 52px; font-weight: 400; padding: 15px 22px; }
+.fab-nova-visita { min-height: var(--control-height); font-weight: 400; padding: 15px 22px; }
 .input-date, .input-time, select.input-box { padding-right: 54px !important; }
 .input-date, .input-time { background-position: right 16px center; }
 .row-inputs > .input-date, .row-inputs > .input-time { min-width: 0; }
 .radio-label, .checkout-radio-label { min-height: 30px; }
+
+.pwa-install-button {
+  position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+  padding: 13px 18px; border: 0; border-radius: 999px;
+  background: var(--color-red); color: var(--color-white); font-weight: 700;
+  box-shadow: none; cursor: pointer;
+}
