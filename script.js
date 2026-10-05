@@ -5,6 +5,7 @@ import { CommercialReport } from './src/ui/commercial-report.js';
 import { cardAgenda, proximasVisitas, visitasSecundarias } from './src/ui/agenda-cards.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
 import { loadingMarkup } from './src/ui/loading.js';
+import { filtrarClientes, tituloCliente, detalhesCliente, opcaoCliente } from './src/ui/client-options.js';
 import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
@@ -445,6 +446,7 @@ function inicializarAplicativo() {
         document.getElementById('rel-texto').value = '';
 
         document.getElementById('nv-cliente').value = '';
+        document.getElementById('nv-cliente-detalhes').innerHTML = '';
 
         ['area-visitas','area-agenda','area-historico-visitas','nv-cliente-dropdown'].forEach(id => document.getElementById(id).textContent = '');
         clientesAutocompleteCarregados = false;
@@ -1238,6 +1240,12 @@ function atualizarLimitesAgendamento(prefixo = 'nv') {
     campoHora.min = campoData.value === minInput ? `${String(minimo.getHours()).padStart(2, '0')}:${String(minimo.getMinutes()).padStart(2, '0')}` : '';
 }
 
+function selecionarClienteAgendamento(cliente) {
+    nvClienteSelecionadoId = cliente.id;
+    document.getElementById('nv-cliente').value = tituloCliente(cliente);
+    document.getElementById('nv-cliente-detalhes').innerHTML = detalhesCliente(cliente);
+}
+
 function configurarTelaNovaVisita() {
     ['nv-data', 'nv-hora'].forEach(id => {
         document.getElementById(id).addEventListener('focus', () => atualizarLimitesAgendamento());
@@ -1257,13 +1265,9 @@ function configurarTelaNovaVisita() {
 
     if (inputCliente) {
 
-        inputCliente.addEventListener('input', (e) => {
-
-            nvClienteSelecionadoId = null; dropCliente.innerHTML = '';
-
-            const txt = e.target.value.toLowerCase();
-
-            const filtrados = listaClientes.filter(item => String(item.nome || '').toLowerCase().includes(txt));
+        const mostrarSugestoes = consulta => {
+            dropCliente.innerHTML = '';
+            const filtrados = filtrarClientes(listaClientes, consulta);
 
             const divNovo = document.createElement('div');
 
@@ -1277,9 +1281,9 @@ function configurarTelaNovaVisita() {
 
             filtrados.forEach(item => {
 
-                const div = document.createElement('div'); div.className = 'autocomplete-item'; div.textContent = item.nome;
+                const div = document.createElement('button'); div.type = 'button'; div.className = 'autocomplete-item autocomplete-client-option'; div.innerHTML = opcaoCliente(item);
 
-                div.addEventListener('click', () => { nvClienteSelecionadoId = item.id; inputCliente.value = item.nome; dropCliente.style.display = 'none'; });
+                div.addEventListener('click', () => { selecionarClienteAgendamento(item); dropCliente.style.display = 'none'; });
 
                 dropCliente.appendChild(div);
 
@@ -1287,9 +1291,18 @@ function configurarTelaNovaVisita() {
 
             dropCliente.style.display = 'block';
 
+        };
+
+        inputCliente.addEventListener('input', () => {
+            nvClienteSelecionadoId = null;
+            document.getElementById('nv-cliente-detalhes').innerHTML = '';
+            mostrarSugestoes(inputCliente.value);
         });
 
-        inputCliente.addEventListener('focus', () => dropCliente.style.display = 'block');
+        inputCliente.addEventListener('focus', () => {
+            const selecionado = listaClientes.find(cliente => cliente.id === nvClienteSelecionadoId);
+            mostrarSugestoes(selecionado?.nome || (nvClienteSelecionadoId ? '' : inputCliente.value));
+        });
 
         document.addEventListener('click', (e) => { if(!e.target.closest('#nv-cliente') && !e.target.closest('#nv-cliente-dropdown')) dropCliente.style.display = 'none'; });
 
@@ -1346,6 +1359,7 @@ function configurarTelaNovaVisita() {
                 if (!sessaoValida(sessao)) return;
 
                 inputCliente.value = ''; nvClienteSelecionadoId = null;
+                document.getElementById('nv-cliente-detalhes').innerHTML = '';
 
                 ['nv-data','nv-hora','nv-nota'].forEach(id => document.getElementById(id).value = '');
 
@@ -1605,7 +1619,7 @@ async function carregarDadosParaAutocomplete() {
             const dados = d.data();
             const cliente = { id: d.id, ...dados, nome: String(dados.nome || 'Cliente sem nome') };
             clientesRepository.set(d.id, cliente);
-            return { id: d.id, nome: cliente.nome };
+            return cliente;
         });
 
         clientesAutocompleteCarregados = true;
@@ -1685,7 +1699,7 @@ function configurarTelaCadastroCliente() {
 
                 if (existente.data().status !== 'Ativo') throw new Error('Este CNPJ já existe, mas está inativo. Solicite a reativação do cadastro.');
 
-                nvClienteSelecionadoId = existente.id; campo('nv-cliente').value = existente.data().nome || '';
+                selecionarClienteAgendamento({ ...existente.data(), id: existente.id });
 
                 limparCadastroCliente(); voltarNavegacao('tela-nova-visita'); window.mostrarAlerta('Cliente localizado', 'Esta loja já está cadastrada e foi selecionada.'); return;
 
@@ -1857,9 +1871,10 @@ function configurarTelaCadastroCliente() {
 
             const clienteAtual = await obterCliente(clienteId, { refresh: true });
             if (clienteAtual) clientesRepository.set(clienteId, clienteAtual);
-            if (!listaClientes.some(c => c.id === clienteId)) listaClientes.push({ id: clienteId, nome: nomeFinal });
-
-            nvClienteSelecionadoId = clienteId; campo('nv-cliente').value = nomeFinal;
+            const itemCliente = { ...(clienteAtual || { nome: nomeFinal, cidade, uf, enderecoCompleto, codigoCnpj: cnpjReal }), id: clienteId };
+            const indiceCliente = listaClientes.findIndex(c => c.id === clienteId);
+            if (indiceCliente < 0) listaClientes.push(itemCliente); else listaClientes[indiceCliente] = itemCliente;
+            selecionarClienteAgendamento(itemCliente);
 
             limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 

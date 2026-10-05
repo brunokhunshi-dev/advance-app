@@ -17,9 +17,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="styles.css?v=map-link-44">
-    <link rel="stylesheet" href="commercial-report.css?v=map-link-44">
-    <link rel="stylesheet" href="pwa-mobile.css?v=map-link-44">
+    <link rel="stylesheet" href="styles.css?v=client-search-45">
+    <link rel="stylesheet" href="commercial-report.css?v=client-search-45">
+    <link rel="stylesheet" href="pwa-mobile.css?v=client-search-45">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             window.addEventListener('load', () => {
@@ -146,7 +146,8 @@
 
             <div class="form-group autocomplete-wrapper">
                 <label>Qual o cliente que será visitado?</label>
-                <input type="text" id="nv-cliente" class="input-box box-cinza" placeholder="Digite o nome da loja" autocomplete="off">
+                <input type="text" id="nv-cliente" class="input-box box-cinza" placeholder="Busque loja, cidade ou CNPJ" autocomplete="off">
+                <div id="nv-cliente-detalhes" class="autocomplete-client-selected"></div>
                 <div id="nv-cliente-dropdown" class="autocomplete-dropdown"></div>
             </div>
 
@@ -1053,7 +1054,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=map-link-44"></script>
+    <script type="module" src="script.js?v=client-search-45"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

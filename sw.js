@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-map-link-v44';
+const CACHE_NAME = 'advance-pwa-client-search-v45';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -23,6 +23,7 @@ const APP_SHELL = [
   './src/ui/agenda-cards.js',
   './src/ui/home-map.js',
   './src/ui/loading.js',
+  './src/ui/client-options.js',
   './src/ui/pwa.js',
   './src/ui/visit-view.js',
 ];

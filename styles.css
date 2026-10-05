@@ -1365,3 +1365,10 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .home-store-address { display: block; color: var(--color-muted); font-size: .75rem; line-height: 1.5; text-decoration: underline; overflow-wrap: anywhere; }
 .home-store-address:hover { color: var(--color-dark); }
 .home-store-address:focus-visible { outline: 2px solid #A6AFBD; outline-offset: 3px; border-radius: 3px; }
+
+.autocomplete-client-option { display: block; width: 100%; border: 0; border-bottom: 1px solid #F4F4F6; background: var(--color-white); font-family: inherit; text-align: left; }
+.autocomplete-client-title { display: block; font-size: .9rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.autocomplete-client-detail { display: block; margin-top: 3px; color: var(--color-muted); font-size: .7rem; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+.autocomplete-client-cnpj { font-size: .65rem; }
+.autocomplete-client-selected { padding: 0 4px; margin-top: 8px; }
+.autocomplete-client-selected:empty { display: none; }
