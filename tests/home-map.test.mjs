@@ -38,7 +38,7 @@ test('home map shows real person and destination positions and fits both into vi
     const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
     await s.controller.update(cliente);
     assert.equal(s.markers.length, 2);
-    assert.equal(s.markers[0].popup.node.title, 'Google Maps — <Loja>');
+    assert.equal(s.markers[0].popup.node.textContent, '-23.09,-47.21');
     assert.equal(s.markers[1].popup.text, 'Você está aqui');
     assert.equal(s.maps[0].options.dragPan, true);
     assert.equal(s.maps[0].options.cooperativeGestures, false);
@@ -164,28 +164,25 @@ test('map dependency failure leaves an explicit connection message and no marker
     assert.match(s.status.textContent, /conexão/);
 });
 
-test('store embed loads its encoded address only on open and releases it on close', async () => {
+test('store popup shows a plain address link with encoded query and safe new tab', async () => {
     const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
     const address = 'Rua João, 10 & esquina — Indaiatuba - SP';
     await s.controller.update({ ...cliente, enderecoCompleto: address });
-    const popup = s.markers[0].popup;
-    assert.equal(popup.node.src, undefined);
-    popup.handlers.open();
-    const url = new URL(popup.node.src);
-    assert.equal(url.origin, 'https://maps.google.com');
-    assert.equal(url.searchParams.get('q'), address);
-    assert.equal(url.searchParams.get('output'), 'embed');
-    popup.handlers.close();
-    assert.equal(popup.node.src, undefined);
-    popup.handlers.open();
-    assert.equal(new URL(popup.node.src).searchParams.get('q'), address);
+    const link = s.markers[0].popup.node;
+    assert.equal(link.textContent, address);
+    const url = new URL(link.href);
+    assert.equal(url.origin, 'https://www.google.com');
+    assert.equal(url.pathname, '/maps/search/');
+    assert.equal(url.searchParams.get('query'), address);
+    assert.equal(link.target, '_blank');
+    assert.equal(link.rel, 'noopener noreferrer');
 });
 
-test('secondary store embed falls back to coordinates when address is absent', async () => {
+test('secondary store link falls back to coordinates when address is absent', async () => {
     const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
     await s.controller.update(cliente, [{ nome: 'Outra loja', lat: -22, lng: -46 }]);
-    const popup = s.markers[0].popup;
-    popup.handlers.open();
-    assert.equal(new URL(popup.node.src).searchParams.get('q'), '-22,-46');
+    const link = s.markers[0].popup.node;
+    assert.equal(link.textContent, '-22,-46');
+    assert.equal(new URL(link.href).searchParams.get('query'), '-22,-46');
     assert.deepEqual(s.bounds[0], [[-47.21, -23.09], [-47.2, -23.1]]);
 });

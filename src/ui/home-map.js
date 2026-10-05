@@ -105,16 +105,15 @@ export class HomeVisitMap {
                 const popup = new gl.Popup({ offset: 20, ...(person ? {} : { className: 'home-store-popup', maxWidth: '280px' }) });
                 if (person) popup.setText(label);
                 else {
-                    const iframe = this.canvas.ownerDocument.createElement('iframe');
-                    iframe.className = 'home-store-embed';
-                    iframe.title = 'Google Maps — ' + label;
-                    iframe.referrerPolicy = 'no-referrer-when-downgrade';
                     const address = store?.enderecoCompleto?.trim() || `${position[1]},${position[0]}`;
-                    const url = `https://maps.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
-                    popup.setDOMContent(iframe);
-                    // Load only the selected store, and release its iframe on close.
-                    popup.on('open', () => { iframe.src = url; });
-                    popup.on('close', () => { iframe.removeAttribute('src'); });
+                    const link = this.canvas.ownerDocument.createElement('a');
+                    link.className = 'home-store-address';
+                    link.textContent = address;
+                    link.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.setAttribute('aria-label', address + ' — abrir no Google Maps');
+                    popup.setDOMContent(link);
                 }
                 return new gl.Marker({ element, anchor: person ? 'center' : 'bottom' })
                     .setLngLat(position).setPopup(popup).addTo(map);
