@@ -271,6 +271,18 @@ function preencherCheckout(atividade, relatorio, saida) {
     window.scrollTo(0, 0);
 }
 
+function fecharCheckout() {
+    if (operacaoEmCurso) return;
+    checkoutPendenteGlobal = null;
+    commercialReport?.deactivate();
+    commercialReport?.checkoutResizeObserver?.disconnect();
+    document.getElementById('tela-checkout')?.classList.remove('commercial-checkout');
+    const content = document.getElementById('checkout-commercial-content');
+    if (content) { content.replaceChildren(); content.onclick = null; content.onchange = null; }
+    navegarParaTela('tela-inicio', { substituir: true, carregar: false });
+    atualizarInterfaceVisitaAtual();
+}
+
 function dadosAssistenciaCheckoutAtual() {
     return {
         ...dadosAssistenciaDoRelatorio(objetoRelatorioGlobal),
@@ -722,7 +734,7 @@ function configurarHistoricoNativo() {
 
         const destino = event.state;
         const telaAtual = estadoNavegacaoAtual?.tela;
-        if (telaAtual === 'tela-relatorio' && commercialReport?.backModule()) {
+        if (telaAtual === 'tela-relatorio' && normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial' && commercialReport?.backModule()) {
             history.pushState(estadoNavegacaoAtual, '', urlTela(estadoNavegacaoAtual.tela));
             return;
         }
@@ -754,6 +766,12 @@ function configurarHistoricoNativo() {
         ignorarProtecaoRelatorioUmaVez = false;
 
         if (!estadoAppValido(destino)) return;
+
+        if (destino.tela === 'tela-checkout' && !checkoutPendenteGlobal) {
+            estadoNavegacaoAtual = destino;
+            navegarParaTela('tela-inicio', { substituir: true });
+            return;
+        }
 
         if (telaAtual === 'tela-checkout' && destino.tela !== 'tela-checkout') {
             checkoutPendenteGlobal = null;
@@ -2337,6 +2355,7 @@ function configurarEventosGlobais() {
         loadProducts: options => productRepository.list(options),
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
+            if (!checkoutPendenteGlobal || checkoutPendenteGlobal.atividadeId !== commercialReport.key || normalizarTipoVisita(objetoAtividadeGlobal || {}) !== 'Visita comercial') return;
             commercialReport.deactivate();
             navegarParaTela('tela-checkout', { substituir: true, carregar: false });
         }
@@ -2377,11 +2396,7 @@ function configurarEventosGlobais() {
     });
     document.getElementById('btn-enviar-fechamento-manual')?.addEventListener('click', enviarFechamentoManual);
 
-    document.getElementById('btn-voltar-checkout')?.addEventListener('click', () => {
-        if (operacaoEmCurso) return;
-        checkoutPendenteGlobal = null;
-        voltarNavegacao('tela-inicio');
-    });
+    document.getElementById('btn-voltar-checkout')?.addEventListener('click', fecharCheckout);
 
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
         if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;

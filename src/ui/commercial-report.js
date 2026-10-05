@@ -83,8 +83,8 @@ export class CommercialReport {
     for (const id of this.staged.keys()) mediaStore.clearLocal(id); this.staged.clear();
     this.baseReports.clear(); this.drafts.clear(); this.saved.clear(); this.initial.clear(); this.revisions.clear(); this.deactivate();
   }
-  backModule() { if(this.saving || this.photoBusy || (this.page==='free' && this.editor?.busy)) { this.status('Aguarde o processamento das imagens.'); return true; } if(this.reviewCheckout) { this.reviewCallbacks.returnCheckout?.(); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
-  deactivate() { this.active = false; this.host.classList.remove('commercial-mode'); this.root.hidden = true; }
+  backModule() { if (!this.active) return false; if(this.saving || this.photoBusy || (this.page==='free' && this.editor?.busy)) { this.status('Aguarde o processamento das imagens.'); return true; } if(this.reviewCheckout) { this.reviewCallbacks.returnCheckout?.(); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
+  deactivate() { this.active = false; this.reviewCheckout = false; this.host.classList.remove('commercial-mode'); this.root.hidden = true; }
   complete(key, data = this.data) {
     if(key === 'contact') return !!(data.name.trim() && data.role && data.goal);
     if(key === 'availability') return questions.every(([k]) => data[k] && (data[k] !== 'Sim' || data.products[k].length));
