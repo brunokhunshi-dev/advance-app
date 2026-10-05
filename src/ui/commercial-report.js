@@ -148,7 +148,7 @@ export class CommercialReport {
       if (generation !== this.photoGeneration) return;
       this.productCatalog = products; this.productLoaded = true; this.productExpiresAt = Date.now() + 10 * 60 * 1000;
     } catch (error) {
-      if (generation === this.photoGeneration) this.productError = 'Não foi possível carregar os produtos. Tente novamente.';
+      if (generation === this.photoGeneration) this.productError = error.code === 'permission-denied' ? 'Sua conta não tem permissão para acessar ou cadastrar o catálogo de produtos.' : 'Não foi possível carregar os produtos. Tente novamente.';
     } finally {
       if (generation === this.photoGeneration) { this.productLoading = false; this.updateProductResults(); }
     }

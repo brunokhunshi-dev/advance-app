@@ -1,3 +1,4 @@
+import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
@@ -15,6 +16,23 @@ import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVi
 import { createClientRepository } from './src/data/client-repository.js';
 import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
+    const sessao = sessaoAtual();
+    await garantirCatalogoAdvance({
+        validateSession: () => exigirSessao(sessao),
+        read: async (colecao, id) => (await getDocFromServer(doc(db, colecao, id))).data(),
+        load: async () => {
+            const response = await fetch(new URL('./data/produtos-advance.json', import.meta.url));
+            if (!response.ok) throw new Error('Não foi possível abrir o catálogo Advance.');
+            return response.json();
+        },
+        commit: async writes => {
+            exigirSessao(sessao);
+            const batch = writeBatch(db);
+            for (const item of writes) batch.set(doc(db, item.collection, item.id), item.data);
+            await batch.commit();
+        }
+    });
+    exigirSessao(sessao);
     const snapshot = await getDocs(collection(db, 'produtos'));
     return snapshot.docs.map(document => ({...document.data(), id:document.id}));
 });
@@ -36,7 +54,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebas
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, writeBatch, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
 

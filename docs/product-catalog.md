@@ -4,6 +4,8 @@ O arquivo `data/produtos-advance.json` é uma cópia exata do JSON fornecido: 10
 
 ## Importação
 
+Ao abrir Disponibilidade dos produtos com a sessão autenticada do aplicativo, `garantirCatalogoAdvance` verifica os metadados do Firebase. Se esta versão ainda não foi cadastrada, carrega o JSON incluído no projeto, grava os 102 produtos e os metadados em um lote e confere todas as propriedades. Depois, a busca lê a coleção `produtos`. A versão cadastrada é verificada nas aberturas seguintes para evitar novas gravações. Falhas não são marcadas como sucesso e podem ser tentadas novamente. A função usa as permissões da conta já autenticada, sem solicitar outro login nem alterar as regras do Firebase.
+
 `importar-produtos.html` permite usar uma conta existente do Advance Check com permissão de gravação nas coleções do catálogo. Ao abrir a página no domínio do aplicativo, a sessão existente é reutilizada. O botão cadastra os 103 documentos em um lote atômico e confere cada propriedade após a gravação. Não altera regras de segurança. Caso a conta não tenha permissão, use o importador administrativo.
 
 Para validar sem credenciais:

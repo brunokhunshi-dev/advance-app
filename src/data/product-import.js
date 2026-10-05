@@ -20,3 +20,13 @@ function sort(value) {
     if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(key=>[key,sort(value[key])]));
     return value;
 }
+
+// Run through the signed-in app before reading the product selector.
+export async function garantirCatalogoAdvance(adapter) {
+    const metadata = await adapter.read('catalogos_produtos', 'advance');
+    adapter.validateSession?.();
+    if (metadata?.updatedAt === '2026-10-01T19:04:59Z' && metadata.importedProductCount === 102) return;
+    const catalog = await adapter.load();
+    adapter.validateSession?.();
+    return importarCatalogo(catalog, adapter);
+}

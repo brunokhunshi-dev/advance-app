@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buscarProdutos, prepararCatalogo} from '../src/domain/products.js';
-import {importarCatalogo} from '../src/data/product-import.js';
+import {importarCatalogo, garantirCatalogoAdvance} from '../src/data/product-import.js';
 import {createProductRepository} from '../src/data/product-repository.js';
 import {modulosComerciaisPendentes} from '../src/domain/reports.js';
 import {resumoComercial} from '../src/ui/visit-view.js';
@@ -55,4 +55,21 @@ test('selector adds the catalog ID and current title, and prevents duplicate sel
     controller.click(event);controller.click(event);
     assert.deepEqual(controller.data.products.low,[{id:'a',title:'Epóxi Total'}]);assert.equal(controller.productQueries.low,'');
     controller.reviewCheckout=true;controller.data.products.low=[];controller.click(event);assert.equal(controller.data.products.low.length,0);
+});
+
+test('authenticated app seeds all products once and skips writes on subsequent openings',async()=>{
+    const database=new Map();let loads=0,commits=0;
+    const adapter={load:async()=>{loads++;return catalog;},read:async(collection,id)=>database.get(collection+'/'+id),
+        commit:async writes=>{commits++;for(const item of writes)database.set(item.collection+'/'+item.id,structuredClone(item.data));}};
+    await garantirCatalogoAdvance(adapter);await garantirCatalogoAdvance(adapter);
+    assert.equal(database.size,103);assert.equal(loads,1);assert.equal(commits,1);
+    for(const product of catalog.products)assert.deepEqual(database.get('produtos/'+product._id),product);
+});
+test('failed automatic import keeps version unmarked and can be retried',async()=>{
+    const database=new Map();let attempts=0;
+    const adapter={load:async()=>catalog,read:async(collection,id)=>database.get(collection+'/'+id),
+        commit:async writes=>{if(++attempts===1)throw Error('permission denied');for(const item of writes)database.set(item.collection+'/'+item.id,structuredClone(item.data));}};
+    await assert.rejects(garantirCatalogoAdvance(adapter),/permission denied/);
+    assert.equal(database.size,0);
+    await garantirCatalogoAdvance(adapter);assert.equal(database.size,103);
 });
