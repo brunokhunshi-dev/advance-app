@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-agenda-v32';
+const CACHE_NAME = 'advance-pwa-agenda-v33';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
