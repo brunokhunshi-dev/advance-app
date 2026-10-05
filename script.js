@@ -296,6 +296,7 @@ function fecharCheckout() {
     commercialReport?.deactivate();
     trainingReport?.deactivate();
     commercialReport?.checkoutResizeObserver?.disconnect();
+    trainingReport?.checkoutResizeObserver?.disconnect();
     document.getElementById('tela-checkout')?.classList.remove('commercial-checkout');
     const content = document.getElementById('checkout-commercial-content');
     if (content) { content.replaceChildren(); content.onclick = null; content.onchange = null; }
@@ -2474,7 +2475,13 @@ function configurarEventosGlobais() {
         atualizarInterfaceVisitaAtual();
     }, {
         persist: (id, data, base) => salvarRelatorioComercial(id, data, base, 'Treinamento'),
-        loadProducts: options => productRepository.list(options)
+        loadProducts: options => productRepository.list(options),
+        reviewModule: page => abrirPrototipoComercial(page, true),
+        returnCheckout: () => {
+            if (!checkoutPendenteGlobal || checkoutPendenteGlobal.atividadeId !== trainingReport.key || normalizarTipoVisita(objetoAtividadeGlobal || {}) !== 'Treinamento') return;
+            trainingReport.deactivate();
+            navegarParaTela('tela-checkout', { substituir: true, carregar: false });
+        }
     });
     document.getElementById('btn-fechar-visualizador')?.addEventListener('click', () => voltarNavegacao('tela-historico'));
 

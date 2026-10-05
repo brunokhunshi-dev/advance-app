@@ -13,7 +13,7 @@ const count = value => value !== '' && value != null && Number.isInteger(Number(
 const selected = (values, choices) => Array.isArray(values) && values.length > 0 && values.every(value => choices.includes(value));
 const products = values => Array.isArray(values) && values.some(value => nomeProduto(value).trim());
 export function trainingModuleComplete(key, data = {}) {
-    if (key === 'planning') return !!String(data.name || '').trim() && selected(data.participants, PARTICIPANTES) && count(data.expected) && count(data.present) && OBJETIVOS.includes(data.goal) && products(data.products?.planned);
+    if (key === 'planning') return !!String(data.name || '').trim() && selected(data.participants, PARTICIPANTES) && count(data.expected) && count(data.present) && OBJETIVOS.includes(data.goal);
     if (key === 'training') return selected(data.contents, CONTEUDOS) && ['Sim', 'Não'].includes(data.practice) && (data.photos || []).length <= 6 && (data.practice === 'Não' || products(data.products?.applied) && selected(data.surfaces, SUBSTRATOS) && RESULTADOS.includes(data.result));
     if (key === 'feedback') return ['Sim', 'Parcialmente', 'Não'].includes(data.achieved) && ['Alta', 'Moderada', 'Baixa'].includes(data.engagement) && SATISFACAO.includes(data.satisfaction);
     return !!(String(data.text || '').trim() || data.blocks?.some(block => block.kind === 'media'));

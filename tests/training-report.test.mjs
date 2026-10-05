@@ -43,3 +43,38 @@ test('summary safely includes products, attendance and both feedbacks without st
     assert.match(markup,/Epóxi Total/);assert.match(markup,/Ótimo/);assert.match(markup,/Não respondeu/);assert.match(markup,/Texto livre/);
     assert.doesNotMatch(markup,/<script>|Produtos aplicados/);
 });
+
+test('planning and checkout accept training with no mentioned products', () => {
+    const data=completed();data.products.planned=[];
+    assert.equal(trainingModuleComplete('planning',data),true);
+    assert.deepEqual(modulosTreinamentoPendentes({dadosTreinamento:{versao:1,...data}}),[]);
+});
+
+test('checkout uses review rows and narrative with overflow link, without feedback or pending fields', () => {
+    const previousWindow=globalThis.window, previousDocument=globalThis.document;
+    globalThis.window={};globalThis.document={};
+    try {
+        const report={dadosTreinamento:{versao:1,...completed()},textoAtual:''};
+        const summary={clientHeight:100,scrollHeight:100}, more={hidden:false};
+        const host={querySelector:selector=>selector==='.cr-summary-text'?summary:more};
+        const reviewed=[];
+        const controller=Object.assign(Object.create(TrainingReport.prototype),{key:'visit',data:report.dadosTreinamento,savedReport:()=>report,reviewCallbacks:{reviewModule:key=>reviewed.push(key)}});
+        controller.renderCheckout(host);
+        assert.match(host.innerHTML,/data-page="planning"/);
+        assert.match(host.innerHTML,/data-page="training"/);
+        assert.doesNotMatch(host.innerHTML,/Feedback|Pendências|Resumo do treinamento|data-page="feedback"/);
+        assert.equal(more.hidden,true);
+        host.onclick({target:{closest:()=>({dataset:{page:'planning'}})}});
+        assert.deepEqual(reviewed,['planning']);
+        summary.scrollHeight=200;controller.renderCheckout(host);assert.equal(more.hidden,false);
+    } finally {globalThis.window=previousWindow;globalThis.document=previousDocument;}
+});
+
+test('surface search stays empty until typing, matches accents and terms like products, and excludes selections', () => {
+    const results={innerHTML:''}, input={setAttribute(name,value){this[name]=value;}};
+    const controller=Object.assign(Object.create(TrainingReport.prototype),{data:{surfaces:[]},surfaceQuery:'',root:{querySelector:selector=>selector==='[data-surface-results]'?results:input}});
+    controller.updateSurfaceResults();assert.equal(results.innerHTML,'');assert.equal(input['aria-expanded'],'false');
+    controller.surfaceQuery='galvanizado aco';controller.updateSurfaceResults();assert.match(results.innerHTML,/Aço galvanizado/);assert.equal(input['aria-expanded'],'true');
+    controller.data.surfaces=['Aço galvanizado'];controller.updateSurfaceResults();assert.doesNotMatch(results.innerHTML,/data-select-surface/);
+    controller.surfaceQuery='';controller.updateSurfaceResults();assert.equal(results.innerHTML,'');
+});
