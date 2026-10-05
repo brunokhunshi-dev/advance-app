@@ -43,3 +43,9 @@ mostra os três módulos para consulta somente leitura, relato resumido com Ver 
 quatro checkboxes de feedback e seletor de pendências. O X fixo no canto superior
 direito fecha a consulta e retorna ao check-out. A exposição também recebe o
 indicador Obrigatório. O encerramento permanece sem integração de backend.
+
+Salvar relatório e Salvar módulo aceitam preenchimento parcial, sem validar
+obrigatoriedades. O relatório pode ser reaberto para continuar na mesma sessão.
+Ao concluir o check-out, os módulos obrigatórios são validados sobre o último
+relatório salvo. Campos preenchidos mas ainda não salvos não liberam a conclusão.
+Relatório livre continua opcional. O envio ao backend permanece desconectado.

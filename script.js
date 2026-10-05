@@ -2308,6 +2308,11 @@ function configurarEventosGlobais() {
     document.getElementById('btn-concluir-checkout')?.addEventListener('click', async () => {
         if (operacaoEmCurso || !checkoutPendenteGlobal?.atividadeId) return;
         if (checkoutPendenteGlobal.frontendComercial) {
+            const pendentes = commercialReport.pendingCheckoutModules(checkoutPendenteGlobal.atividadeId);
+            if (pendentes.length) {
+                window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos obrigatórios antes de finalizar o check-out: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
+                return;
+            }
             window.mostrarAlerta('Check-out', 'O relatório está salvo nesta sessão. O encerramento será conectado na etapa de integração.');
             return;
         }

@@ -39,11 +39,11 @@ export class CommercialReport {
   }
   backModule() { if(this.photoBusy || (this.page==='free' && this.editor?.busy)) { this.status('Aguarde o processamento das imagens.'); return true; } if(this.reviewCheckout) { this.reviewCallbacks.returnCheckout?.(); return true; } if (!this.active || this.page === 'overview') return false; this.page = 'overview'; this.render(); return true; }
   deactivate() { this.active = false; this.host.classList.remove('commercial-mode'); this.root.hidden = true; }
-  complete(key) {
-    if(key === 'contact') return !!(this.data.name.trim() && this.data.role && this.data.goal);
-    if(key === 'availability') return questions.every(([k]) => this.data[k] && (this.data[k] !== 'Sim' || this.data.products[k].length));
-    if(key === 'exposure') return !!this.data.organization && this.data.photos.length <= 6 && (this.data.organization === 'Não foi verificado' ? this.data.photos.length === 0 : this.data.organization === 'Organizada e visível' || this.data.photos.length >= 1) && (!this.data.materials.includes('Outro') || this.data.other.trim());
-    return !!(this.data.text.trim() || this.data.blocks?.some(block=>block.kind==='media'));
+  complete(key, data = this.data) {
+    if(key === 'contact') return !!(data.name.trim() && data.role && data.goal);
+    if(key === 'availability') return questions.every(([k]) => data[k] && (data[k] !== 'Sim' || data.products[k].length));
+    if(key === 'exposure') return !!data.organization && data.photos.length <= 6 && (data.organization === 'Não foi verificado' ? data.photos.length === 0 : data.organization === 'Organizada e visível' || data.photos.length >= 1) && (!data.materials.includes('Outro') || data.other.trim());
+    return !!(data.text.trim() || data.blocks?.some(block=>block.kind==='media'));
   }
   field(label, key, placeholder) { return `<label class="cr-field">${label}<input data-field="${key}" value="${escape(this.data[key])}" placeholder="${placeholder}" maxlength="180"></label>`; }
   select(label,key,options) { return `<label class="cr-field">${label}<select data-field="${key}"><option value="">Selecione uma opção</option>${options.map(o=>`<option ${this.data[key]===o?'selected':''}>${o}</option>`).join('')}</select></label>`; }
@@ -65,7 +65,7 @@ export class CommercialReport {
     if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(p)}">${escape(p)} <span>×</span></button>`).join('')}<form data-product="${k}"><input aria-label="Nome do produto em ${title}" placeholder="Buscar ou digitar produto" maxlength="100"><button type="submit" aria-label="Adicionar produto">+</button></form></div><button type="button" class="cr-text-link" data-example-product="${k}">Adicionar produto de exemplo</button><small>Catálogo ainda não integrado. Use o exemplo ou digite o nome.</small>`:''}</fieldset>`).join('');
     if(page==='exposure') body = `<fieldset><legend>Organização dos produtos</legend>${this.radios('organization',['Organizada e visível','Necessidade de organização','Ausência de exposição','Não foi verificado'])}</fieldset>${this.data.organization && this.data.organization!=='Não foi verificado'?`<label class="cr-photo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 5l2-2h4l2 2h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="4"/></svg>Adicione uma fotografia.<input type="file" accept="image/*" data-upload="photos" multiple hidden></label><small>${this.data.organization==='Organizada e visível'?'Fotografia opcional':'Adicione pelo menos uma fotografia'} · ${this.data.photos.length}/6</small>${this.previews('photos')}`:''}<fieldset><legend>Necessidade de reposição ou ausência</legend><div class="cr-options">${materials.map(o=>`<label><input type="checkbox" data-array="materials" value="${o}" ${this.data.materials.includes(o)?'checked':''}>${o}</label>`).join('')}</div>${this.data.materials.includes('Outro')?this.field('Qual material?','other','Descreva o material'):''}</fieldset>`;
     if(page==='free') body = `<section class="relatorio-editor-section cr-shared-editor" aria-label="Conteúdo do relatório"><textarea data-field="text" hidden></textarea><div class="technical-report-editor" role="group" aria-label="Escrever relatório"></div><p class="cr-editor-status" role="status" aria-live="polite"></p></section>`;
-    this.root.innerHTML = `<header class="relatorio-header-top cr-header"><img src="midia/logo-advancecheck.svg" alt="Advance Check"><button type="button" class="screen-close" data-action="back" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></header>${info?`<h1 tabindex="-1">${info[1]}</h1><p class="cr-subtitle">${page==='free'?'Sinta-se à vontade para dar seu depoimento, anotar acontecimentos ou registrar imagens.':info[2]}</p>`:''}<div class="cr-body">${body}</div>${info?`<div class="${page==='free'?'relatorio-acoes cr-editor-actions':'cr-footer'}">${page==='free'?'<input class="cr-media-picker" type="file" accept="image/*" multiple hidden><input class="cr-camera-picker" type="file" accept="image/*" capture="environment" hidden><button type="button" class="report-add-media" aria-label="Adicionar imagem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>':''}<button class="btn-checkin cr-primary" data-action="module-done">${this.reviewCheckout?'Fechar':page==='free'?'Salvar relato':'Concluir módulo'}</button></div>`:''}<p class="cr-status" role="status" aria-live="polite"></p>`;
+    this.root.innerHTML = `<header class="relatorio-header-top cr-header"><img src="midia/logo-advancecheck.svg" alt="Advance Check"><button type="button" class="screen-close" data-action="back" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></header>${info?`<h1 tabindex="-1">${info[1]}</h1><p class="cr-subtitle">${page==='free'?'Sinta-se à vontade para dar seu depoimento, anotar acontecimentos ou registrar imagens.':info[2]}</p>`:''}<div class="cr-body">${body}</div>${info?`<div class="${page==='free'?'relatorio-acoes cr-editor-actions':'cr-footer'}">${page==='free'?'<input class="cr-media-picker" type="file" accept="image/*" multiple hidden><input class="cr-camera-picker" type="file" accept="image/*" capture="environment" hidden><button type="button" class="report-add-media" aria-label="Adicionar imagem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>':''}<button class="btn-checkin cr-primary" data-action="module-done">${this.reviewCheckout?'Fechar':page==='free'?'Salvar relato':'Salvar módulo'}</button></div>`:''}<p class="cr-status" role="status" aria-live="polite"></p>`;
     this.root.querySelectorAll('form[data-product]').forEach(form=>form.addEventListener('submit',e=>{ e.preventDefault(); const value=form.querySelector('input').value.trim(); const list=this.data.products[form.dataset.product]; if(value && !list.some(p=>p.toLocaleLowerCase()===value.toLocaleLowerCase())) list.push(value); this.render(); }));
     if (page === 'free') this.mountEditor();
     if(this.reviewCheckout) {
@@ -137,12 +137,13 @@ export class CommercialReport {
     if(!['Organizada e visível','Não foi verificado'].includes(this.data.organization) && !this.data.photos.length) return 'Adicione pelo menos uma fotografia da exposição.';
     return 'Descreva o outro material.';
   }
-  validate() {
-    if (!this.complete('contact')) { this.page='contact'; this.render(); this.status('Preencha nome, cargo e objetivo principal para salvar.'); return false; }
-    if (!this.complete('availability')) { this.page='availability'; this.render(); this.status('Responda às três perguntas e adicione pelo menos um produto para cada Sim.'); return false; }
-    if (!this.complete('exposure')) { this.page='exposure'; this.render(); this.status(this.exposureError()); return false; }
-    return true;
+  pendingCheckoutModules(key = this.key) {
+    const snapshot = this.saved.get(key);
+    if (!snapshot) return ['Relatório não salvo'];
+    const data = JSON.parse(snapshot);
+    return modules.filter(([module]) => module !== 'free' && !this.complete(module, data)).map(([, title]) => title);
   }
+
   status(text) { this.root.querySelector('.cr-status').textContent=text; }
   click(e) {
     const b=e.target.closest('button'); if(!b) return;
@@ -153,7 +154,7 @@ export class CommercialReport {
     if(b.dataset.removeImage) { const [k,i]=b.dataset.removeImage.split(':'); this.releasePhoto(this.data[k][i]); this.data[k].splice(Number(i),1); this.render(); }
     if(this.reviewCheckout && (b.dataset.action==='back' || b.dataset.action==='module-done')) { this.reviewCallbacks.returnCheckout?.(); return; }
     if(b.dataset.action==='back') { if(this.page!=='overview') { this.page='overview'; this.render(); } else this.onClose(); }
-    if(b.dataset.action==='module-done') { if(this.page==='contact' && !this.complete('contact')) { this.status('Preencha nome, cargo e objetivo principal.'); return; } if(this.page==='availability' && !this.complete('availability')) { this.status('Responda às três perguntas e informe os produtos para cada resposta Sim.'); return; } if(this.page==='exposure' && !this.complete('exposure')) { this.status(this.exposureError()); return; } this.page='overview'; this.render(); }
-    if(b.dataset.action==='save') { if(!this.validate()) return; const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }
+    if(b.dataset.action==='module-done') { this.page='overview'; this.render(); }
+    if(b.dataset.action==='save') { const snapshot=JSON.stringify(this.data); if(snapshot!==this.saved.get(this.key)) { const revisions=this.revisions.get(this.key) || []; revisions.push({salvoEm:new Date()}); this.revisions.set(this.key,revisions); } this.saved.set(this.key,snapshot); this.onSave(this.key); }
   }
 }
