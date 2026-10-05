@@ -2,6 +2,7 @@ import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
+import { HomeVisitMap } from './src/ui/home-map.js';
 import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
@@ -109,6 +110,14 @@ const agendaCalendar = new AgendaCalendar(document.getElementById('agenda-calend
     if (!agendaCarregando) renderizarAgenda();
 });
 let agendaCarregando = false;
+
+const homeCalendar = new AgendaCalendar(document.getElementById('home-calendar'), () => {
+    const dia = homeCalendar.selecionado;
+    if (!dia || !filtrarAgenda(homeCalendar.atividades, homeCalendar.mes, dia).length) return;
+    agendaCalendar.selectDay(new Date(dia.getTime()), false);
+    navegarParaTela('tela-agenda');
+}, 'home-calendar-title', false);
+const homeVisitMap = new HomeVisitMap(document.getElementById('home-map-canvas'), document.getElementById('home-map-status'), { getPosition: obterPosicao });
 
 let nvClienteSelecionadoId = null;
 
@@ -423,6 +432,8 @@ function inicializarAplicativo() {
 
         limparEstadoVisita(); listaClientes = []; listaAtividadesAgenda = []; nvClienteSelecionadoId = null;
         agendaCalendar.reset();
+        homeCalendar.reset();
+        homeVisitMap.clear();
 
         limparCadastroCliente();
 
@@ -588,6 +599,8 @@ function mostrarApenasTela(idTelaAlvo) {
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout', 'tela-visualizador-visita'];
 
     telas.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (id === idTelaAlvo) ? 'block' : 'none'; });
+
+    if (idTelaAlvo === 'tela-inicio') homeVisitMap.map?.invalidateSize();
 
     const indice = { 'tela-inicio': 0, 'tela-agenda': 1, 'tela-historico': 2, 'tela-perfil': 3 }[idTelaAlvo];
 
@@ -801,6 +814,8 @@ async function carregarAtividadesPendentes() {
     const area = document.getElementById('area-visitas');
 
     area.textContent = 'Carregando visitas...';
+    homeCalendar.setActivities([]);
+    homeVisitMap.clear('Carregando mapa…');
 
     try {
 
@@ -812,7 +827,8 @@ async function carregarAtividadesPendentes() {
 
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
-        if (!atividades.length) { limparEstadoVisita(); area.textContent = 'Nenhuma visita pendente.'; return; }
+        homeCalendar.setActivities(atividades);
+        if (!atividades.length) { limparEstadoVisita(); area.textContent = 'Nenhuma visita pendente.'; void homeVisitMap.update(null); return; }
 
         const atividade = atividades[0];
 
@@ -833,6 +849,8 @@ async function carregarAtividadesPendentes() {
         }
 
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
+
+        void homeVisitMap.update(cliente);
 
         limparEstadoVisita();
 
@@ -859,6 +877,7 @@ async function carregarAtividadesPendentes() {
 
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
+        homeVisitMap.clear('Não foi possível carregar a próxima visita.');
         area.textContent = 'Não foi possível carregar as visitas.'; informarErro('Erro ao carregar visitas', erro);
 
     }

@@ -33,7 +33,9 @@ export function filtrarAgenda(atividades, mes, selecionado = null, hoje = new Da
 }
 
 export class AgendaCalendar {
-    constructor(root, onChange = () => {}) {
+    constructor(root, onChange = () => {}, titleId = 'agenda-calendar-title', toggleSelection = true) {
+        this.toggleSelection = toggleSelection;
+        this.titleId = titleId;
         this.onChange = onChange;
         this.root = root;
         this.reset();
@@ -68,8 +70,8 @@ export class AgendaCalendar {
             this.changeMonth(event.key === 'ArrowRight' ? 1 : -1);
         });
     }
-    selectDay(date) {
-        if (this.selecionado && chaveDia(this.selecionado) === chaveDia(date)) this.selecionado = null;
+    selectDay(date, toggle = this.toggleSelection) {
+        if (toggle && this.selecionado && chaveDia(this.selecionado) === chaveDia(date)) this.selecionado = null;
         else {
             this.selecionado = date;
             this.mes = new Date(date.getFullYear(), date.getMonth(), 1, 12);
@@ -100,7 +102,7 @@ export class AgendaCalendar {
         const titulo = `${MESES[mes]} de ${ano}`;
         const dias = diasCalendario(ano, mes, this.atividades);
         this.root.innerHTML = `<div class="agenda-calendar-header">
-            <h2 id="agenda-calendar-title" class="agenda-calendar-title" aria-live="polite"><span>${MESES[mes]}</span><span>${ano}</span></h2>
+            <h2 id="${this.titleId}" class="agenda-calendar-title" aria-live="polite"><span>${MESES[mes]}</span><span>${ano}</span></h2>
 
         </div>
         <div class="agenda-calendar-week" aria-hidden="true">${SEMANA.map(dia => `<span>${dia}</span>`).join('')}</div>
