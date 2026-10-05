@@ -17,7 +17,7 @@ test('checkout X navigates directly to home, preserves assistance activity and c
     const activity={id:'assistance',tipoVisita:'Assistência técnica'};const navigation=[];let cleared=0,deactivated=0,refreshed=0;
     const content={replaceChildren:()=>cleared++,onclick:()=>{},onchange:()=>{}};
     const context=vm.createContext({operacaoEmCurso:false,checkoutPendenteGlobal:{atividadeId:'assistance'},objetoAtividadeGlobal:activity,
-        commercialReport:{deactivate:()=>deactivated++},
+        commercialReport:{deactivate:()=>deactivated++}, trainingReport:{deactivate:()=>deactivated++},
         document:{getElementById:id=>id==='tela-checkout'?{classList:{remove:()=>{}}}:content},
         history:{back:()=>assert.fail('X must not replay an old checkout')},
         navegarParaTela:(screen,options)=>navigation.push({screen,options}),atualizarInterfaceVisitaAtual:()=>refreshed++});
@@ -25,7 +25,7 @@ test('checkout X navigates directly to home, preserves assistance activity and c
     vm.runInContext(source.slice(start,end),context);context.fecharCheckout();
     assert.equal(navigation[0].screen,'tela-inicio');assert.equal(navigation[0].options.substituir,true);
     assert.equal(context.checkoutPendenteGlobal,null);assert.equal(context.objetoAtividadeGlobal,activity);
-    assert.equal(cleared,1);assert.equal(deactivated,1);assert.equal(refreshed,1);
+    assert.equal(cleared,1);assert.equal(deactivated,2);assert.equal(refreshed,1);
     assert.equal(content.onclick,null);assert.equal(content.onchange,null);
     context.operacaoEmCurso=true;context.fecharCheckout();assert.equal(navigation.length,1);
 });

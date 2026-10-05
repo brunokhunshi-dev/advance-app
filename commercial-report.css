@@ -94,3 +94,10 @@
 .cr-product-results button { width:100%; text-align:left; background:#fff; border:0; border-bottom:1px solid var(--color-border); padding:12px; color:var(--color-dark); font-size:14px; cursor:pointer; }
 .cr-product-results button:hover,.cr-product-results button:focus-visible { background:#fff3f5; }
 .cr-product-results p { margin:8px; font-size:13px; color:var(--color-muted); }
+
+.training-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.training-summary-section { margin: 20px 0; }
+.training-summary-section h3 { font-size: 1rem; margin-bottom: 12px; }
+.training-summary-section p { font-size: .85rem; line-height: 1.5; margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.training-summary-section .report-media-content { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (max-width: 340px) { .training-counts { grid-template-columns: 1fr; } }

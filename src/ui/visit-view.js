@@ -1,3 +1,5 @@
+import { resumoTreinamento } from '../domain/training.js';
+import { renderTrainingSummary } from './training-report.js';
 import {nomeProduto} from '../domain/products.js';
 import { formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, formatarDataHoraPT, escaparHtml } from '../domain/formatters.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico } from '../domain/history.js';
@@ -61,7 +63,7 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
     const assistencia = document.getElementById('pdf-assistencia-table');
 
     tecnica.style.display = tipo === 'Visita comercial' ? 'table' : 'none';
-    treinamento.style.display = tipo === 'Treinamento' ? 'table' : 'none';
+    treinamento.style.display = tipo === 'Treinamento' && !relatorio?.dadosTreinamento ? 'table' : 'none';
     assistencia.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'table' : 'none';
 
     preencherCelulaPdf('pdf-objetivo', atividade.objetivo);
@@ -82,6 +84,7 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
     preencherCelulaPdf('pdf-nota', atividade.nota);
     const comercial = resumoComercial(relatorio);
     preencherCelulaPdf('pdf-relatorio', comercial.length ? [...comercial.map(([label,value]) => label + ': ' + (value || 'Não informado')), 'Relatório livre: ' + (relatorio.textoAtual || 'Nenhum relato registrado.')].join('\n') : relatorio?.textoAtual);
+    if (relatorio?.dadosTreinamento?.versao === 1) preencherCelulaPdf('pdf-relatorio', resumoTreinamento(relatorio.dadosTreinamento).map(([title, fields]) => title + '\n' + fields.map(([label, value]) => label + ': ' + (value === '' || value == null ? 'Não informado' : value)).join('\n')).join('\n\n') + '\n\nRelatório livre: ' + (relatorio.textoAtual || 'Nenhum relato registrado.'));
     const relatorioTextoTable = document.getElementById('pdf-relatorio-texto-table');
     if (relatorioTextoTable) relatorioTextoTable.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'table';
 
@@ -120,7 +123,7 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
 
     const tipo = normalizarTipoVisita(atividade);
     document.getElementById('visu-tecnica').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
-    document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' ? 'block' : 'none';
+    document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' && !relatorio?.dadosTreinamento ? 'block' : 'none';
     document.getElementById('visu-assistencia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
 
     preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
@@ -146,6 +149,11 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
         const element = document.getElementById('visu-relatorio');
         if (element) element.innerHTML = comercial.map(([label,value]) => `<p><strong>${escaparHtml(label)}:</strong> ${escaparHtml(value || 'Não informado')}</p>`).join('') +
             reportMarkup(relatorio.dadosComerciais.photos || [], atividade.id) + '<p><strong>Relatório livre</strong></p>' + element.innerHTML;
+    }
+
+    if (relatorio?.dadosTreinamento?.versao === 1) {
+        const element = document.getElementById('visu-relatorio');
+        if (element) element.innerHTML = renderTrainingSummary(relatorio);
     }
 
     const manual = String(atividade.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise';
