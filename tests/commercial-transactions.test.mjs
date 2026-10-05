@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {persistCommercialMedia} from '../src/services/commercial-save.js';
 import * as reports from '../src/domain/reports.js';
+import {CommercialReport} from '../src/ui/commercial-report.js';
 import {serializarEstavel} from '../src/domain/formatters.js';
 const source=readFileSync(new URL('../script.js',import.meta.url),'utf8');
 const draft=()=>({name:'Ana',role:'Gerente',goal:'Orientação aos vendedores',low:'Não',missing:'Não',slow:'Não',products:{low:[],missing:[],slow:[]},organization:'Organizada e visível',materials:[],other:'',text:'',blocks:[],photos:[],feedback:[],pending:''});
@@ -19,8 +20,8 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
         doc:(_,collection,id)=>({id,path:collection+'/'+id}),
         runTransaction:async (_,callback)=>{
             const pending=[];
-            const result=await callback({get:async ref=>({exists:()=>records.has(ref.path),data:()=>records.get(ref.path)}),
-                set:(ref,data)=>pending.push({path:ref.path,data}),update:(ref,data)=>pending.push({path:ref.path,data:{...records.get(ref.path),...data}})});
+            const result=await callback({get:async ref=>({exists:()=>records.has(ref.path),data:()=>structuredClone(records.get(ref.path))}),
+                set:(ref,data)=>pending.push({path:ref.path,data:structuredClone(data)}),update:(ref,data)=>pending.push({path:ref.path,data:{...records.get(ref.path),...data}})});
             for(const write of pending){records.set(write.path,write.data);writes.push(write);}
             return result;
         },window:{mostrarAlerta(){}}
@@ -75,4 +76,17 @@ test('checkout transaction revalidates server modules and persists feedback, pen
     const saved=app.records.get('relatorios_comerciais/report');
     assert.equal(saved.dadosComerciais.pending,'Sem pendências');assert.equal(saved.dadosComerciais.feedback[0],'Argumentos de venda');
     assert.equal(saved.checkoutGps,'1, 2');
+});
+
+test('second and third saves can edit selected products without a false session conflict',async()=>{
+    const app=setup();
+    const report=Object.assign(Object.create(CommercialReport.prototype),{drafts:new Map(),saved:new Map(),initial:new Map(),revisions:new Map(),baseReports:new Map()});
+    const first=await app.save();report.hydrate('visit',first,true);
+    const secondDraft=report.drafts.get('visit');secondDraft.low='Sim';secondDraft.products.low.push({id:'p1',title:'Epóxi Total'});
+    const second=await app.save(secondDraft,report.baseReports.get('visit'));
+    report.hydrate('visit',second,true);
+    const thirdDraft=report.drafts.get('visit');thirdDraft.products.low.splice(0,1);thirdDraft.products.low.push({id:'p2',title:'PU Total'});
+    await app.save(thirdDraft,report.baseReports.get('visit'));
+    assert.equal(app.records.get('relatorios_comerciais/report').dadosComerciais.products.low[0].title,'PU Total');
+    assert.equal(app.records.get('relatorios_comerciais/report').historico.length,3);
 });

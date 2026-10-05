@@ -33,7 +33,8 @@ export class CommercialReport {
   savedReport(key) { const snapshot=this.saved.get(key); if(!snapshot) return null; const data=JSON.parse(snapshot); return {...this.baseReports?.get(key), dadosComerciais:{versao:1,...data}, textoAtual:data.text, conteudoRelatorio:{versao:1,blocos:data.blocks || []}, historico:this.revisions.get(key) || [], atualizadoEm:this.revisions.get(key)?.at(-1)?.salvoEm}; }
   hydrate(key, report, force = false) {
     if (!force && this.drafts.has(key)) return;
-    const data = {...blank(), ...(report?.dadosComerciais || {}), text:report?.textoAtual || '', blocks:report?.conteudoRelatorio?.blocos || null};
+    // Editing nested arrays must never change the persisted conflict baseline.
+    const data = structuredClone({...blank(), ...(report?.dadosComerciais || {}), text:report?.textoAtual || '', blocks:report?.conteudoRelatorio?.blocos || null});
     delete data.versao;
     data.products = {...blank().products, ...data.products};
     this.baseReports.set(key, report || null);

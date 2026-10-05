@@ -67,3 +67,14 @@ test('server checkout validation applies conditional products/photos and keeps f
     report.dadosComerciais.organization='Não foi verificado';
     assert.deepEqual(modulosComerciaisPendentes(report),['Exposição e materiais']);
 });
+
+test('editable nested module data never mutates the saved conflict baseline',()=>{
+    const data=draft();data.photos=[{kind:'media',id:'photo',storage:'r2'}];data.products.low=[{id:'p1',title:'Epóxi Total'}];data.materials=['Catálogo'];
+    const persisted={dadosComerciais:{versao:1,...data},conteudoRelatorio:{versao:1,blocos:[{kind:'text',text:'Original'}]},textoAtual:'Original'};
+    const before=JSON.stringify(persisted);const report=controller();report.hydrate('visit',persisted,true);
+    const editable=report.drafts.get('visit');
+    editable.products.low[0].title='Alterado';editable.products.low.push({id:'p2',title:'PU Total'});
+    editable.photos.splice(0,1);editable.materials.push('Outro');editable.blocks[0].text='Editado';
+    assert.equal(JSON.stringify(report.baseReports.get('visit')),before);
+    assert.equal(JSON.stringify(persisted),before);
+});
