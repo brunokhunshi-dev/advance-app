@@ -894,12 +894,13 @@ async function carregarAgenda() {
         const atividadesCarregadas = await Promise.all(querySnapshot.docs.map(async documento => {
 
             const dados = documento.data(); dados.id = documento.id;
-            dados.nomeCliente = "Cliente não encontrado"; dados.enderecoCompleto = "";
+            dados.nomeCliente = "Cliente não encontrado"; dados.enderecoCompleto = ""; dados.localidadeAgenda = "";
 
             const cliente = dados.clienteId ? await obterCliente(dados.clienteId) : null;
             if (cliente) {
                 dados.nomeCliente = cliente.nome || "Cliente sem nome";
                 dados.enderecoCompleto = cliente.enderecoCompleto || '';
+                dados.localidadeAgenda = [cliente.cidade, cliente.uf].map(valor => String(valor || '').trim()).filter(Boolean).join(' - ').toLocaleUpperCase('pt-BR');
             } else if (!dados.clienteId) {
                 dados.nomeCliente = "Desconhecido";
             }
@@ -948,7 +949,7 @@ function renderizarAgenda() {
                 <span class="agenda-motivo">${escaparHtml(normalizarTipoVisita(atividade))}</span>
                 <span class="agenda-cliente">${escaparHtml(atividade.nomeCliente)} ${badgeAndamento}</span>
                 <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>${fData.hora}</span></span>
-                <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v-5m0-9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-7 13c-2 1-3 2-3 3 0 2 4 3 10 3s10-1 10-3c0-1-1-2-3-3"/></svg><span>${escaparHtml(atividade.enderecoCompleto || 'Endereço não cadastrado')}</span></span>
+                <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v-5m0-9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-7 13c-2 1-3 2-3 3 0 2 4 3 10 3s10-1 10-3c0-1-1-2-3-3"/></svg><span>${escaparHtml(atividade.localidadeAgenda || 'Cidade não informada')}</span></span>
             </button>
         `);
 
