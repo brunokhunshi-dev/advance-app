@@ -2,6 +2,8 @@ import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
+import { TrainingReport } from './src/ui/training-report.js';
+import { modulosTreinamentoPendentes } from './src/domain/training.js';
 import { cardAgenda, proximasVisitas, visitasSecundarias } from './src/ui/agenda-cards.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
 import { loadingMarkup } from './src/ui/loading.js';
@@ -43,10 +45,12 @@ const productRepository = createProductRepository(async () => {
 });
 let technicalEditor;
 let commercialReport;
+let trainingReport;
 function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, navegar = true) {
     const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
     const formato = formatarDataHoraPT(chegada);
-    commercialReport.open({
+    const controller = normalizarTipoVisita(objetoAtividadeGlobal) === 'Treinamento' ? trainingReport : commercialReport;
+    controller.open({
         id: atividadeSelecionadaId,
         client: clienteSelecionadoNome || 'Cliente não encontrado',
         code: objetoRelatorioGlobal?.codigo || '#' + atividadeSelecionadaId,
@@ -233,7 +237,7 @@ async function carregarRelatorioDaAtividade(atividade, forcarServidor = false) {
 }
 
 function limparFormularioCheckout() {
-    ['checkout-objetivo','checkout-categoria','checkout-participantes','checkout-publico','checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['checkout-objetivo','checkout-at-acoes','checkout-at-conclusao','checkout-at-proximo-passo'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     ['checkout-cliente','checkout-chegada-data','checkout-chegada-hora','checkout-saida-data','checkout-saida-hora','checkout-duracao','checkout-relatorio-final'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
     document.querySelectorAll('input[name="checkoutOportunidade"], input[name="checkoutAtResultado"]').forEach(radio => { radio.checked = false; });
 }
@@ -250,10 +254,11 @@ function preencherCheckout(atividade, relatorio, saida) {
 
     const tipo = normalizarTipoVisita(atividade);
     const comercialLocal = tipo === 'Visita comercial' && relatorio?.dadosComerciais?.versao === 1;
-    document.getElementById('tela-checkout').classList.toggle('commercial-checkout', !!comercialLocal);
+    const treinamentoLocal = tipo === 'Treinamento' && relatorio?.dadosTreinamento?.versao === 1;
+    document.getElementById('tela-checkout').classList.toggle('commercial-checkout', !!(comercialLocal || treinamentoLocal));
+    if (treinamentoLocal) trainingReport.renderCheckout(document.getElementById('checkout-commercial-content'));
     if(comercialLocal) commercialReport.renderCheckout(document.getElementById('checkout-commercial-content'));
     document.getElementById('checkout-tecnico-section').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
-    document.getElementById('checkout-treinamento-section').style.display = tipo === 'Treinamento' ? 'block' : 'none';
     document.getElementById('checkout-assistencia-section').style.display = tipo === 'Assistência técnica' ? 'block' : 'none';
     document.getElementById('checkout-tipo-titulo').textContent = tipo;
 
@@ -264,9 +269,6 @@ function preencherCheckout(atividade, relatorio, saida) {
         if (radio) radio.checked = true;
     }
 
-    document.getElementById('checkout-categoria').value = atividade.categoriaTreinamento || '';
-    document.getElementById('checkout-participantes').value = atividade.quantidadeParticipantes ?? '';
-    document.getElementById('checkout-publico').value = atividade.publicoAtendido || '';
 
     const assistencia = dadosAssistenciaDoRelatorio(relatorio);
     document.getElementById('checkout-at-acoes').value = assistencia.acoesDefinidas || '';
@@ -292,7 +294,9 @@ function fecharCheckout() {
     if (operacaoEmCurso) return;
     checkoutPendenteGlobal = null;
     commercialReport?.deactivate();
+    trainingReport?.deactivate();
     commercialReport?.checkoutResizeObserver?.disconnect();
+    trainingReport?.checkoutResizeObserver?.disconnect();
     document.getElementById('tela-checkout')?.classList.remove('commercial-checkout');
     const content = document.getElementById('checkout-commercial-content');
     if (content) { content.replaceChildren(); content.onclick = null; content.onchange = null; }
@@ -430,6 +434,7 @@ function inicializarAplicativo() {
         const versao = ++versaoSessao;
         productRepository.clear();
         commercialReport?.clear();
+        trainingReport?.clear();
 
         idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
 
@@ -723,6 +728,7 @@ function relatorioPossuiAlteracoesNaoSalvas() {
     if (!objetoAtividadeGlobal) return false;
     const tipo = normalizarTipoVisita(objetoAtividadeGlobal || {});
     if (tipo === 'Visita comercial' && commercialReport?.active) return commercialReport.dirty;
+    if (tipo === 'Treinamento' && trainingReport?.active) return trainingReport.dirty;
 
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
         const atual = normalizarAssistenciaComparacao(lerFormularioAssistencia(objetoRelatorioGlobal));
@@ -756,6 +762,10 @@ function configurarHistoricoNativo() {
 
         const destino = event.state;
         const telaAtual = estadoNavegacaoAtual?.tela;
+        if (telaAtual === 'tela-relatorio' && normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Treinamento' && trainingReport?.backModule()) {
+            history.pushState(estadoNavegacaoAtual, '', urlTela(estadoNavegacaoAtual.tela));
+            return;
+        }
         if (telaAtual === 'tela-relatorio' && normalizarTipoVisita(objetoAtividadeGlobal || {}) === 'Visita comercial' && commercialReport?.backModule()) {
             history.pushState(estadoNavegacaoAtual, '', urlTela(estadoNavegacaoAtual.tela));
             return;
@@ -882,6 +892,7 @@ async function carregarAtividadesPendentes() {
 
             objetoAtividadeGlobal = atividade; objetoRelatorioGlobal = relatorio;
             if (normalizarTipoVisita(atividade) === 'Visita comercial') commercialReport.hydrate(atividade.id, relatorio);
+            if (normalizarTipoVisita(atividade) === 'Treinamento') trainingReport.hydrate(atividade.id, relatorio);
 
             atualizarInterfaceVisitaAtual(); return;
 
@@ -2115,6 +2126,11 @@ async function encerrarVisita(id, btn) {
             abrirPrototipoComercial('overview', false, false);
             commercialReport.deactivate();
         }
+        if (tipo === 'Treinamento') {
+            trainingReport.hydrate(id, relatorio, true);
+            abrirPrototipoComercial('overview', false, false);
+            trainingReport.deactivate();
+        }
         preencherCheckout(atividade, relatorio, saida);
     } catch (erro) {
         if (erro instanceof ErroCheckoutLocalizacao) abrirModalFechamentoManual(id, erro.message);
@@ -2131,8 +2147,8 @@ function atualizarInterfaceVisitaAtual() {
     const objData = formatarDataHoraPT(objetoAtividadeGlobal.checkinDataHora);
     const areaVisitas = document.getElementById('area-visitas');
     const tipoAtual = normalizarTipoVisita(objetoAtividadeGlobal);
-    const relatorioInterface = tipoAtual === 'Visita comercial' ? commercialReport?.savedReport(atividadeSelecionadaId) || objetoRelatorioGlobal : objetoRelatorioGlobal;
-    const temRelatorio = !!(tipoAtual === 'Visita comercial' && commercialReport?.hasSaved(atividadeSelecionadaId)) || relatorioValidoParaCheckout(relatorioInterface, tipoAtual);
+    const relatorioInterface = tipoAtual === 'Treinamento' ? trainingReport?.savedReport(atividadeSelecionadaId) || objetoRelatorioGlobal : tipoAtual === 'Visita comercial' ? commercialReport?.savedReport(atividadeSelecionadaId) || objetoRelatorioGlobal : objetoRelatorioGlobal;
+    const temRelatorio = !!(tipoAtual === 'Treinamento' && trainingReport?.hasSaved(atividadeSelecionadaId)) || !!(tipoAtual === 'Visita comercial' && commercialReport?.hasSaved(atividadeSelecionadaId)) || relatorioValidoParaCheckout(relatorioInterface, tipoAtual);
 
     const etapas = [{
         titulo: 'Check-in',
@@ -2199,6 +2215,7 @@ function atualizarInterfaceVisitaAtual() {
     const acaoAbrirRelatorio = async () => {
         if (operacaoEmCurso || !atividadeSelecionadaId) return;
         commercialReport.deactivate();
+        trainingReport.deactivate();
 
         try {
             const sessao = sessaoAtual();
@@ -2250,6 +2267,14 @@ function atualizarInterfaceVisitaAtual() {
                 const existing = commercialReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeSelecionadaId) || commercialReport.initial.get(atividadeSelecionadaId));
                 commercialReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                abrirPrototipoComercial();
+                return;
+            }
+
+            if (tipo === 'Treinamento') {
+                const existing = trainingReport.drafts.get(atividadeSelecionadaId);
+                const unsaved = existing && JSON.stringify(existing) !== (trainingReport.saved.get(atividadeSelecionadaId) || trainingReport.initial.get(atividadeSelecionadaId));
+                trainingReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
                 abrirPrototipoComercial();
                 return;
             }
@@ -2368,7 +2393,8 @@ async function enviarFechamentoManual() {
         btn.textContent = 'ENVIAR';
     }
 }
-async function salvarRelatorioComercial(atividadeId, data, base) {
+async function salvarRelatorioComercial(atividadeId, data, base, tipo = 'Visita comercial') {
+    const dataField = tipo === 'Treinamento' ? 'dadosTreinamento' : 'dadosComerciais';
     if (operacaoEmCurso) throw new Error('Aguarde a operação atual antes de salvar.');
     const sessao = sessaoAtual();
     if (!atividadeId || atividadeId !== atividadeSelecionadaId) throw new Error('Reabra a visita antes de salvar.');
@@ -2377,7 +2403,7 @@ async function salvarRelatorioComercial(atividadeId, data, base) {
     const novoId = gerarIdRelatorio(new Date(), nomeUsuarioLogado);
     operacaoEmCurso = true;
     try {
-        const saved = await persistCommercialMedia({activityId:atividadeId, data, base:base?.dadosComerciais || {blocks:base?.conteudoRelatorio?.blocos || []}, media:mediaStore,
+        const saved = await persistCommercialMedia({activityId:atividadeId, data, base:base?.[dataField] || {blocks:base?.conteudoRelatorio?.blocos || []}, media:mediaStore,
             validateSession:() => exigirSessao(sessao),
             commit:prepared => runTransaction(db, async tx => {
                 exigirSessao(sessao);
@@ -2386,19 +2412,19 @@ async function salvarRelatorioComercial(atividadeId, data, base) {
                 if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
                 const atividade = atvSnap.data();
                 validarResponsavel(atividade, sessao);
-                if (atividade.status !== 'Em andamento' || normalizarTipoVisita(atividade) !== 'Visita comercial') throw new Error('A visita foi alterada ou encerrada. Reabra o relatório.');
-                const colecao = atividade.relatorioId ? colecaoRelatorioDaAtividade(atividade) : colecaoRelatorioPorTipo('Visita comercial');
+                if (atividade.status !== 'Em andamento' || normalizarTipoVisita(atividade) !== tipo) throw new Error('A visita foi alterada ou encerrada. Reabra o relatório.');
+                const colecao = atividade.relatorioId ? colecaoRelatorioDaAtividade(atividade) : colecaoRelatorioPorTipo(tipo);
                 const relRef = doc(db, colecao, atividade.relatorioId || novoId);
                 const relSnap = await tx.get(relRef);
                 const anterior = relSnap.exists() ? relSnap.data() : null;
                 if (anterior && (anterior.atividadeId !== atividadeId || anterior.ptvId !== sessao.id)) throw new Error('O relatório não corresponde a esta visita.');
-                const compare = report => serializarEstavel({dados:report?.dadosComerciais || null, texto:report?.textoAtual ?? null, conteudo:report?.conteudoRelatorio || null});
+                const compare = report => serializarEstavel({dados:report?.[dataField] || null, texto:report?.textoAtual ?? null, conteudo:report?.conteudoRelatorio || null});
                 if (compare(anterior) !== compare(base)) throw new Error('O relatório foi alterado em outra sessão. Volte ao início e reabra o relatório antes de salvar.');
                 const agora = new Date();
                 const historico = [...(anterior?.historico || []), {texto:prepared.text, salvoEm:agora}];
-                const resultado = {...anterior, id:relRef.id, atividadeId, clienteId:atividade.clienteId, ptvId:sessao.id, tipoVisita:'Visita comercial',
+                const resultado = {...anterior, id:relRef.id, atividadeId, clienteId:atividade.clienteId, ptvId:sessao.id, tipoVisita:tipo,
                     codigo:anterior?.codigo || '#' + atividadeId, criadoEm:anterior?.criadoEm || agora, atualizadoEm:agora,
-                    textoAtual:prepared.text, historico, dadosComerciais:{versao:1,...prepared}, conteudoRelatorio:{versao:1,blocos:prepared.blocks || []}};
+                    textoAtual:prepared.text, historico, [dataField]:{versao:1,...prepared}, conteudoRelatorio:{versao:1,blocos:prepared.blocks || []}};
                 if (new TextEncoder().encode(JSON.stringify(resultado)).length > 800000) throw new Error('O relatório está muito grande. Solicite o arquivamento do histórico.');
                 tx.set(relRef, resultado);
                 tx.update(atvRef, {relatorioId:relRef.id, relatorioColecao:colecao, atualizadoEm:agora});
@@ -2440,6 +2466,20 @@ function configurarEventosGlobais() {
         returnCheckout: () => {
             if (!checkoutPendenteGlobal || checkoutPendenteGlobal.atividadeId !== commercialReport.key || normalizarTipoVisita(objetoAtividadeGlobal || {}) !== 'Visita comercial') return;
             commercialReport.deactivate();
+            navegarParaTela('tela-checkout', { substituir: true, carregar: false });
+        }
+    });
+    trainingReport = new TrainingReport(document.getElementById('tela-relatorio'), () => voltarNavegacao('tela-inicio'), () => {
+        trainingReport.deactivate();
+        navegarParaTela('tela-inicio', { substituir: true, carregar: false });
+        atualizarInterfaceVisitaAtual();
+    }, {
+        persist: (id, data, base) => salvarRelatorioComercial(id, data, base, 'Treinamento'),
+        loadProducts: options => productRepository.list(options),
+        reviewModule: page => abrirPrototipoComercial(page, true),
+        returnCheckout: () => {
+            if (!checkoutPendenteGlobal || checkoutPendenteGlobal.atividadeId !== trainingReport.key || normalizarTipoVisita(objetoAtividadeGlobal || {}) !== 'Treinamento') return;
+            trainingReport.deactivate();
             navegarParaTela('tela-checkout', { substituir: true, carregar: false });
         }
     });
@@ -2490,9 +2530,6 @@ function configurarEventosGlobais() {
         const modular = tipo === 'Visita comercial' && objetoRelatorioGlobal?.dadosComerciais?.versao === 1;
         const objetivo = modular ? objetoRelatorioGlobal.dadosComerciais.goal : document.getElementById('checkout-objetivo').value.trim();
         const oportunidade = document.querySelector('input[name="checkoutOportunidade"]:checked')?.value || '';
-        const categoria = document.getElementById('checkout-categoria').value.trim();
-        const participantesTexto = document.getElementById('checkout-participantes').value.trim();
-        const publico = document.getElementById('checkout-publico').value.trim();
 
         const atAcoes = document.getElementById('checkout-at-acoes').value.trim();
         const atConclusao = document.getElementById('checkout-at-conclusao').value.trim();
@@ -2500,10 +2537,8 @@ function configurarEventosGlobais() {
         const atProximoPasso = document.getElementById('checkout-at-proximo-passo').value.trim();
 
         if (tipo === 'Treinamento') {
-            if (!categoria) return window.mostrarAlerta('Atenção', 'Selecione a categoria do treinamento.');
-            const participantes = Number(participantesTexto);
-            if (!Number.isInteger(participantes) || participantes < 1 || participantes > 10000) return window.mostrarAlerta('Atenção', 'Informe uma quantidade válida de participantes.');
-            if (!publico) return window.mostrarAlerta('Atenção', 'Selecione o público atendido.');
+            const pendentes = modulosTreinamentoPendentes(objetoRelatorioGlobal);
+            if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos antes de finalizar: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
         } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
             if (!atAcoes) return window.mostrarAlerta('Atenção', 'Informe as ações definidas.');
             if (!atConclusao) return window.mostrarAlerta('Atenção', 'Informe a conclusão técnica.');
@@ -2548,6 +2583,11 @@ function configurarEventosGlobais() {
                 if (tipo === 'Visita comercial' && (relatorioAtual.dadosComerciais?.versao === 1) !== modular) throw new Error('O relatório foi alterado. Reabra o check-out.');
                 const pendentes = modulosComerciaisPendentes(relatorioAtual);
                 if (pendentes.length) throw new Error('Conclua os módulos obrigatórios: ' + pendentes.join(', ') + '.');
+                if (tipo === 'Treinamento') {
+                    const pendentesTreinamento = modulosTreinamentoPendentes(relatorioAtual);
+                    if (pendentesTreinamento.length) throw new Error('Conclua os módulos: ' + pendentesTreinamento.join(', ') + '.');
+                    if (serializarEstavel(relatorioAtual.dadosTreinamento) !== serializarEstavel(objetoRelatorioGlobal.dadosTreinamento)) throw new Error('O relatório foi alterado em outra sessão. Reabra o check-out.');
+                }
                 if (modular && serializarEstavel(relatorioAtual.dadosComerciais) !== serializarEstavel(objetoRelatorioGlobal.dadosComerciais)) throw new Error('O relatório foi alterado em outra sessão. Reabra o check-out.');
 
                 const agora = new Date();
@@ -2562,9 +2602,10 @@ function configurarEventosGlobais() {
                 let atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
 
                 if (tipo === 'Treinamento') {
-                    dadosCheckout.categoriaTreinamento = categoria;
-                    dadosCheckout.quantidadeParticipantes = Number(participantesTexto);
-                    dadosCheckout.publicoAtendido = publico;
+                    const dados = relatorioAtual.dadosTreinamento;
+                    dadosCheckout.objetivo = dados.goal;
+                    dadosCheckout.quantidadeParticipantes = Number(dados.present);
+                    dadosCheckout.publicoAtendido = dados.participants.join(', ');
                     atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
                 } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
                     const dadosAssistencia = {

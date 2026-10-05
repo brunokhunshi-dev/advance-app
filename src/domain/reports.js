@@ -117,6 +117,7 @@ export function modulosComerciaisPendentes(relatorio) {
 export function relatorioValidoParaCheckout(relatorio, tipo) {
     if (!relatorio) return false;
     if (tipo === 'Visita comercial' && relatorio.dadosComerciais?.versao === 1) return true;
+    if (tipo === 'Treinamento' && relatorio.dadosTreinamento?.versao === 1) return true;
     if (tipo === 'Assistência técnica') {
         const dados = dadosAssistenciaDoRelatorio(relatorio);
         return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());

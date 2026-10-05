@@ -30,14 +30,17 @@ export class CommercialReport {
     });
     window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
+  get dataField() { return 'dadosComerciais'; }
+  blankData() { return blank(); }
+  get productSearchPage() { return this.page === 'availability'; }
   get dirty() { return this.active && !this.reviewCheckout && JSON.stringify(this.data) !== (this.saved.get(this.key) || this.initial.get(this.key)); }
-  savedReport(key) { const snapshot=this.saved.get(key); if(!snapshot) return null; const data=JSON.parse(snapshot); return {...this.baseReports?.get(key), dadosComerciais:{versao:1,...data}, textoAtual:data.text, conteudoRelatorio:{versao:1,blocos:data.blocks || []}, historico:this.revisions.get(key) || [], atualizadoEm:this.revisions.get(key)?.at(-1)?.salvoEm}; }
+  savedReport(key) { const snapshot=this.saved.get(key); if(!snapshot) return null; const data=JSON.parse(snapshot); return {...this.baseReports?.get(key), [this.dataField]:{versao:1,...data}, textoAtual:data.text, conteudoRelatorio:{versao:1,blocos:data.blocks || []}, historico:this.revisions.get(key) || [], atualizadoEm:this.revisions.get(key)?.at(-1)?.salvoEm}; }
   hydrate(key, report, force = false) {
     if (!force && this.drafts.has(key)) return;
     // Editing nested arrays must never change the persisted conflict baseline.
-    const data = structuredClone({...blank(), ...(report?.dadosComerciais || {}), text:report?.textoAtual || '', blocks:report?.conteudoRelatorio?.blocos || null});
+    const data = structuredClone({...this.blankData(), ...(report?.[this.dataField] || {}), text:report?.textoAtual || '', blocks:report?.conteudoRelatorio?.blocos || null});
     delete data.versao;
-    data.products = {...blank().products, ...data.products};
+    data.products = {...this.blankData().products, ...data.products};
     this.baseReports.set(key, report || null);
     this.drafts.set(key, data);
     this.initial.set(key, JSON.stringify(data));
@@ -54,7 +57,7 @@ export class CommercialReport {
     try {
       const report = await this.reviewCallbacks.persist(key, structuredClone(this.data), this.baseReports.get(key));
       if (generation !== this.photoGeneration) return;
-      for (const photo of [...(report.dadosComerciais?.photos || []), ...(report.conteudoRelatorio?.blocos || [])]) {
+      for (const photo of [...(report[this.dataField]?.photos || []), ...(report.conteudoRelatorio?.blocos || [])]) {
         if (photo.storage === 'r2') this.staged.delete(photo.id);
       }
       this.hydrate(key, report, true);
@@ -72,7 +75,7 @@ export class CommercialReport {
   hasSaved(key) { return this.saved.has(key); }
   open(context, page = 'overview', reviewCheckout = false) {
     this.key = context.id; this.context = context; this.reviewCheckout = reviewCheckout;
-    if (!this.drafts.has(this.key)) { const data = {...blank(), text:context.text || ''}; this.drafts.set(this.key, data); this.initial.set(this.key, JSON.stringify(data)); }
+    if (!this.drafts.has(this.key)) { const data = {...this.blankData(), text:context.text || ''}; this.drafts.set(this.key, data); this.initial.set(this.key, JSON.stringify(data)); }
     this.data = reviewCheckout && this.saved.has(this.key) ? JSON.parse(this.saved.get(this.key)) : this.drafts.get(this.key); this.active = true; this.page = page;
     this.host.classList.add('commercial-mode'); this.root.hidden = false; this.render();
   }
@@ -156,7 +159,7 @@ export class CommercialReport {
     }
   }
   updateProductResults() {
-    if (this.page !== 'availability' || this.reviewCheckout) return;
+    if (!this.productSearchPage || this.reviewCheckout) return;
     for (const input of this.root.querySelectorAll('[data-product-search]')) {
       const key = input.dataset.productSearch;
       const results = this.root.querySelector('#cr-results-' + key);

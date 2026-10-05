@@ -4,6 +4,8 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {persistCommercialMedia} from '../src/services/commercial-save.js';
 import * as reports from '../src/domain/reports.js';
+import {blankTraining, modulosTreinamentoPendentes} from '../src/domain/training.js';
+import {TrainingReport} from '../src/ui/training-report.js';
 import {CommercialReport} from '../src/ui/commercial-report.js';
 import {serializarEstavel} from '../src/domain/formatters.js';
 const source=readFileSync(new URL('../script.js',import.meta.url),'utf8');
@@ -12,7 +14,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
     const records=new Map([['atividades/visit',activity]]);
     if(report) records.set((activity.relatorioColecao || 'relatorios')+'/'+activity.relatorioId,report);
     const writes=[];
-    const context=vm.createContext({...reports,serializarEstavel,persistCommercialMedia,TextEncoder,Date,
+    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         validarResponsavel:atv=>{if(atv.ptvId!=='user')throw new Error('responsável');},
@@ -27,7 +29,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
         },window:{mostrarAlerta(){}}
     });
     vm.runInContext(source.slice(source.indexOf('async function salvarRelatorioComercial('),source.indexOf('function configurarEventosGlobais()')),context);
-    return {context,records,writes,save:(data=draft(),base=report)=>context.salvarRelatorioComercial('visit',data,base)};
+    return {context,records,writes,save:(data=draft(),base=report,tipo='Visita comercial')=>context.salvarRelatorioComercial('visit',data,base,tipo)};
 }
 test('real save transaction atomically links an empty partial report to its activity',async()=>{
     const app=setup();const data=draft();data.name='';data.goal='';
@@ -89,4 +91,48 @@ test('second and third saves can edit selected products without a false session 
     await app.save(thirdDraft,report.baseReports.get('visit'));
     assert.equal(app.records.get('relatorios_comerciais/report').dadosComerciais.products.low[0].title,'PU Total');
     assert.equal(app.records.get('relatorios_comerciais/report').historico.length,3);
+});
+
+test('training partial save uses its own schema and collection and survives repeated product edits', async () => {
+    const app = setup({ptvId:'user',clienteId:'client',status:'Em andamento',tipoVisita:'Treinamento'});
+    const first = await app.save(blankTraining(), null, 'Treinamento');
+    assert.equal(first.colecao, 'relatorios_treinamentos');
+    assert.equal(first.dadosTreinamento.versao, 1);
+    assert.equal(first.dadosComerciais, undefined);
+    assert.equal(app.records.get('atividades/visit').relatorioColecao, 'relatorios_treinamentos');
+    const controller = Object.assign(Object.create(TrainingReport.prototype), {drafts:new Map(),saved:new Map(),initial:new Map(),revisions:new Map(),baseReports:new Map()});
+    controller.hydrate('visit', first, true);
+    const data = controller.drafts.get('visit');
+    data.products.planned.push({id:'p1',title:'Epóxi Total'});
+    assert.equal(controller.baseReports.get('visit').dadosTreinamento.products.planned.length, 0);
+    const second = await app.save(data, controller.baseReports.get('visit'), 'Treinamento');
+    controller.hydrate('visit', second, true);
+    controller.drafts.get('visit').name = 'Ana';
+    await app.save(controller.drafts.get('visit'), controller.baseReports.get('visit'), 'Treinamento');
+    assert.equal(app.records.get('relatorios_treinamentos/report').historico.length, 3);
+    assert.equal(app.records.get('relatorios_treinamentos/report').dadosTreinamento.products.planned[0].id, 'p1');
+});
+
+test('training checkout revalidates modules from server and persists completion without the old form', async () => {
+    const data = {...blankTraining(), name:'Ana', participants:['Vendedores'], expected:'10', present:'8', goal:'Capacitar venda', products:{planned:[{id:'p1',title:'Epóxi Total'}],applied:[]}, contents:['Verificação do entendimento'],practice:'Não',achieved:'Sim',engagement:'Alta',satisfaction:'Não respondeu'};
+    const report = {atividadeId:'visit',ptvId:'user',textoAtual:'',dadosTreinamento:{versao:1,...data}};
+    const activity = {ptvId:'user',clienteId:'client',status:'Em andamento',tipoVisita:'Treinamento',relatorioId:'report',relatorioColecao:'relatorios_treinamentos'};
+    const app=setup(activity,report);let handler;
+    const button={addEventListener:(_,fn)=>handler=fn};
+    Object.assign(app.context, {checkoutPendenteGlobal:{atividadeId:'visit',posicao:{lat:1,lng:2,accuracy:10,endereco:'Loja'}},
+        document:{getElementById:()=>button,querySelector:()=>null},referenciaRelatorio:()=>({path:'relatorios_treinamentos/report'}),
+        coordenadasValidas:()=>true,informarErro:(_,error)=>{throw error;}});
+    // Unrelated hidden controls still exist for the other visit types.
+    button.value='';
+    const start=source.indexOf("    document.getElementById('btn-concluir-checkout')?.addEventListener");
+    const end=source.indexOf("    document.querySelectorAll('input[name=\"atEspecificacao\"]')",start);
+    vm.runInContext(source.slice(start,end),app.context);
+    app.records.set('relatorios_treinamentos/report',{...report,dadosTreinamento:{...report.dadosTreinamento,name:''}});
+    await assert.rejects(handler(), /Planejamento/);
+    assert.equal(app.writes.length,0);
+    app.records.set('relatorios_treinamentos/report',report);
+    await handler();
+    assert.equal(app.records.get('atividades/visit').status,'Concluída');
+    assert.equal(app.records.get('atividades/visit').quantidadeParticipantes,8);
+    assert.equal(app.records.get('relatorios_treinamentos/report').dadosTreinamento.satisfaction,'Não respondeu');
 });
