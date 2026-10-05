@@ -2,6 +2,7 @@ import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
+import { cardAgenda, proximasVisitas } from './src/ui/agenda-cards.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
 import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
@@ -435,6 +436,8 @@ function inicializarAplicativo() {
         homeCalendar.reset();
         homeVisitMap.clear();
         document.getElementById('home-location-address').textContent = '';
+        document.getElementById('home-upcoming-visits').replaceChildren();
+        document.getElementById('home-agenda-more').hidden = true;
 
         limparCadastroCliente();
 
@@ -816,6 +819,8 @@ async function carregarAtividadesPendentes() {
 
     area.textContent = 'Carregando visitas...';
     homeCalendar.setActivities([]);
+    document.getElementById('home-upcoming-visits').textContent = 'Carregando agendamentos…';
+    document.getElementById('home-agenda-more').hidden = true;
     homeVisitMap.clear('Carregando mapa…');
     document.getElementById('home-location-address').textContent = '';
 
@@ -830,6 +835,7 @@ async function carregarAtividadesPendentes() {
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
         homeCalendar.setActivities(atividades);
+        void renderizarProximasVisitasInicio(atividades, sessao, pedido);
         if (!atividades.length) { limparEstadoVisita(); area.textContent = 'Nenhuma visita pendente.'; void homeVisitMap.update(null); return; }
 
         const atividade = atividades[0];
@@ -881,10 +887,36 @@ async function carregarAtividadesPendentes() {
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
         homeVisitMap.clear('Não foi possível carregar a próxima visita.');
+        document.getElementById('home-upcoming-visits').textContent = 'Não foi possível carregar os agendamentos.';
+        document.getElementById('home-agenda-more').hidden = true;
         area.textContent = 'Não foi possível carregar as visitas.'; informarErro('Erro ao carregar visitas', erro);
 
     }
 
+}
+
+async function renderizarProximasVisitasInicio(atividades, sessao, pedido) {
+    const area = document.getElementById('home-upcoming-visits');
+    const mais = document.getElementById('home-agenda-more');
+    try {
+        const visitas = await Promise.all(proximasVisitas(atividades).map(async atividade => {
+            const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
+            return { ...atividade, nomeCliente: cliente?.nome || 'Cliente não encontrado',
+                enderecoCompleto: cliente?.enderecoCompleto || '',
+                localidadeAgenda: [cliente?.cidade, cliente?.uf].map(valor => String(valor || '').trim()).filter(Boolean).join(' - ').toLocaleUpperCase('pt-BR') };
+        }));
+        if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
+        area.innerHTML = visitas.length ? visitas.map((visita, index) => cardAgenda(visita, index, true)).join('')
+            : '<p class="agenda-empty">Nenhuma próxima visita agendada.</p>';
+        mais.hidden = !visitas.length;
+        area.querySelectorAll('[data-ficha-index]').forEach(button => button.addEventListener('click', () => {
+            if (!operacaoEmCurso) window.abrirDetalhesVisita(-1, visitas[Number(button.dataset.fichaIndex)]);
+        }));
+    } catch (error) {
+        if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
+        area.textContent = 'Não foi possível carregar os agendamentos.';
+        mais.hidden = true;
+    }
 }
 
 async function carregarAgenda() {
@@ -962,18 +994,7 @@ function renderizarAgenda() {
             diaAnterior = fData.diaMes;
         }
 
-        // Badge para mostrar que está em andamento
-
-        const badgeAndamento = atividade.status === "Em andamento" ? `<span style="font-size: 0.65rem; background: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">EM ANDAMENTO</span>` : "";
-
-        cardsAgenda.push(`
-            <button type="button" class="card-agenda" data-ficha-index="${index}" aria-label="Ver agendamento de ${escaparHtml(atividade.nomeCliente)} às ${fData.hora}">
-                <span class="agenda-motivo">${escaparHtml(normalizarTipoVisita(atividade))}</span>
-                <span class="agenda-cliente">${escaparHtml(atividade.nomeCliente)} ${badgeAndamento}</span>
-                <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span>${fData.hora}</span></span>
-                <span class="agenda-info-row"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v-5m0-9a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-7 13c-2 1-3 2-3 3 0 2 4 3 10 3s10-1 10-3c0-1-1-2-3-3"/></svg><span>${escaparHtml(atividade.localidadeAgenda || 'Cidade não informada')}</span></span>
-            </button>
-        `);
+        cardsAgenda.push(cardAgenda(atividade, index));
 
     });
     areaAgenda.innerHTML = cardsAgenda.join('');
@@ -1387,11 +1408,11 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
 
 let visitaEmEdicao = null;
 
-window.abrirDetalhesVisita = function(index) {
+window.abrirDetalhesVisita = function(index, atividadeEscolhida = null) {
 
     if (operacaoEmCurso) return;
 
-    visitaEmEdicao = listaAtividadesAgenda[index];
+    visitaEmEdicao = atividadeEscolhida || listaAtividadesAgenda[index];
 
     if (!visitaEmEdicao) return window.mostrarAlerta("Aviso", "Atualize a agenda e tente novamente.");
 
@@ -2370,6 +2391,18 @@ async function salvarRelatorioComercial(atividadeId, data, base) {
 }
 
 function configurarEventosGlobais() {
+    document.getElementById('home-agenda-more').addEventListener('click', () => {
+        if (operacaoEmCurso) return;
+        const primeira = proximasVisitas(homeCalendar.atividades)[0];
+        if (primeira) {
+            const data = new Date(tempoData(primeira.data));
+            agendaCalendar.mes = new Date(data.getFullYear(), data.getMonth(), 1, 12);
+        }
+        agendaCalendar.selecionado = null;
+        agendaCalendar.render();
+        navegarParaTela('tela-agenda');
+    });
+
     commercialReport = new CommercialReport(document.getElementById('tela-relatorio'), () => voltarNavegacao('tela-inicio'), () => {
         commercialReport.deactivate();
         navegarParaTela('tela-inicio', { substituir: true, carregar: false });

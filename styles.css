@@ -1332,3 +1332,9 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
     color: var(--color-red);
     font-weight: 600;
 }
+
+.agenda-status-badge { font-size: .65rem; background-color: var(--color-red); color: white; padding: 2px 6px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+.home-agenda-more { display: block; margin: 4px auto 0; min-height: 44px; padding: 10px 18px; border: 0; background: transparent; color: var(--color-muted); font: inherit; font-size: .8rem; font-weight: 400; cursor: pointer; }
+.home-agenda-more[hidden] { display: none; }
+.home-agenda-more:hover { color: var(--color-dark); }
+.home-agenda-more:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; border-radius: 8px; }
