@@ -29,17 +29,45 @@ test('calendar handles leap years and six-week months', () => {
 });
 
 test('month navigation crosses years, caps dots at three and reset removes visits', () => {
-    let handler;
-    const root = { innerHTML: '', addEventListener: (_, fn) => { handler = fn; }, contains: () => true, querySelector: () => null };
+    const handlers = {};
+    const root = { innerHTML: '', setAttribute() {}, addEventListener: (name, fn) => { handlers[name] = fn; } };
     const calendar = new AgendaCalendar(root);
     calendar.mes = new Date(2026, 11, 1);
     calendar.setActivities(Array.from({ length: 4 }, () => ({ data: new Date(2026, 11, 5) })));
     assert.equal((root.innerHTML.match(/<i><\/i>/g) || []).length, 3);
     assert.match(root.innerHTML, /4 visitas/);
-    handler({ target: { closest: () => ({ dataset: { calendarMonth: '1' } }) } });
+    handlers.pointerdown({ pointerId: 1, button: 0, clientX: 200, clientY: 100 });
+    handlers.pointerup({ pointerId: 1, clientX: 100, clientY: 105 });
     assert.equal(calendar.mes.getFullYear(), 2027);
     assert.equal(calendar.mes.getMonth(), 0);
     calendar.reset();
     assert.equal(calendar.atividades.length, 0);
     assert.equal(calendar.mes.getMonth(), new Date().getMonth());
+});
+
+test('swipe ignores taps, vertical scroll and cancelled gestures; supports right swipe and keyboard', () => {
+    const handlers = {};
+    const root = { innerHTML: '', setAttribute() {}, addEventListener: (name, fn) => { handlers[name] = fn; } };
+    const calendar = new AgendaCalendar(root);
+    calendar.mes = new Date(2026, 0, 1);
+    const start = () => handlers.pointerdown({ pointerId: 1, button: 0, clientX: 100, clientY: 100 });
+    start();
+    handlers.pointerup({ pointerId: 1, clientX: 110, clientY: 102 });
+    assert.equal(calendar.mes.getMonth(), 0);
+    start();
+    handlers.pointermove({ pointerId: 1, clientX: 110, clientY: 140 });
+    handlers.pointerup({ pointerId: 1, clientX: 200, clientY: 150 });
+    assert.equal(calendar.mes.getMonth(), 0);
+    start();
+    handlers.pointercancel();
+    handlers.pointerup({ pointerId: 1, clientX: 200, clientY: 100 });
+    assert.equal(calendar.mes.getMonth(), 0);
+    start();
+    handlers.pointerup({ pointerId: 1, clientX: 200, clientY: 100 });
+    assert.equal(calendar.mes.getMonth(), 11);
+    assert.equal(calendar.mes.getFullYear(), 2025);
+    handlers.keydown({ key: 'ArrowRight', preventDefault() {} });
+    assert.equal(calendar.mes.getMonth(), 0);
+    assert.equal(calendar.mes.getFullYear(), 2026);
+    assert.doesNotMatch(root.innerHTML, /data-calendar-month|<button/);
 });

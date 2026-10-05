@@ -28,15 +28,38 @@ export class AgendaCalendar {
     constructor(root) {
         this.root = root;
         this.reset();
-        root.addEventListener('click', event => {
-            const button = event.target.closest('[data-calendar-month]');
-            if (!button || !root.contains(button)) return;
-            this.mes = new Date(this.mes.getFullYear(), this.mes.getMonth() + Number(button.dataset.calendarMonth), 1, 12);
-            this.render();
-            root.querySelector(`[data-calendar-month="${button.dataset.calendarMonth}"]`)?.focus({ preventScroll: true });
+        root.addEventListener('pointerdown', event => {
+            if (event.isPrimary === false || event.button !== 0) return;
+            this.gesto = { id: event.pointerId, x: event.clientX, y: event.clientY };
+            root.setPointerCapture?.(event.pointerId);
+        });
+        root.addEventListener('pointermove', event => {
+            const gesto = this.gesto;
+            if (!gesto || gesto.id !== event.pointerId) return;
+            const dx = Math.abs(event.clientX - gesto.x), dy = Math.abs(event.clientY - gesto.y);
+            // Deixa a rolagem vertical da agenda seguir normalmente.
+            if (dy > 12 && dy > dx) this.gesto = null;
+        });
+        root.addEventListener('pointerup', event => {
+            const gesto = this.gesto;
+            this.gesto = null;
+            if (!gesto || gesto.id !== event.pointerId) return;
+            const dx = event.clientX - gesto.x, dy = event.clientY - gesto.y;
+            if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.3) this.changeMonth(dx < 0 ? 1 : -1);
+        });
+        root.addEventListener('pointercancel', () => { this.gesto = null; });
+        root.addEventListener('keydown', event => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            this.changeMonth(event.key === 'ArrowRight' ? 1 : -1);
         });
     }
+    changeMonth(direction) {
+        this.mes = new Date(this.mes.getFullYear(), this.mes.getMonth() + direction, 1, 12);
+        this.render();
+    }
     reset() {
+        this.gesto = null;
         const hoje = new Date();
         this.mes = new Date(hoje.getFullYear(), hoje.getMonth(), 1, 12);
         this.setActivities([]);
@@ -51,10 +74,7 @@ export class AgendaCalendar {
         const dias = diasCalendario(ano, mes, this.atividades);
         this.root.innerHTML = `<div class="agenda-calendar-header">
             <h2 id="agenda-calendar-title" class="agenda-calendar-title" aria-live="polite"><span>${MESES[mes]}</span><span>${ano}</span></h2>
-            <div class="agenda-calendar-navigation">
-                <button type="button" data-calendar-month="-1" aria-label="Mês anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
-                <button type="button" data-calendar-month="1" aria-label="Próximo mês"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
-            </div>
+
         </div>
         <div class="agenda-calendar-week" aria-hidden="true">${SEMANA.map(dia => `<span>${dia}</span>`).join('')}</div>
         <ol class="agenda-calendar-days" aria-label="${titulo}">${dias.map(dia => {
