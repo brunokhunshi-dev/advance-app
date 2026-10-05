@@ -9,6 +9,10 @@ export function proximasVisitas(atividades, hoje = new Date()) {
     }).sort((a, b) => obterData(a.data) - obterData(b.data)).slice(0, 5);
 }
 
+export function visitasSecundarias(atividades, atualId, hoje = new Date()) {
+    return proximasVisitas(atividades.filter(atividade => atividade.id !== atualId), hoje).slice(0, 4);
+}
+
 export function cardAgenda(atividade, index, mostrarData = false) {
     const data = formatarDataAgenda(atividade.data);
     const horario = mostrarData ? `${data.diaMes} · ${data.hora}` : data.hora;

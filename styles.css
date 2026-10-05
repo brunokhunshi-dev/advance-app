@@ -1340,3 +1340,10 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .home-agenda-more:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; border-radius: 8px; }
 
 .relatorio-info-section .page-title, .checkout-titulo { padding-right: 60px; }
+
+.home-map-secondary { width: 18px; height: 24px; }
+.home-map-secondary svg { width: 18px; height: 24px; }
+.home-map-secondary svg path { fill: #A6AFBD; }
+.home-map-secondary svg circle { fill: #F8F9FA; }
+.card-empty-description { color: var(--color-muted); font-size: .85rem; line-height: 1.4; }
+.card-visita-empty .card-titulo { white-space: normal; }

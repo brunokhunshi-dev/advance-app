@@ -58,20 +58,24 @@ export class HomeVisitMap {
         this.canvas.replaceChildren();
         this.status.textContent = message;
     }
-    async update(cliente) {
+    async update(cliente, clientesSecundarios = []) {
         this.clear('Carregando mapa…');
         const version = this.version;
-        if (!cliente) { this.status.textContent = 'Nenhuma próxima visita para mostrar no mapa.'; return; }
-        if (!coordenadasValidas(cliente.lat, cliente.lng)) {
-            this.status.textContent = 'Esta loja ainda não tem localização cadastrada.';
-            return;
-        }
+        const destino = cliente && coordenadasValidas(cliente.lat, cliente.lng)
+            ? [Number(cliente.lng), Number(cliente.lat)] : null;
+        let position = null;
         try {
             const gl = await this.loadLibrary();
             if (version !== this.version) return;
-            const destino = [Number(cliente.lng), Number(cliente.lat)];
+            if (!destino) {
+                this.status.textContent = 'Localizando você…';
+                position = await this.getPosition();
+                if (version !== this.version) return;
+                if (!coordenadasValidas(position?.coords?.latitude, position?.coords?.longitude)) throw new Error('Localização indisponível.');
+            }
+            const center = destino || [Number(position.coords.longitude), Number(position.coords.latitude)];
             const map = new gl.Map({ container: this.canvas, style: 'https://tiles.openfreemap.org/styles/liberty',
-                center: destino, zoom: 15, dragPan: true, scrollZoom: false, cooperativeGestures: false,
+                center, zoom: 15, dragPan: true, scrollZoom: false, cooperativeGestures: false,
                 dragRotate: false, pitchWithRotate: false, touchZoomRotate: true, attributionControl: false });
             this.map = map;
             map.touchZoomRotate.disableRotation();
@@ -91,9 +95,9 @@ export class HomeVisitMap {
             });
             map.on('load', () => { loaded = true; failed = false; updateStatus(); });
             map.on('error', () => { failed = true; updateStatus(); });
-            const marker = (person, position, label) => {
+            const marker = (person, position, label, secondary = false) => {
                 const element = this.canvas.ownerDocument.createElement('div');
-                element.className = person ? 'home-map-person' : 'home-map-destination';
+                element.className = person ? 'home-map-person' : secondary ? 'home-map-destination home-map-secondary' : 'home-map-destination';
                 element.setAttribute('role', 'img');
                 element.setAttribute('aria-label', label);
                 element.title = label;
@@ -101,16 +105,20 @@ export class HomeVisitMap {
                 return new gl.Marker({ element, anchor: person ? 'center' : 'bottom' })
                     .setLngLat(position).setPopup(new gl.Popup({ offset: 20 }).setText(label)).addTo(map);
             };
-            marker(false, destino, cliente.nome || 'Próxima visita');
+            for (const secundario of clientesSecundarios.slice(0, 4)) {
+                if (!coordenadasValidas(secundario?.lat, secundario?.lng)) continue;
+                marker(false, [Number(secundario.lng), Number(secundario.lat)], 'Visita seguinte: ' + (secundario.nome || 'Loja'), true);
+            }
+            if (destino) marker(false, destino, cliente.nome || 'Próxima visita');
             try {
-                const position = await this.getPosition();
+                position = position || await this.getPosition();
                 if (version !== this.version) return;
                 const lat = position?.coords?.latitude, lng = position?.coords?.longitude;
                 if (!coordenadasValidas(lat, lng)) throw new Error('Localização indisponível.');
                 const pessoa = [Number(lng), Number(lat)];
                 marker(true, pessoa, 'Você está aqui');
                 map.resize();
-                map.fitBounds(new gl.LngLatBounds(destino, destino).extend(pessoa), { padding: 36, maxZoom: 16, duration: 0 });
+                if (destino) map.fitBounds(new gl.LngLatBounds(destino, destino).extend(pessoa), { padding: 36, maxZoom: 16, duration: 0 });
                 locating = false;
                 updateStatus();
             } catch (error) {
@@ -120,7 +128,8 @@ export class HomeVisitMap {
                 updateStatus();
             }
         } catch (error) {
-            if (version === this.version) this.status.textContent = 'Não foi possível carregar o mapa. Confira sua conexão.';
+            if (version === this.version) this.status.textContent = !destino && position === null
+                ? error.message || 'Não foi possível obter sua localização.' : 'Não foi possível carregar o mapa. Confira sua conexão.';
         }
     }
 }

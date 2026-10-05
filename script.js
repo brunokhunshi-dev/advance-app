@@ -2,7 +2,7 @@ import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
-import { cardAgenda, proximasVisitas } from './src/ui/agenda-cards.js';
+import { cardAgenda, proximasVisitas, visitasSecundarias } from './src/ui/agenda-cards.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
 import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
@@ -832,7 +832,17 @@ async function carregarAtividadesPendentes() {
 
         homeCalendar.setActivities(atividades);
         void renderizarProximasVisitasInicio(atividades, sessao, pedido);
-        if (!atividades.length) { limparEstadoVisita(); area.textContent = 'Nenhuma visita pendente.'; void homeVisitMap.update(null); return; }
+        if (!atividades.length) {
+            limparEstadoVisita();
+            area.innerHTML = `<div class="card-visita card-visita-empty"><div class="card-info"><h3 class="card-titulo">Nenhuma visita agendada</h3><p class="card-empty-description">Agende sua próxima visita para começar.</p></div><button type="button" class="btn-checkin">Agendar visita</button></div>`;
+            area.querySelector('button').addEventListener('click', () => {
+                if (operacaoEmCurso) return;
+                navegarParaTela('tela-nova-visita');
+                window.scrollTo(0, 0);
+            });
+            void homeVisitMap.update(null);
+            return;
+        }
 
         const atividade = atividades[0];
 
@@ -854,8 +864,12 @@ async function carregarAtividadesPendentes() {
 
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
+        const resultadosSecundarios = await Promise.allSettled(visitasSecundarias(atividades, atividade.id)
+            .map(visita => visita.clienteId ? obterCliente(visita.clienteId) : Promise.resolve(null)));
+        if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
+        const clientesSecundarios = resultadosSecundarios.map(resultado => resultado.status === 'fulfilled' ? resultado.value : null).filter(Boolean);
         document.getElementById('home-location-address').textContent = cliente?.enderecoCompleto || '';
-        void homeVisitMap.update(cliente);
+        void homeVisitMap.update(cliente, clientesSecundarios);
 
         limparEstadoVisita();
 

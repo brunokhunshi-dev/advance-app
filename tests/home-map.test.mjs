@@ -72,15 +72,40 @@ test('logout invalidates delayed GPS and removes map and markers', async () => {
     assert.equal(s.status.textContent, '');
 });
 
-test('missing destination coordinates do not request GPS or load a fictitious map', async () => {
-    let requests = 0;
-    const s = setup(async () => { requests++; });
-    await s.controller.update({ nome: 'Loja' });
-    assert.equal(requests, 0);
-    assert.equal(s.markers.length, 0);
-    assert.match(s.status.textContent, /localização cadastrada/);
+test('without a scheduled visit the map centers on actual GPS and shows only the promoter', async () => {
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
     await s.controller.update(null);
-    assert.match(s.status.textContent, /Nenhuma próxima visita/);
+    assert.equal(s.markers.length, 1);
+    assert.equal(s.markers[0].options.element.className, 'home-map-person');
+    assert.deepEqual(s.maps[0].options.center, [-47.2, -23.1]);
+    assert.equal(s.bounds.length, 0);
+    s.maps[0].handlers.load();
+    assert.equal(s.status.textContent, '');
+});
+
+test('invalid store coordinates fall back to GPS without fabricating a destination', async () => {
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
+    await s.controller.update({ nome: 'Loja', lat: null, lng: null });
+    assert.equal(s.markers.length, 1);
+    assert.equal(s.markers[0].options.element.className, 'home-map-person');
+});
+
+test('empty agenda with denied GPS explains the issue instead of inventing a position', async () => {
+    const s = setup(async () => { throw Error('Permita o acesso à localização para continuar.'); });
+    await s.controller.update(null);
+    assert.equal(s.markers.length, 0);
+    assert.equal(s.maps.length, 0);
+    assert.match(s.status.textContent, /Permita/);
+});
+
+test('four secondary visit pins never expand the focus beyond promoter and current visit', async () => {
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
+    const secundarios = Array.from({ length: 5 }, (_, index) => ({ nome: `Loja ${index}`, lat: -20 - index, lng: -40 - index }));
+    await s.controller.update(cliente, secundarios);
+    assert.equal(s.markers.length, 6);
+    assert.equal(s.markers.filter(m => m.options.element.className.includes('home-map-secondary')).length, 4);
+    assert.equal(s.markers[4].options.element.className, 'home-map-destination');
+    assert.deepEqual(s.bounds[0], [[-47.21, -23.09], [-47.2, -23.1]]);
 });
 
 test('home calendar selects empty days, opens populated days and preserves exact date on repeat', () => {
