@@ -202,8 +202,8 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 
 /* 11. TELA RELATÓRIO TÉCNICO */
 .tela-relatorio-container { display: none; flex-direction: column; min-height: 100vh; background-color: var(--color-white); width: 100%; }
-.relatorio-header-top { display: flex; justify-content: center; align-items: center; padding: 16px 20px; background-color: var(--color-white); }
-.relatorio-info-section { padding: 0 20px 20px 20px; background-color: var(--color-white); }
+.relatorio-header-top { height: 0; padding: 0; }
+.relatorio-info-section { padding: max(24px, calc(16px + env(safe-area-inset-top))) 20px 20px; background-color: var(--color-white); }
 .rel-codigo { font-size: 0.85rem; font-weight: 600; color: #A0A0A0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
 .select-wrapper { position: relative; }
 #rel-cliente-select { appearance: none; -webkit-appearance: none; color: var(--color-dark); opacity: 1; }
@@ -1338,3 +1338,5 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .home-agenda-more[hidden] { display: none; }
 .home-agenda-more:hover { color: var(--color-dark); }
 .home-agenda-more:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; border-radius: 8px; }
+
+.relatorio-info-section .page-title, .checkout-titulo { padding-right: 60px; }

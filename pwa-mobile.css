@@ -13,7 +13,7 @@ button:disabled { opacity: .6; cursor: wait; }
 /* Mantém o app confortável em telas grandes sem deixar os controles esticados. */
 #app-container, .tela-login-container, .tela-relatorio-container { width: 100%; max-width: 720px; margin: 0 auto; }
 .app-header { padding: 14px var(--mobile-gutter); padding-top: max(14px, env(safe-area-inset-top)); min-height: 64px; }
-.main-content { padding: 24px var(--mobile-gutter) calc(104px + var(--safe-bottom)); }
+.main-content { padding: max(24px, calc(16px + env(safe-area-inset-top))) var(--mobile-gutter) calc(104px + var(--safe-bottom)); }
 .page-title { font-size: clamp(1.5rem, 6vw, 2rem); line-height: 1.15; margin-bottom: 22px; }
 
 .input-box { min-height: var(--control-height); font-size: 16px; padding: 14px 16px; }
