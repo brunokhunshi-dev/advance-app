@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-profile-v54';
+const CACHE_NAME = 'advance-pwa-profile-v55';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -55,8 +55,9 @@ self.addEventListener('activate', event => {
 async function respond(request, cacheKey) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(cacheKey);
-  // Versioned app shell assets are immutable within a service-worker release.
-  if (request.mode !== 'navigate' && cached) return cached;
+  // HTML, scripts e estilos devem vir da mesma versão instalada do app.
+  // Buscar só o HTML novo na rede mistura sua estrutura com os scripts antigos.
+  if (cached) return cached;
   try {
     const response = await fetch(request);
     if (response.ok) {

@@ -17,12 +17,24 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="styles.css?v=profile-54">
-    <link rel="stylesheet" href="profile.css?v=profile-54">
-    <link rel="stylesheet" href="commercial-report.css?v=profile-54">
-    <link rel="stylesheet" href="pwa-mobile.css?v=profile-54">
+    <link rel="stylesheet" href="styles.css?v=profile-55">
+    <link rel="stylesheet" href="profile.css?v=profile-55">
+    <link rel="stylesheet" href="commercial-report.css?v=profile-55">
+    <link rel="stylesheet" href="pwa-mobile.css?v=profile-55">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
+            const jaControlado = Boolean(navigator.serviceWorker.controller);
+            let atualizando = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                // O perfil não tem formulário: atualizar aqui recupera também
+                // sessões que abriram HTML novo usando o script do cache antigo.
+                // Outras telas continuam abertas para preservar o que foi digitado.
+                if (!jaControlado || atualizando || document.querySelector('dialog[open]')) return;
+                if (document.getElementById('tela-perfil')?.getClientRects().length) {
+                    atualizando = true;
+                    location.reload();
+                }
+            });
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js', { scope: './' })
                     .then(registration => registration.update())
@@ -1013,7 +1025,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=profile-54"></script>
+    <script type="module" src="script.js?v=profile-55"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

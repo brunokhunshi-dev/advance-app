@@ -20,6 +20,11 @@ function setup({cached,network,put=async()=>{}}={}) {
 test('every precached path exists in the checkout',async()=>{await setup().event('install');});
 test('activation deletes only old Advance caches',async()=>{const s=setup();await s.event('activate');assert.deepEqual(s.deleted,['advance-pwa-old']);assert.equal(s.claimed(),true);});
 test('versioned static URL uses precached asset without network',async()=>{const s=setup({cached:new Response('cached')});assert.equal(await(await s.request('/script.js?v=v12')).text(),'cached');assert.equal(s.fetches(),0);});
+test('navigation keeps HTML in the installed shell version instead of mixing it with new network HTML',async()=>{
+    const s=setup({cached:new Response('installed HTML'),network:new Response('new incompatible HTML')});
+    assert.equal(await(await s.request('/index.html','navigate')).text(),'installed HTML');
+    assert.equal(s.fetches(),0);
+});
 test('cache quota failure does not discard a network response',async()=>{const s=setup({network:new Response('fresh'),put:async()=>{throw Error('quota');}});assert.equal(await(await s.request('/index.html','navigate')).text(),'fresh');});
 test('offline cache miss returns a Response, not undefined',async()=>{const s=setup({network:Error('offline')});assert.equal((await s.request('/script.js')).status,503);});
 test('APIs and uploads are not intercepted or cached',()=>{const s=setup();assert.equal(s.request('/api/private'),undefined);assert.equal(s.request('/uploads/photo.jpg'),undefined);});
