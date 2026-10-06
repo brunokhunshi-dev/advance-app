@@ -13,13 +13,13 @@ export function contactQrSvg(vcard) {
 
 export class ContactShare {
     constructor(loadProfile = async profile => profile) { this.loadProfile = loadProfile; this.version = 0; }
-    close() { this.version++; this.dialog?.close(); this.dialog?.remove(); this.dialog = null; if (this.fileUrl) URL.revokeObjectURL(this.fileUrl); this.fileUrl = null; }
+    close() { this.version++; this.dialog?.close(); this.dialog?.remove(); this.dialog = null; }
     async open(profile) {
         this.close();
         const version = ++this.version, dialog = document.createElement('dialog');
         this.dialog = dialog; dialog.className = 'profile-share-dialog';
         dialog.setAttribute('aria-labelledby', 'profile-share-title');
-        dialog.innerHTML = `<button type="button" class="profile-share-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 id="profile-share-title">Compartilhar contato</h2><p data-name></p><div class="profile-share-qr" aria-busy="true">${loadingMarkup(1)}</div><p data-status role="status">Gerando QR Code…</p><a class="profile-share-download" hidden download="contato-advance.vcf">Baixar contato (.vcf)</a><button type="button" class="btn-outline-red" data-retry hidden>Tentar novamente</button>`;
+        dialog.innerHTML = `<button type="button" class="profile-share-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 id="profile-share-title">Compartilhar contato</h2><p data-name></p><div class="profile-share-qr" aria-busy="true">${loadingMarkup(1)}</div><p data-status role="status">Gerando QR Code…</p><button type="button" class="btn-outline-red" data-retry hidden>Tentar novamente</button>`;
         dialog.querySelector('[data-name]').textContent = profile.nome;
         dialog.querySelector('.profile-share-close').onclick = () => this.close();
         dialog.addEventListener('cancel', event => { event.preventDefault(); this.close(); });
@@ -36,8 +36,6 @@ export class ContactShare {
             const vcard = contactVCard(currentProfile);
             dialog.querySelector('[data-name]').textContent = currentProfile.nome;
             dialog.querySelector('.profile-share-qr').innerHTML = contactQrSvg(vcard);
-            this.fileUrl = URL.createObjectURL(new Blob([vcard], { type: 'text/vcard;charset=utf-8' }));
-            const link = dialog.querySelector('a'); link.href = this.fileUrl; link.hidden = false;
             dialog.querySelector('[data-status]').textContent = 'Leia o QR Code com a câmera do celular para adicionar o contato.';
         } catch {
             if (version !== this.version) return;
