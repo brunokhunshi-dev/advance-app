@@ -63,3 +63,16 @@
 }
 
 .profile-type .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+
+.profile-share-dialog { width:min(360px,calc(100vw - 36px)); max-height:calc(100dvh - 48px); overflow:auto; box-sizing:border-box; border:0; border-radius:18px; padding:28px 24px 24px; color:var(--color-dark); background:white; text-align:center; font-family:var(--font-body); }
+.profile-share-dialog::backdrop { background:rgba(4,4,56,.5); }
+.profile-share-dialog h2 { font-size:18px; margin:16px 0 8px; }
+.profile-share-dialog p { font-size:12px; line-height:1.5; margin:8px 0 16px; overflow-wrap:anywhere; }
+.profile-share-close { position:absolute; right:12px; top:12px; width:36px; height:36px; min-height:36px; padding:0; border:1px solid #0404381a; border-radius:9px; background:white; color:var(--color-dark); font-size:25px; cursor:pointer; }
+.profile-share-close svg { display:block; width:20px; height:20px; margin:auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
+.profile-share-qr { width:100%; max-width:280px; min-height:240px; margin:auto; display:grid; place-items:center; }
+.profile-share-qr svg { display:block; width:100%; height:auto; }
+.profile-share-qr .loading-placeholder { width:100%; }
+.profile-share-qr .loading-card { min-height:220px; }
+.profile-share-download { display:block; padding:14px; border-radius:9px; background:var(--color-red); color:white; text-decoration:none; font-size:12px; font-weight:700; }
+.profile-share-dialog [hidden] { display:none; }

@@ -2913,6 +2913,14 @@ function configurarEventosGlobais() {
 
 const profileView = new ProfileView(document.getElementById('profile-content'), {
     loadPhoto: readProfilePhotoUrl,
+    shareContact: async profile => {
+        const sessionId = idUsuarioLogado;
+        if (!sessionId || profile.id !== sessionId) throw new Error('Entre novamente para compartilhar o contato.');
+        const collection = profile.tipo === 'Assistente' ? 'assistencia' : 'promotores';
+        const snapshot = await getDoc(doc(db, collection, sessionId));
+        if (sessionId !== idUsuarioLogado || !snapshot.exists()) throw new Error('Perfil indisponível.');
+        return { ...profile, ...snapshot.data() };
+    },
     load: async () => {
         const sessao = sessaoAtual();
         const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));

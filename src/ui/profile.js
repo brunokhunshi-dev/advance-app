@@ -1,3 +1,4 @@
+import { ContactShare } from './contact-share.js';
 import { escaparHtml as esc } from '../domain/formatters.js';
 import { PROFILE_TYPES, profileStats, profileDuration, rankClients } from '../domain/profile.js';
 import { coordenadasValidas } from '../services/location.js';
@@ -5,12 +6,14 @@ import { loadMapLibrary, mapTheme } from './home-map.js';
 import { loadingMarkup } from './loading.js';
 const icon = name => `<img src="midia/perfil/${name}.svg" alt="" aria-hidden="true">`;
 export class ProfileView {
-    constructor(root, { load, loadPhoto = async () => null, onError, openClient }) {
+    constructor(root, { load, loadPhoto = async () => null, shareContact, onError, openClient }) {
         this.root = root; this.load = load; this.loadPhoto = loadPhoto; this.onError = onError; this.openClient = openClient;
+        this.contactShare = new ContactShare(shareContact);
         this.days = 30; this.type = 'Todas'; this.mode = 'Pontos'; this.version = 0;
     }
-    clear() { this.version++; this.map?.remove(); this.map = null; this.data = null; this.photoUrl = null; this.root.replaceChildren(); this.root.removeAttribute('aria-busy'); }
+    clear() { this.contactShare.close(); this.version++; this.map?.remove(); this.map = null; this.data = null; this.photoUrl = null; this.root.replaceChildren(); this.root.removeAttribute('aria-busy'); }
     async open(profile) {
+        this.contactShare.close();
         const version = ++this.version;
         this.map?.remove(); this.map = null;
         this.root.innerHTML = loadingMarkup(4); this.root.setAttribute('aria-busy', 'true');
@@ -36,7 +39,7 @@ export class ProfileView {
         const photo = this.photoUrl || p.fotoUrl || p.foto || p.photoURL;
         const safePhoto = typeof photo === 'string' && /^https:\/\//.test(photo) ? photo : null;
         this.root.innerHTML = `<header class="profile-header"><div class="profile-photo">${safePhoto ? `<img src="${esc(safePhoto)}" alt="Foto de ${esc(p.nome)}">` : `<span class="profile-initials" aria-label="Sem foto de perfil">${esc(initials)}</span>`}</div>
-            <div class="profile-identity"><button type="button" class="profile-export" aria-label="Exportar perfil para PDF" title="Exportar PDF">${icon('exportar')}</button>
+            <div class="profile-identity"><button type="button" class="profile-export" aria-label="Compartilhar contato" title="Compartilhar contato">${icon('exportar')}</button>
             <p class="profile-role">${esc(p.cargo || (p.tipo === 'Assistente' ? 'Assistente Técnico' : 'Promotor Técnico de Vendas'))}</p><h1>${esc(p.nome)}</h1>
             <p class="profile-contact">${icon('telefone')}<span>${esc(p.telefone || p.celular || 'Telefone não informado')}</span></p>
             <p class="profile-contact">${icon('email')}<span>${esc(p.email || 'E-mail não informado')}</span></p>
@@ -50,11 +53,7 @@ export class ProfileView {
             <div class="profile-grid profile-rankings">${[true,false].map(desc => `<section class="profile-card"><h2>Clientes ${desc ? 'mais' : 'menos'} visitados</h2><ol class="${desc ? 'profile-most' : 'profile-least'}">${rankClients(stats.clients,desc).map((client,i)=>`<li><button type="button" data-client="${esc(client.id)}" title="${esc(client.name)} — ${client.count} visita(s)"><b>${i+1}º</b><span>${esc(client.name)}</span></button></li>`).join('')}</ol>${stats.clients.length ? '' : '<p class="profile-empty">Nenhuma visita no período.</p>'}</section>`).join('')}</div>
             <p class="profile-note">${stats.start.toLocaleDateString('pt-BR')} a ${stats.end.toLocaleDateString('pt-BR')} · Atividades concluídas. Tempo entre check-in e checkout. Clientes com visitas registradas no período.</p></div>`;
         if (safePhoto) this.root.querySelector('.profile-photo img').onerror = () => { this.root.querySelector('.profile-photo').innerHTML = `<span class="profile-initials">${esc(initials)}</span>`; };
-        this.root.querySelector('.profile-export').onclick = () => {
-            document.body.classList.add('printing-profile');
-            window.addEventListener('afterprint', () => document.body.classList.remove('printing-profile'), { once: true });
-            window.print();
-        };
+        this.root.querySelector('.profile-export').onclick = () => this.contactShare.open(p);
         this.root.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { this.days = Number(b.dataset.period); this.render(); });
         this.root.querySelector('select').onchange = e => { this.type = e.target.value; this.renderChart(stats); };
         this.root.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
