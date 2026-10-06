@@ -1372,3 +1372,15 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .autocomplete-client-cnpj { font-size: .65rem; }
 .autocomplete-client-selected { padding: 0 4px; margin-top: 8px; }
 .autocomplete-client-selected:empty { display: none; }
+
+/* Mantém as dimensões reais do mapa enquanto toda a home é preparada. */
+#tela-inicio.home-loading { position: relative; }
+.home-loading #home-content { visibility: hidden; }
+#home-loading { width: 100%; }
+.home-loading #home-content { position: absolute; left: 0; right: 0; padding: inherit; top: 0; }
+.home-loading-heading { width: 42%; margin: 0 0 20px; }
+.home-loading-address { margin: 0 0 12px; }
+.home-loading-map { height: 200px; width: 100%; border-radius: var(--radius-card); margin-bottom: 30px; }
+.home-loading-calendar { padding: 20px; border-radius: var(--radius-card); background: var(--color-white); margin-bottom: 20px; }
+.home-loading-calendar > div { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 20px; }
+.home-loading-calendar > div > span { height: 32px; }

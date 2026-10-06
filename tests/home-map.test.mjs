@@ -1,4 +1,7 @@
-import test from 'node:test';
+import test, { afterEach } from 'node:test';
+
+const controllers = [];
+afterEach(() => { for (const controller of controllers.splice(0)) controller.clear(); });
 import assert from 'node:assert/strict';
 import { HomeVisitMap, mapTheme } from '../src/ui/home-map.js';
 import { AgendaCalendar, filtrarAgenda } from '../src/ui/agenda-calendar.js';
@@ -29,6 +32,7 @@ function setup(getPosition) {
         }
     };
     const controller = new HomeVisitMap(canvas, status, { getPosition, loadLibrary: async () => gl });
+    controllers.push(controller);
     return { controller, markers, bounds, removed, status, maps };
 }
 
@@ -185,4 +189,44 @@ test('secondary store link falls back to coordinates when address is absent', as
     assert.equal(link.textContent, '-22,-46');
     assert.equal(new URL(link.href).searchParams.get('query'), '-22,-46');
     assert.deepEqual(s.bounds[0], [[-47.21, -23.09], [-47.2, -23.1]]);
+});
+
+
+test('home readiness waits for both map load and delayed GPS', async () => {
+    let locate;
+    const s = setup(() => new Promise(resolve => { locate = resolve; }));
+    const update = s.controller.update(cliente);
+    await Promise.resolve();
+    let ready = false;
+    s.controller.ready.then(() => { ready = true; });
+    s.maps[0].handlers.load();
+    await Promise.resolve();
+    assert.equal(ready, false);
+    locate({ coords: { latitude: -23.1, longitude: -47.2 } });
+    await update;
+    await s.controller.ready;
+    assert.equal(ready, true);
+});
+
+test('home readiness waits for the map after GPS, and releases on map failure', async () => {
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
+    await s.controller.update(cliente);
+    let ready = false;
+    s.controller.ready.then(() => { ready = true; });
+    await Promise.resolve();
+    assert.equal(ready, false);
+    s.maps[0].handlers.error();
+    await s.controller.ready;
+    assert.equal(ready, true);
+    assert.match(s.status.textContent, /conexão/);
+});
+
+test('clearing a stale map releases its waiting home without waiting for GPS', async () => {
+    const s = setup(() => new Promise(() => {}));
+    void s.controller.update(cliente);
+    await Promise.resolve();
+    const pending = s.controller.ready;
+    s.controller.clear();
+    await pending;
+    assert.equal(s.controller.map, null);
 });

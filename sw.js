@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-training-test-v47';
+const CACHE_NAME = 'advance-pwa-home-loading-v48';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',

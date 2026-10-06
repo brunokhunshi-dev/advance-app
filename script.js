@@ -6,7 +6,7 @@ import { TrainingReport } from './src/ui/training-report.js';
 import { modulosTreinamentoPendentes } from './src/domain/training.js';
 import { cardAgenda, proximasVisitas, visitasSecundarias } from './src/ui/agenda-cards.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
-import { loadingMarkup } from './src/ui/loading.js';
+import { loadingMarkup, homeLoadingMarkup } from './src/ui/loading.js';
 import { filtrarClientes, tituloCliente, detalhesCliente, opcaoCliente } from './src/ui/client-options.js';
 import { AgendaCalendar, filtrarAgenda } from './src/ui/agenda-calendar.js';
 import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.js';
@@ -826,6 +826,15 @@ async function carregarAtividadesPendentes() {
 
     const area = document.getElementById('area-visitas');
 
+    const home = document.getElementById('tela-inicio');
+    const placeholder = document.getElementById('home-loading');
+    const content = document.getElementById('home-content');
+    home.classList.add('home-loading');
+    home.setAttribute('aria-busy', 'true');
+    content.inert = true;
+    placeholder.innerHTML = homeLoadingMarkup();
+    placeholder.hidden = false;
+    let proximasProntas = Promise.resolve();
     area.innerHTML = loadingMarkup(1);
     homeCalendar.setActivities([]);
     document.getElementById('home-upcoming-visits').innerHTML = loadingMarkup();
@@ -844,7 +853,7 @@ async function carregarAtividadesPendentes() {
         if (!sessaoValida(sessao) || pedido !== sequenciaPendentes) return;
 
         homeCalendar.setActivities(atividades);
-        void renderizarProximasVisitasInicio(atividades, sessao, pedido);
+        proximasProntas = renderizarProximasVisitasInicio(atividades, sessao, pedido);
         if (!atividades.length) {
             limparEstadoVisita();
             area.innerHTML = `<div class="card-visita card-visita-empty"><div class="card-info"><h3 class="card-titulo">Nenhuma visita agendada</h3><p class="card-empty-description">Agende sua próxima visita para começar.</p></div><button type="button" class="btn-checkin">Agendar visita</button></div>`;
@@ -915,6 +924,16 @@ async function carregarAtividadesPendentes() {
         document.getElementById('home-agenda-more').hidden = true;
         area.textContent = 'Não foi possível carregar as visitas.'; informarErro('Erro ao carregar visitas', erro);
 
+    } finally {
+        await Promise.allSettled([proximasProntas, homeVisitMap.ready]);
+        if (sessaoValida(sessao) && pedido === sequenciaPendentes) {
+            home.classList.remove('home-loading');
+            home.removeAttribute('aria-busy');
+            content.inert = false;
+            placeholder.hidden = true;
+            placeholder.replaceChildren();
+            homeVisitMap.map?.resize();
+        }
     }
 
 }

@@ -50,9 +50,12 @@ export class HomeVisitMap {
         this.getPosition = getPosition;
         this.loadLibrary = loadLibrary;
         this.version = 0;
+        this.ready = Promise.resolve();
     }
     clear(message = '') {
         this.version++;
+        this.finishLoading?.();
+        clearTimeout(this.loadingTimer);
         this.map?.remove();
         this.map = null;
         this.canvas.replaceChildren();
@@ -61,6 +64,13 @@ export class HomeVisitMap {
     async update(cliente, clientesSecundarios = []) {
         this.clear('Carregando mapa…');
         const version = this.version;
+        this.ready = new Promise(resolve => { this.finishLoading = resolve; });
+        this.loadingTimer = setTimeout(() => {
+            if (version !== this.version) return;
+            this.status.textContent = 'O mapa está demorando para carregar. Confira sua conexão.';
+            this.finishLoading();
+        }, 25000);
+        const finish = () => { clearTimeout(this.loadingTimer); this.finishLoading(); };
         const destino = cliente && coordenadasValidas(cliente.lat, cliente.lng)
             ? [Number(cliente.lng), Number(cliente.lat)] : null;
         let position = null;
@@ -83,6 +93,7 @@ export class HomeVisitMap {
             let loaded = false, failed = false, locating = true, gpsMessage = '';
             const updateStatus = () => {
                 if (version !== this.version) return;
+                if (failed || (loaded && !locating)) finish();
                 this.status.textContent = failed ? 'Não foi possível carregar a base do mapa. Confira sua conexão.'
                     : gpsMessage || (!loaded ? 'Carregando mapa…' : locating ? 'Localizando você…' : '');
             };
@@ -141,8 +152,11 @@ export class HomeVisitMap {
                 updateStatus();
             }
         } catch (error) {
-            if (version === this.version) this.status.textContent = !destino && position === null
-                ? error.message || 'Não foi possível obter sua localização.' : 'Não foi possível carregar o mapa. Confira sua conexão.';
+            if (version === this.version) {
+                this.status.textContent = !destino && position === null
+                    ? error.message || 'Não foi possível obter sua localização.' : 'Não foi possível carregar o mapa. Confira sua conexão.';
+                finish();
+            }
         }
     }
 }
