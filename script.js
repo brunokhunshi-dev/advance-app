@@ -1,3 +1,4 @@
+import { StoreLocationPicker } from './src/ui/store-location.js';
 import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
@@ -89,6 +90,7 @@ let nomeUsuarioLogado = null;
 
 let perfilUsuarioLogado = null;
 let dadosPerfilLogado = null;
+const storeLocationPicker = new StoreLocationPicker();
 
 let atividadeSelecionadaId = null;
 
@@ -352,6 +354,7 @@ function atualizarBotaoCadastro() {
 function invalidarCoordenadas() {
 
     versaoConsultaEndereco++;
+    storeLocationPicker.clear();
 
     const campo = document.getElementById('cc-cep');
 
@@ -1673,7 +1676,21 @@ function configurarTelaCadastroCliente() {
 
     const valoresEndereco = () => ['cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].map(id => campo(id).value.trim()).join(', ');
 
-    const enderecoParaCoordenadas = () => ({ logradouro: campo('cc-endereco').value.trim(), numero: campo('cc-numero').value.trim(), cidade: campo('cc-cidade').value.trim(), uf: campo('cc-uf').value.trim().toUpperCase() });
+    const enderecoParaCoordenadas = () => ({ logradouro: campo('cc-endereco').value.trim(), numero: campo('cc-numero').value.trim(), cidade: campo('cc-cidade').value.trim(), uf: campo('cc-uf').value.trim().toUpperCase(), bairro: campo('cc-bairro').value.trim(), cep: campo('cc-cep').value.trim() });
+
+    const localizarLoja = async sessao => {
+        const endereco = enderecoParaCoordenadas();
+        let coords = null;
+        campo('btn-salvar-cliente').textContent = 'Localizando endereço...';
+        try { coords = await obterCoordsPorEndereco(endereco); }
+        catch (error) { console.warn('Busca automática indisponível; localização manual disponível.', error); }
+        exigirSessao(sessao);
+        if (coords && coordenadasValidas(coords.lat, coords.lng)) return { ...coords, source: 'geocodificacao' };
+        campo('btn-salvar-cliente').textContent = 'Aguardando localização...';
+        coords = await storeLocationPicker.open(endereco);
+        exigirSessao(sessao);
+        return coords;
+    };
 
     const mostrarMapa = endereco => {
 
@@ -1863,11 +1880,11 @@ function configurarTelaCadastroCliente() {
 
                 } else {
 
-                    const coords = await obterCoordsPorEndereco(enderecoParaCoordenadas());
+                    const coords = await localizarLoja(sessao);
 
                     exigirSessao(sessao);
 
-                    if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
+                    if (!coords) return;
 
                     clienteId = gerarIdClienteCnpj(cnpjReal);
                     const ref = doc(db,'clientes',clienteId);
@@ -1880,23 +1897,23 @@ function configurarTelaCadastroCliente() {
                         }
                         const agora = new Date();
                         tx.set(ref, { codigoCnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
-                            lat: Number(coords.lat), lng: Number(coords.lng), status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
+                            lat: Number(coords.lat), lng: Number(coords.lng), origemCoordenadas: coords.source, status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
                         return { nome, localizado: false };
                     });
                     nomeFinal = resultado.nome; localizado = resultado.localizado;
                 }
             } else {
                 // Sem CNPJ: ID aleatório e cadastro provisório, sem tentativa de detectar duplicidade.
-                const coords = await obterCoordsPorEndereco(enderecoParaCoordenadas());
+                const coords = await localizarLoja(sessao);
                 exigirSessao(sessao);
-                if (!coords || !coordenadasValidas(coords.lat, coords.lng)) throw new Error('Não foi possível localizar este endereço. Confira os dados e tente novamente; a loja precisa de coordenadas para o check-in.');
+                if (!coords) return;
 
                 const agora = new Date();
                 const clienteProvisorioId = gerarIdClienteProvisorio(agora, nomeUsuarioLogado);
                 const ref = doc(db, 'clientes', clienteProvisorioId);
                 await runTransaction(db, async tx => {
                     tx.set(ref, { nome, cidade, uf, enderecoCompleto,
-                        lat: Number(coords.lat), lng: Number(coords.lng), status: 'Provisorio',
+                        lat: Number(coords.lat), lng: Number(coords.lng), origemCoordenadas: coords.source, status: 'Provisorio',
                         criadoEm: agora, atualizadoEm: agora, criadoPor: sessao.id });
                 });
                 clienteId = ref.id;

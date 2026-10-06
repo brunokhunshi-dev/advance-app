@@ -51,34 +51,46 @@ export async function obterEnderecoPorCoords(lat, lng) {
 
 }
 
-// Recebe os campos separados para evitar que o bairro seja interpretado como rua.
-export async function obterCoordsPorEndereco(endereco) {
-    const params = new URLSearchParams({ format: 'jsonv2', countrycodes: 'br', limit: '1', addressdetails: '1' });
-    if (typeof endereco === 'string') {
-        params.set('q', endereco);
-    } else {
-        const rua = String(endereco?.logradouro || '').trim();
-        const numero = String(endereco?.numero || '').trim();
-        const cidade = String(endereco?.cidade || '').trim();
-        const uf = String(endereco?.uf || '').trim();
-        if (!rua || !numero || !cidade || !uf) return null;
-        params.set('street', `${numero} ${rua}`);
-        params.set('city', cidade);
-        params.set('state', uf);
-        params.set('country', 'Brasil');
+// Tenta consultas estruturadas e livres, sempre mantendo rua e número.
+export function formatosBuscaEndereco(endereco) {
+    const base = { format: 'jsonv2', countrycodes: 'br', limit: '3', addressdetails: '1' };
+    if (typeof endereco === 'string') return [new URLSearchParams({ ...base, q: endereco })];
+    const rua = String(endereco?.logradouro || '').trim(), numero = String(endereco?.numero || '').trim();
+    const cidade = String(endereco?.cidade || '').trim(), uf = String(endereco?.uf || '').trim();
+    if (!rua || !numero || !cidade || !uf) return [];
+    const bairro = String(endereco?.bairro || '').trim(), cep = String(endereco?.cep || '').replace(/\D/g, '');
+    const nomeRua = rua.replace(/^(?:avenida|av\.?|rua|r\.?|rodovia|rod\.?)\s+/i, '');
+    const consultas = [
+        new URLSearchParams({ ...base, street: `${numero} ${rua}`, city: cidade, state: uf, country: 'Brasil' }),
+        new URLSearchParams({ ...base, q: `${rua}, ${numero}, ${cidade}, ${uf}, Brasil` }),
+        new URLSearchParams({ ...base, q: [nomeRua, numero, bairro, cidade, uf, cep, 'Brasil'].filter(Boolean).join(', ') })
+    ];
+    return [...new Map(consultas.map(params => [params.toString(), params])).values()];
+}
+
+export async function obterCoordsPorEndereco(endereco, { wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+    const consultas = formatosBuscaEndereco(endereco);
+    const normalizar = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    for (let index = 0; index < consultas.length; index++) {
+        if (index) await wait(1100);
+        let data;
+        try { data = await buscarJson(`https://nominatim.openstreetmap.org/search?${consultas[index]}`); }
+        catch (erro) { throw new Error('O serviço de localização está indisponível. Marque a entrada da loja no mapa.', { cause: erro }); }
+        if (!Array.isArray(data)) throw new Error('O serviço de localização retornou uma resposta inválida.');
+        for (const resultado of data) {
+            if (!coordenadasValidas(resultado.lat, resultado.lon)) continue;
+            // Rua, bairro, CEP e cidade não identificam a entrada da loja.
+            if (['road','street','city','town','village','municipality','administrative','suburb','postcode'].includes(resultado.addresstype)) continue;
+            if (typeof endereco !== 'string') {
+                const address = resultado.address || {};
+                const cidade = address.city || address.town || address.municipality;
+                if (cidade && normalizar(cidade) !== normalizar(endereco.cidade)) continue;
+                if (address.house_number && normalizar(address.house_number) !== normalizar(endereco.numero)) continue;
+            }
+            return { lat: Number(resultado.lat), lng: Number(resultado.lon) };
+        }
     }
-    let data;
-    try {
-        data = await buscarJson(`https://nominatim.openstreetmap.org/search?${params}`);
-    } catch (erro) {
-        throw new Error('O serviço de localização está indisponível. Tente salvar novamente em alguns instantes.', { cause: erro });
-    }
-    if (!Array.isArray(data)) throw new Error('O serviço de localização retornou uma resposta inválida. Tente novamente.');
-    const resultado = data[0];
-    if (!resultado || !coordenadasValidas(resultado.lat, resultado.lon)) return null;
-    // Uma cidade, bairro ou CEP não representa a posição da loja para check-in.
-    if (['city', 'town', 'village', 'municipality', 'administrative', 'suburb', 'postcode'].includes(resultado.addresstype)) return null;
-    return { lat: Number(resultado.lat), lng: Number(resultado.lon) };
+    return null;
 }
 
 export function calcularDistancia(lat1, lon1, lat2, lon2) {
