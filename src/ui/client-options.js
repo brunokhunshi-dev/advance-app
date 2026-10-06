@@ -1,4 +1,5 @@
 import { escaparHtml } from '../domain/formatters.js';
+import { localizacaoIncerta } from '../services/location.js';
 
 const texto = value => String(value ?? '').trim();
 const normalizar = value => texto(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -15,7 +16,7 @@ export function tituloCliente(cliente) {
 
 export function detalhesCliente(cliente) {
     const endereco = texto(cliente.enderecoCompleto), cnpj = cnpjCliente(cliente);
-    return `${endereco ? `<span class="autocomplete-client-detail">${escaparHtml(endereco)}</span>` : ''}${cnpj ? `<span class="autocomplete-client-detail autocomplete-client-cnpj">CNPJ: ${escaparHtml(cnpj)}</span>` : ''}`;
+    return `${endereco ? `<span class="autocomplete-client-detail">${escaparHtml(endereco)}</span>` : ''}${cnpj ? `<span class="autocomplete-client-detail autocomplete-client-cnpj">CNPJ: ${escaparHtml(cnpj)}</span>` : ''}${localizacaoIncerta(cliente) ? '<span class="autocomplete-client-detail">Localização incerta</span>' : ''}`;
 }
 
 export function opcaoCliente(cliente) {

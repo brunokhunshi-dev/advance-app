@@ -1,4 +1,42 @@
 const GPS_ACCURACY_MAX_METERS = 150;
+const normalizarLocal = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+
+export function localizacaoIncerta(cliente) {
+    return cliente?.precisaoCoordenadas === 'rua' || (cliente?.statusLocalizacao === 'incerto' && !coordenadasValidas(cliente?.lat,cliente?.lng));
+}
+
+export function referenciaLocalizacao(cliente, centroConsultado = null) {
+    if (!cliente) return null;
+    if (!localizacaoIncerta(cliente) && coordenadasValidas(cliente.lat,cliente.lng)) return {lat:Number(cliente.lat),lng:Number(cliente.lng),raio:500,incerto:false};
+    if (!localizacaoIncerta(cliente)) return null;
+    for (const centro of [cliente.centroCidade,centroConsultado]) {
+        if (!centro || !coordenadasValidas(centro.lat,centro.lng)) continue;
+        if (normalizarLocal(centro.cidade)!==normalizarLocal(cliente.cidade) || normalizarLocal(centro.uf)!==normalizarLocal(cliente.uf)) continue;
+        return {lat:Number(centro.lat),lng:Number(centro.lng),raio:50000,incerto:true};
+    }
+    return null;
+}
+
+export function dadosLocalizacaoCadastro(coords, centro) {
+    if (coords && coordenadasValidas(coords.lat,coords.lng)) return {lat:Number(coords.lat),lng:Number(coords.lng),statusLocalizacao:'confirmado',origemCoordenadas:'geocodificacao'};
+    return {lat:null,lng:null,statusLocalizacao:'incerto',origemCoordenadas:null,centroCidade:centro || null};
+}
+
+export async function buscarCentroCidade(cidade, uf) {
+    if (!String(cidade||'').trim() || !/^[A-Z]{2}$/.test(normalizarLocal(uf))) return null;
+    const params=new URLSearchParams({format:'jsonv2',countrycodes:'br',addressdetails:'1',limit:'5',city:cidade,state:uf,country:'Brasil'});
+    const data=await buscarJson('https://nominatim.openstreetmap.org/search?'+params);
+    if (!Array.isArray(data)) return null;
+    for (const result of data) {
+        if (!['city','town','village','municipality','administrative'].includes(result.addresstype) || !coordenadasValidas(result.lat,result.lon)) continue;
+        const name=result.address?.city || result.address?.town || result.address?.municipality || result.name;
+        if (normalizarLocal(name)!==normalizarLocal(cidade)) continue;
+        const state=result.address?.['ISO3166-2-lvl4'];
+        if (state && state!==`BR-${normalizarLocal(uf)}`) continue;
+        return {lat:Number(result.lat),lng:Number(result.lon),cidade:String(cidade).trim(),uf:normalizarLocal(uf)};
+    }
+    return null;
+}
 export async function buscarJson(url) {
 
     const controller = new AbortController();
@@ -51,46 +89,34 @@ export async function obterEnderecoPorCoords(lat, lng) {
 
 }
 
-// Tenta consultas estruturadas e livres, sempre mantendo rua e número.
-export function formatosBuscaEndereco(endereco) {
-    const base = { format: 'jsonv2', countrycodes: 'br', limit: '3', addressdetails: '1' };
-    if (typeof endereco === 'string') return [new URLSearchParams({ ...base, q: endereco })];
-    const rua = String(endereco?.logradouro || '').trim(), numero = String(endereco?.numero || '').trim();
-    const cidade = String(endereco?.cidade || '').trim(), uf = String(endereco?.uf || '').trim();
-    if (!rua || !numero || !cidade || !uf) return [];
-    const bairro = String(endereco?.bairro || '').trim(), cep = String(endereco?.cep || '').replace(/\D/g, '');
-    const nomeRua = rua.replace(/^(?:avenida|av\.?|rua|r\.?|rodovia|rod\.?)\s+/i, '');
-    const consultas = [
-        new URLSearchParams({ ...base, street: `${numero} ${rua}`, city: cidade, state: uf, country: 'Brasil' }),
-        new URLSearchParams({ ...base, q: `${rua}, ${numero}, ${cidade}, ${uf}, Brasil` }),
-        new URLSearchParams({ ...base, q: [nomeRua, numero, bairro, cidade, uf, cep, 'Brasil'].filter(Boolean).join(', ') })
-    ];
-    return [...new Map(consultas.map(params => [params.toString(), params])).values()];
-}
-
-export async function obterCoordsPorEndereco(endereco, { wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
-    const consultas = formatosBuscaEndereco(endereco);
-    const normalizar = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    for (let index = 0; index < consultas.length; index++) {
-        if (index) await wait(1100);
-        let data;
-        try { data = await buscarJson(`https://nominatim.openstreetmap.org/search?${consultas[index]}`); }
-        catch (erro) { throw new Error('O serviço de localização está indisponível. Marque a entrada da loja no mapa.', { cause: erro }); }
-        if (!Array.isArray(data)) throw new Error('O serviço de localização retornou uma resposta inválida.');
-        for (const resultado of data) {
-            if (!coordenadasValidas(resultado.lat, resultado.lon)) continue;
-            // Rua, bairro, CEP e cidade não identificam a entrada da loja.
-            if (['road','street','city','town','village','municipality','administrative','suburb','postcode'].includes(resultado.addresstype)) continue;
-            if (typeof endereco !== 'string') {
-                const address = resultado.address || {};
-                const cidade = address.city || address.town || address.municipality;
-                if (cidade && normalizar(cidade) !== normalizar(endereco.cidade)) continue;
-                if (address.house_number && normalizar(address.house_number) !== normalizar(endereco.numero)) continue;
-            }
-            return { lat: Number(resultado.lat), lng: Number(resultado.lon) };
-        }
+// Recebe os campos separados para evitar que o bairro seja interpretado como rua.
+export async function obterCoordsPorEndereco(endereco) {
+    const params = new URLSearchParams({ format: 'jsonv2', countrycodes: 'br', limit: '1', addressdetails: '1' });
+    if (typeof endereco === 'string') {
+        params.set('q', endereco);
+    } else {
+        const rua = String(endereco?.logradouro || '').trim();
+        const numero = String(endereco?.numero || '').trim();
+        const cidade = String(endereco?.cidade || '').trim();
+        const uf = String(endereco?.uf || '').trim();
+        if (!rua || !numero || !cidade || !uf) return null;
+        params.set('street', `${numero} ${rua}`);
+        params.set('city', cidade);
+        params.set('state', uf);
+        params.set('country', 'Brasil');
     }
-    return null;
+    let data;
+    try {
+        data = await buscarJson(`https://nominatim.openstreetmap.org/search?${params}`);
+    } catch (erro) {
+        throw new Error('O serviço de localização está indisponível. Tente salvar novamente em alguns instantes.', { cause: erro });
+    }
+    if (!Array.isArray(data)) throw new Error('O serviço de localização retornou uma resposta inválida. Tente novamente.');
+    const resultado = data[0];
+    if (!resultado || !coordenadasValidas(resultado.lat, resultado.lon)) return null;
+    // Uma cidade, bairro ou CEP não representa a posição da loja para check-in.
+    if (['city', 'town', 'village', 'municipality', 'administrative', 'suburb', 'postcode'].includes(resultado.addresstype)) return null;
+    return { lat: Number(resultado.lat), lng: Number(resultado.lon) };
 }
 
 export function calcularDistancia(lat1, lon1, lat2, lon2) {
@@ -103,52 +129,6 @@ export function calcularDistancia(lat1, lon1, lat2, lon2) {
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); return R * c; 
 
-}
-
-// Estimativa pela extensão da rua no mapa; não representa precisão medida de GPS.
-export function margemEstimadaRua(result) {
-    if (!Array.isArray(result?.boundingbox) || result.boundingbox.length !== 4 || !coordenadasValidas(result.lat,result.lon)) return null;
-    if (result.boundingbox.some(value => value === null || value === undefined || value === '' || !Number.isFinite(Number(value)))) return null;
-    const [south,north,west,east] = result.boundingbox.map(Number);
-    if (!coordenadasValidas(south,west) || !coordenadasValidas(north,east) || south > north || west > east) return null;
-    const lat=Number(result.lat),lon=Number(result.lon);
-    if (lat < south || lat > north || lon < west || lon > east) return null;
-    return Math.ceil(Math.max(...[south,north].flatMap(y=>[west,east].map(x=>calcularDistancia(lat,lon,y,x)))));
-}
-
-export function raioPermitidoLoja(cliente) {
-    if (cliente?.precisaoCoordenadas !== 'rua' || cliente?.origemCoordenadas !== 'geocodificacao') return 500;
-    const margin=Number(cliente.margemErroCoordenadasMetros);
-    return 500 + (Number.isFinite(margin) && margin > 0 ? Math.min(500,Math.ceil(margin)) : 0);
-}
-
-export async function obterAreaPorEndereco(endereco, {wait = ms => new Promise(resolve=>setTimeout(resolve,ms))} = {}) {
-    const base={format:'jsonv2',countrycodes:'br',limit:'3',addressdetails:'1'};
-    const normalizar=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/^(avenida|av\.?|rua|r\.?)\s+/,'').replace(/[^a-z0-9]/g,'');
-    const queries=[];
-    if (endereco.logradouro) queries.push({precision:'rua',zoom:16,params:new URLSearchParams({...base,street:endereco.logradouro,city:endereco.cidade,state:endereco.uf,country:'Brasil'})});
-    const cep=String(endereco.cep||'').replace(/\D/g,'');
-    if (cep.length===8) queries.push({precision:'cep',zoom:14,params:new URLSearchParams({...base,postalcode:cep,city:endereco.cidade,state:endereco.uf,country:'Brasil'})});
-    queries.push({precision:'cidade',zoom:13,params:new URLSearchParams({...base,city:endereco.cidade,state:endereco.uf,country:'Brasil'})});
-    for (let i=0;i<queries.length;i++) {
-        if (i) await wait(1100);
-        const query=queries[i];
-        const data=await buscarJson('https://nominatim.openstreetmap.org/search?'+query.params);
-        if (!Array.isArray(data)) continue;
-        for (const result of data) {
-            if (!coordenadasValidas(result.lat,result.lon)) continue;
-            const city=result.address?.city||result.address?.town||result.address?.municipality;
-            if (city && normalizar(city)!==normalizar(endereco.cidade)) continue;
-            const state=result.address?.['ISO3166-2-lvl4'];
-            if (state && state!==`BR-${String(endereco.uf).toUpperCase()}`) continue;
-            if (query.precision==='rua') {
-                if (!['road','street'].includes(result.addresstype)) continue;
-                if (normalizar(result.address?.road||result.name)!==normalizar(endereco.logradouro)) continue;
-            }
-            return {...result,precision:query.precision,zoom:query.zoom,uncertaintyMeters:query.precision==='rua'?margemEstimadaRua(result):null};
-        }
-    }
-    return null;
 }
 
 export function validarPrecisaoGps(pos) {

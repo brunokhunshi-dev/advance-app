@@ -1,4 +1,3 @@
-import { StoreLocationPicker } from './src/ui/store-location.js';
 import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
@@ -19,7 +18,7 @@ import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, 
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
-import { obterAreaPorEndereco, raioPermitidoLoja, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia, validarPrecisaoGps } from './src/services/location.js';
+import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia, validarPrecisaoGps } from './src/services/location.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
@@ -90,7 +89,6 @@ let nomeUsuarioLogado = null;
 
 let perfilUsuarioLogado = null;
 let dadosPerfilLogado = null;
-const storeLocationPicker = new StoreLocationPicker();
 
 let atividadeSelecionadaId = null;
 
@@ -354,7 +352,6 @@ function atualizarBotaoCadastro() {
 function invalidarCoordenadas() {
 
     versaoConsultaEndereco++;
-    storeLocationPicker.clear();
 
     const campo = document.getElementById('cc-cep');
 
@@ -1680,25 +1677,19 @@ function configurarTelaCadastroCliente() {
 
     const localizarLoja = async sessao => {
         const endereco = enderecoParaCoordenadas();
-        let coords = null;
+        let coords = null, centro = null;
         campo('btn-salvar-cliente').textContent = 'Localizando endereço...';
         try { coords = await obterCoordsPorEndereco(endereco); }
-        catch (error) { console.warn('Busca automática indisponível; localização manual disponível.', error); }
+        catch (error) { console.warn('Endereço sem coordenadas; será cadastrado como incerto.', error); }
         exigirSessao(sessao);
-        if (coords && coordenadasValidas(coords.lat, coords.lng)) return { ...coords, source: 'geocodificacao', precision: 'endereco', uncertaintyMeters: 0 };
-        let area = null;
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1100));
-            area = await obterAreaPorEndereco(endereco);
-        } catch (error) { console.warn('Não foi possível aproximar o endereço.', error); }
-        exigirSessao(sessao);
-        if (area?.precision === 'rua' && Number.isFinite(area.uncertaintyMeters) && area.uncertaintyMeters <= 500) {
-            return { lat: Number(area.lat), lng: Number(area.lon), source: 'geocodificacao', precision: 'rua', uncertaintyMeters: area.uncertaintyMeters };
+        if (!coords) {
+            try {
+                await new Promise(resolve => setTimeout(resolve, 1100));
+                centro = await buscarCentroCidade(endereco.cidade, endereco.uf);
+            } catch (error) { console.warn('Centro da cidade indisponível; poderá ser consultado no check-in.', error); }
+            exigirSessao(sessao);
         }
-        campo('btn-salvar-cliente').textContent = 'Aguardando localização...';
-        coords = await storeLocationPicker.open(endereco, area);
-        exigirSessao(sessao);
-        return coords;
+        return dadosLocalizacaoCadastro(coords, centro);
     };
 
     const mostrarMapa = endereco => {
@@ -1893,7 +1884,6 @@ function configurarTelaCadastroCliente() {
 
                     exigirSessao(sessao);
 
-                    if (!coords) return;
                     localizacaoSalva = coords;
 
                     clienteId = gerarIdClienteCnpj(cnpjReal);
@@ -1907,7 +1897,7 @@ function configurarTelaCadastroCliente() {
                         }
                         const agora = new Date();
                         tx.set(ref, { codigoCnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
-                            lat: Number(coords.lat), lng: Number(coords.lng), origemCoordenadas: coords.source, precisaoCoordenadas: coords.precision, margemErroCoordenadasMetros: coords.uncertaintyMeters, status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
+                            ...coords, status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
                         return { nome, localizado: false };
                     });
                     nomeFinal = resultado.nome; localizado = resultado.localizado;
@@ -1916,7 +1906,6 @@ function configurarTelaCadastroCliente() {
                 // Sem CNPJ: ID aleatório e cadastro provisório, sem tentativa de detectar duplicidade.
                 const coords = await localizarLoja(sessao);
                 exigirSessao(sessao);
-                if (!coords) return;
                 localizacaoSalva = coords;
 
                 const agora = new Date();
@@ -1924,7 +1913,7 @@ function configurarTelaCadastroCliente() {
                 const ref = doc(db, 'clientes', clienteProvisorioId);
                 await runTransaction(db, async tx => {
                     tx.set(ref, { nome, cidade, uf, enderecoCompleto,
-                        lat: Number(coords.lat), lng: Number(coords.lng), origemCoordenadas: coords.source, precisaoCoordenadas: coords.precision, margemErroCoordenadasMetros: coords.uncertaintyMeters, status: 'Provisorio',
+                        ...coords, status: 'Provisorio',
                         criadoEm: agora, atualizadoEm: agora, criadoPor: sessao.id });
                 });
                 clienteId = ref.id;
@@ -1941,9 +1930,8 @@ function configurarTelaCadastroCliente() {
 
             limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
-            if (!localizado && localizacaoSalva?.precision === 'rua') {
-                const raio = 500 + localizacaoSalva.uncertaintyMeters;
-                window.mostrarAlerta('Loja salva', `Localização aproximada da rua. Margem estimada: ${localizacaoSalva.uncertaintyMeters} m. Raio permitido para check-in e checkout: ${raio} m.`);
+            if (!localizado && localizacaoSalva?.statusLocalizacao === 'incerto') {
+                window.mostrarAlerta('Loja salva', 'Endereço cadastrado com localização incerta. O check-in será permitido até 50 km do centro da cidade. As coordenadas da loja poderão ser corrigidas no painel admin.');
                 return;
             }
             window.mostrarAlerta('Sucesso', cnpjReal
@@ -2075,6 +2063,13 @@ function configurarBotoesModal() {
 
 }
 
+async function centroParaCliente(cliente) {
+    if (!cliente || referenciaLocalizacao(cliente)) return null;
+    if (cliente.statusLocalizacao !== 'incerto' && cliente.precisaoCoordenadas !== 'rua') return null;
+    try { return await buscarCentroCidade(cliente.cidade, cliente.uf); }
+    catch (error) { console.warn('Não foi possível consultar o centro da cidade.', error); return null; }
+}
+
 async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null) {
 
     if (!coordenadasValidas(lat,lng)) throw new Error('O GPS retornou coordenadas inválidas.');
@@ -2095,6 +2090,10 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
     exigirSessao(sessao);
 
+    const clienteLocalizacao = await obterCliente(clienteId, { refresh: true });
+    const centroConsultado = await centroParaCliente(clienteLocalizacao);
+    exigirSessao(sessao);
+
     await runTransaction(db, async tx => {
 
         const ref = doc(db,'atividades',id), snap = await tx.get(ref);
@@ -2109,15 +2108,16 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
         if (atividade.status !== 'Pendente') throw new Error('Esta visita já foi iniciada ou encerrada. Atualize a tela.');
 
-        if (!coordenadasValidas(dados.lat,dados.lng)) throw new Error('A loja não possui coordenadas válidas. Corrija o cadastro.');
-
-        const distancia = calcularDistancia(Number(lat),Number(lng),Number(dados.lat),Number(dados.lng));
-
-        const raio = raioPermitidoLoja(dados);
-        if (!Number.isFinite(distancia) || distancia > raio) throw new Error(`Você está a ${Math.round(distancia)} m da loja. A distância máxima é ${raio} m.`);
+        const referencia = referenciaLocalizacao(dados, centroConsultado);
+        if (!referencia) throw new Error('Não foi possível localizar o centro da cidade. Tente novamente ou solicite a correção das coordenadas no painel admin.');
+        const distancia = calcularDistancia(Number(lat), Number(lng), referencia.lat, referencia.lng);
+        if (!Number.isFinite(distancia) || distancia > referencia.raio) throw new Error(referencia.incerto
+            ? `Você está a ${(distancia / 1000).toFixed(1)} km do centro de ${dados.cidade}. O limite para localização incerta é 50 km.`
+            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima é 500 m.`);
 
         const agora = new Date();
 
+        if (referencia.incerto && centroConsultado) tx.update(doc(db,'clientes',clienteId), { centroCidade: centroConsultado });
         tx.update(ref, { status:'Em andamento', checkinDataHora:agora, checkinGps:`${lat}, ${lng}`, checkinGpsAccuracy:Number(accuracy), checkinEndereco:endereco, atualizadoEm:agora });
 
     });
@@ -2163,11 +2163,14 @@ async function encerrarVisita(id, btn) {
         if (!atividade.relatorioId) throw new Error('Salve o relatório antes de iniciar o check-out.');
 
         const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
-        if (!cliente || !coordenadasValidas(cliente.lat, cliente.lng)) throw new ErroCheckoutLocalizacao('Não foi possível validar a localização da loja.');
-
-        const distancia = calcularDistancia(Number(lat), Number(lng), Number(cliente.lat), Number(cliente.lng));
-        const raio = raioPermitidoLoja(cliente);
-        if (!Number.isFinite(distancia) || distancia > raio) throw new ErroCheckoutLocalizacao('Você está a ' + Math.round(distancia) + ' m da loja. A distância máxima para o check-out é ' + raio + ' m.');
+        const centroConsultado = await centroParaCliente(cliente);
+        exigirSessao(sessao);
+        const referencia = referenciaLocalizacao(cliente, centroConsultado);
+        if (!referencia) throw new ErroCheckoutLocalizacao('Não foi possível localizar o centro da cidade. Tente novamente ou solicite a correção das coordenadas no painel admin.');
+        const distancia = calcularDistancia(Number(lat), Number(lng), referencia.lat, referencia.lng);
+        if (!Number.isFinite(distancia) || distancia > referencia.raio) throw new ErroCheckoutLocalizacao(referencia.incerto
+            ? `Você está a ${(distancia / 1000).toFixed(1)} km do centro de ${cliente.cidade}. O limite para localização incerta é 50 km.`
+            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima para o check-out é 500 m.`);
 
         const endereco = await obterEnderecoPorCoords(lat, lng);
         exigirSessao(sessao);

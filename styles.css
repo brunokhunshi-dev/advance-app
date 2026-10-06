@@ -172,14 +172,6 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 
 /* 9. MODAIS NATIVOS (POPOUTS) */
 .alert-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 3000; padding: 20px; }
-.store-location-dialog { position:fixed; inset:0; margin:auto; width:min(460px,calc(100vw - 24px)); max-height:calc(100dvh - 32px); overflow:auto; box-sizing:border-box; border:0; border-radius:18px; padding:24px 18px 18px; background:white; color:var(--color-dark); font-family:var(--font-body); }
-.store-location-dialog::backdrop { background:rgba(4,4,56,.5); }
-.store-location-dialog h2 { font-size:18px; margin:20px 40px 12px 0; }
-.store-location-dialog p { font-size:12px; line-height:1.5; margin:10px 0; }
-.store-location-close { position:absolute; right:12px; top:12px; min-height:36px; width:36px; height:36px; padding:0; border:1px solid #0404381a; border-radius:9px; background:white; color:var(--color-dark); }
-.store-location-close svg { width:20px; height:20px; display:block; margin:auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
-.store-location-map { width:100%; height:clamp(220px,42dvh,360px); border-radius:12px; overflow:hidden; }
-.store-location-dialog [data-confirm] { width:100%; margin-top:8px; font-size:13px; }
 .alert-box { background: var(--color-white); border-radius: var(--radius-card); width: 85%; max-width: 320px; text-align: center; box-shadow: none; overflow: hidden; display: flex; flex-direction: column; }
 .alert-content { padding: 24px 20px; }
 .alert-box h3 { font-size: 1.1rem; color: var(--color-dark); font-weight: 800; margin-bottom: 10px; }
