@@ -29,7 +29,7 @@ test('city center is never confirmed automatically; a map click selects the entr
         s.handlers.click({lngLat:{lat:-23.27,lng:-47.31}});
         assert.equal(s.nodes.get('[data-confirm]').disabled,false);
         s.nodes.get('[data-confirm]').onclick();
-        assert.deepEqual(await pending,{lat:-23.27,lng:-47.31,source:'manual'});
+        assert.deepEqual(await pending,{lat:-23.27,lng:-47.31,source:'manual',precision:'entrada',uncertaintyMeters:0});
         assert.equal(s.map().removed,true);assert.equal(s.dialog.removed,true);
     } finally {s.picker.clear();globalThis.document=original;}
 });

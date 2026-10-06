@@ -1,19 +1,15 @@
 import { loadMapLibrary, mapTheme } from './home-map.js';
-import { buscarJson, coordenadasValidas } from '../services/location.js';
+import { obterAreaPorEndereco, coordenadasValidas } from '../services/location.js';
 
 export class StoreLocationPicker {
-    constructor({loadLibrary = loadMapLibrary, wait = ms => new Promise(resolve => setTimeout(resolve,ms)), findArea = async address => {
-        const params = new URLSearchParams({format:'jsonv2',countrycodes:'br',limit:'1',q:`${address.cidade}, ${address.uf}, Brasil`});
-        const data = await buscarJson('https://nominatim.openstreetmap.org/search?' + params);
-        return data?.[0];
-    }} = {}) { this.loadLibrary = loadLibrary; this.wait = wait; this.findArea = findArea; }
+    constructor({loadLibrary = loadMapLibrary, wait = ms => new Promise(resolve => setTimeout(resolve,ms)), findArea = obterAreaPorEndereco} = {}) { this.loadLibrary = loadLibrary; this.wait = wait; this.findArea = findArea; }
     clear() {
         this.version = (this.version || 0) + 1;
         this.map?.remove(); this.map = null;
         this.dialog?.close(); this.dialog?.remove(); this.dialog = null;
         this.resolve?.(null); this.resolve = null;
     }
-    open(address) {
+    open(address, initialArea) {
         this.clear();
         const version = this.version;
         const result = new Promise(resolve => { this.resolve = resolve; });
@@ -24,10 +20,10 @@ export class StoreLocationPicker {
         dialog.querySelector('.store-location-close').onclick = () => this.clear();
         dialog.addEventListener('cancel', event => { event.preventDefault(); this.clear(); });
         document.body.append(dialog); dialog.showModal();
-        void this.initialize(address, version);
+        void this.initialize(address, version, initialArea);
         return result;
     }
-    async initialize(address, version) {
+    async initialize(address, version, initialArea) {
         const dialog = this.dialog, status = dialog.querySelector('[data-status]');
         try {
             const gl = await this.loadLibrary();
@@ -39,7 +35,7 @@ export class StoreLocationPicker {
             const marker = new gl.Marker({color:'#EA4335',draggable:true});
             const select = lngLat => {
                 if (!ready || !coordenadasValidas(lngLat.lat,lngLat.lng)) return;
-                touched = true; selected = {lat:lngLat.lat,lng:lngLat.lng,source:'manual'};
+                touched = true; selected = {lat:lngLat.lat,lng:lngLat.lng,source:'manual',precision:'entrada',uncertaintyMeters:0};
                 marker.setLngLat(lngLat).addTo(map);
                 status.textContent = 'Entrada marcada. Confira o alfinete antes de confirmar.';
                 dialog.querySelector('[data-confirm]').disabled = false;
@@ -64,10 +60,10 @@ export class StoreLocationPicker {
             await this.wait(1100);
             if (version !== this.version || touched) return;
             try {
-                const area = await this.findArea(address);
+                const area = initialArea === undefined ? await this.findArea(address) : initialArea;
                 if (version !== this.version || touched) return;
                 if (area && coordenadasValidas(area.lat,area.lon)) {
-                    map.jumpTo({center:[Number(area.lon),Number(area.lat)],zoom:13});
+                    map.jumpTo({center:[Number(area.lon),Number(area.lat)],zoom:area.zoom||13});
                     marker.setLngLat([Number(area.lon),Number(area.lat)]).addTo(map);
                 }
             } catch { /* O usuário ainda pode navegar e marcar no mapa. */ }
