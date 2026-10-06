@@ -22,7 +22,7 @@ import { buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, o
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
-import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
+import { readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
     const sessao = sessaoAtual();
     await garantirCatalogoAdvance({
@@ -2912,6 +2912,7 @@ function configurarEventosGlobais() {
 }
 
 const profileView = new ProfileView(document.getElementById('profile-content'), {
+    loadPhoto: readProfilePhotoUrl,
     load: async () => {
         const sessao = sessaoAtual();
         const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));

@@ -30,6 +30,13 @@ async function mediaApiRequest(path, body) {
     return data || {};
 }
 
+// A foto é enviada manualmente ao R2. O Worker escolhe o objeto pelo perfil autenticado.
+export async function readProfilePhotoUrl() {
+    const result = await mediaApiRequest('/v1/profile/photo-url', {});
+    if (typeof result.url !== 'string' || !/^https:\/\//.test(result.url)) throw new Error('URL de foto inválida.');
+    return result.url;
+}
+
 async function uploadSigned(url, blob, contentType) {
     const response = await fetch(url, {
         method: 'PUT',

@@ -5,19 +5,22 @@ import { loadMapLibrary, mapTheme } from './home-map.js';
 import { loadingMarkup } from './loading.js';
 const icon = name => `<img src="midia/perfil/${name}.svg" alt="" aria-hidden="true">`;
 export class ProfileView {
-    constructor(root, { load, onError, openClient }) {
-        this.root = root; this.load = load; this.onError = onError; this.openClient = openClient;
+    constructor(root, { load, loadPhoto = async () => null, onError, openClient }) {
+        this.root = root; this.load = load; this.loadPhoto = loadPhoto; this.onError = onError; this.openClient = openClient;
         this.days = 30; this.type = 'Todas'; this.mode = 'Pontos'; this.version = 0;
     }
-    clear() { this.version++; this.map?.remove(); this.map = null; this.data = null; this.root.replaceChildren(); this.root.removeAttribute('aria-busy'); }
+    clear() { this.version++; this.map?.remove(); this.map = null; this.data = null; this.photoUrl = null; this.root.replaceChildren(); this.root.removeAttribute('aria-busy'); }
     async open(profile) {
         const version = ++this.version;
         this.map?.remove(); this.map = null;
         this.root.innerHTML = loadingMarkup(4); this.root.setAttribute('aria-busy', 'true');
         try {
-            const data = await this.load();
+            const [data, photo] = await Promise.all([
+                this.load(),
+                this.loadPhoto().catch(() => null)
+            ]);
             if (version !== this.version) return;
-            this.data = data; this.profile = profile; this.root.removeAttribute('aria-busy'); this.render();
+            this.data = data; this.photoUrl = photo; this.profile = profile; this.root.removeAttribute('aria-busy'); this.render();
         } catch (error) {
             if (version !== this.version) return;
             this.root.innerHTML = '<p class="profile-empty">Não foi possível carregar o perfil.</p><button type="button" class="btn-outline-red" data-retry>Tentar novamente</button>';
@@ -30,7 +33,7 @@ export class ProfileView {
         const version = ++this.version;
         const stats = profileStats(this.data, this.days), p = this.profile;
         const initials = String(p.nome || '').trim().split(/\s+/).slice(0,2).map(w => w[0]).join('');
-        const photo = p.fotoUrl || p.foto || p.photoURL;
+        const photo = this.photoUrl || p.fotoUrl || p.foto || p.photoURL;
         const safePhoto = typeof photo === 'string' && /^https:\/\//.test(photo) ? photo : null;
         this.root.innerHTML = `<header class="profile-header"><div class="profile-photo">${safePhoto ? `<img src="${esc(safePhoto)}" alt="Foto de ${esc(p.nome)}">` : `<span class="profile-initials" aria-label="Sem foto de perfil">${esc(initials)}</span>`}</div>
             <div class="profile-identity"><button type="button" class="profile-export" aria-label="Exportar perfil para PDF" title="Exportar PDF">${icon('exportar')}</button>
