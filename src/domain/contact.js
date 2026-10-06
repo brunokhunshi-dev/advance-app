@@ -16,7 +16,10 @@ export function contactVCard(profile, now = new Date()) {
     const phone = contactPhone(profile.telefone || profile.celular);
     const lines = ['BEGIN:VCARD', 'VERSION:3.0', 'FN;CHARSET=UTF-8:' + escapeValue(name),
         'N;CHARSET=UTF-8:' + escapeValue(family) + ';' + escapeValue(given) + ';;;',
-        'TITLE;CHARSET=UTF-8:' + escapeValue(title)];
+        'ORG;CHARSET=UTF-8:Advance Tintas',
+        'TITLE;CHARSET=UTF-8:' + escapeValue(title),
+        'ADR;TYPE=WORK;CHARSET=UTF-8:;;' + escapeValue('Rua Alberto Guizo, 489\nDistrito Industrial João Narezzi') + ';Indaiatuba;SP;13347-402;Brasil',
+        'URL;TYPE=WORK:https://www.advancetintas.com.br'];
     if (phone) lines.push('TEL;TYPE=CELL:' + phone);
     if (profile.email) lines.push('EMAIL;TYPE=WORK:' + escapeValue(profile.email));
     lines.push('REV:' + now.toISOString(), 'END:VCARD');

@@ -8,6 +8,10 @@ test('contact vCard preserves name order, UTF-8 accents, role, normalized phone 
     assert.match(card,/FN;CHARSET=UTF-8:Bruno Santos de Souza\r\n/);
     assert.match(card,/N;CHARSET=UTF-8:Santos de Souza;Bruno;;;\r\n/);
     assert.match(card,/TITLE;CHARSET=UTF-8:Promotor Técnico\r\n/);
+    const unfolded=card.replace(/\r\n /g,'');
+    assert.match(unfolded,/ORG;CHARSET=UTF-8:Advance Tintas\r\n/);
+    assert.ok(unfolded.includes('ADR;TYPE=WORK;CHARSET=UTF-8:;;Rua Alberto Guizo\\, 489\\nDistrito Industrial João Narezzi;Indaiatuba;SP;13347-402;Brasil'));
+    assert.match(unfolded,/URL;TYPE=WORK:https:\/\/www\.advancetintas\.com\.br\r\n/);
     assert.match(card,/TEL;TYPE=CELL:\+5519996203536\r\n/);
     assert.match(card,/REV:2026-10-06T17:00:00.000Z\r\nEND:VCARD\r\n$/);
     assert.equal(contactPhone('+55 19 99620-3536'),'+5519996203536');
