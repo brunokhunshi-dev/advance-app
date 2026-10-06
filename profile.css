@@ -1,7 +1,7 @@
 #tela-perfil { padding: 0 0 90px; color: var(--color-dark); background: #f9f9fa; }
 .profile-header { background: #fff; }
 .profile-photo { height: 220px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; background:radial-gradient(ellipse at 50% 95%,#0a0a5b,#040438 70%); }
-.profile-photo > img { height:238px; width:auto; max-width:100%; object-fit:contain; object-position:center bottom; }
+.profile-photo > img { height:196px; width:auto; max-width:100%; object-fit:contain; object-position:center bottom; }
 .profile-initials { align-self:center; display:grid; place-items:center; width:110px; height:110px; border-radius:50%; background:#ffffff12; font-size:36px; font-weight:700; color:white; }
 .profile-identity { padding:18px 18px 18px; position:relative; }
 .profile-identity h1 { font-size:18px; line-height:1.2; font-weight:700; margin:2px 40px 14px 0; }
