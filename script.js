@@ -5,6 +5,7 @@ import { CommercialReport } from './src/ui/commercial-report.js';
 import { TrainingReport } from './src/ui/training-report.js';
 import { modulosTreinamentoPendentes } from './src/domain/training.js';
 import { cardAgenda, proximasVisitas, visitasSecundarias } from './src/ui/agenda-cards.js';
+import { ProfileView } from './src/ui/profile.js';
 import { HomeVisitMap } from './src/ui/home-map.js';
 import { loadingMarkup, homeLoadingMarkup } from './src/ui/loading.js';
 import { filtrarClientes, tituloCliente, detalhesCliente, opcaoCliente } from './src/ui/client-options.js';
@@ -21,7 +22,7 @@ import { buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, o
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
-import { TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
+import { readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
     const sessao = sessaoAtual();
     await garantirCatalogoAdvance({
@@ -87,6 +88,7 @@ let idUsuarioLogado = null;
 let nomeUsuarioLogado = null;
 
 let perfilUsuarioLogado = null;
+let dadosPerfilLogado = null;
 
 let atividadeSelecionadaId = null;
 
@@ -436,7 +438,8 @@ function inicializarAplicativo() {
         commercialReport?.clear();
         trainingReport?.clear();
 
-        idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null;
+        idUsuarioLogado = null; nomeUsuarioLogado = null; perfilUsuarioLogado = null; dadosPerfilLogado = null;
+        profileView.clear();
 
         limparEstadoVisita(); listaClientes = []; listaAtividadesAgenda = []; nvClienteSelecionadoId = null;
         agendaCalendar.reset();
@@ -493,6 +496,7 @@ function inicializarAplicativo() {
                         throw new Error('Seu acesso ao Advance Check está desativado. Procure seu gestor.');
                     }
                     perfil = {
+                        ...dadosPerfil,
                         id: snap.docs[0].id,
                         nome: dadosPerfil.nome || 'Profissional',
                         tipo: nome,
@@ -507,7 +511,7 @@ function inicializarAplicativo() {
 
             if (versao !== versaoSessao) return;
 
-            idUsuarioLogado = perfil.id; nomeUsuarioLogado = perfil.nome; perfilUsuarioLogado = perfil.tipo;
+            idUsuarioLogado = perfil.id; nomeUsuarioLogado = perfil.nome; perfilUsuarioLogado = perfil.tipo; dadosPerfilLogado = perfil;
 
             document.getElementById('tela-login').style.display = 'none';
 
@@ -663,6 +667,7 @@ function carregarConteudoTela(idTela) {
     if (idTela === 'tela-inicio') carregarAtividadesPendentes();
     else if (idTela === 'tela-agenda') carregarAgenda();
     else if (idTela === 'tela-historico') carregarHistoricoVisitas();
+    else if (idTela === 'tela-perfil') void profileView.open(dadosPerfilLogado);
     else if (idTela === 'tela-nova-visita') carregarDadosParaAutocomplete();
 }
 
@@ -1999,7 +2004,6 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
 }
 
 function configurarBotoesModal() {
-    document.getElementById('btn-configuracoes')?.addEventListener('click', () => window.mostrarAlerta('Aviso', 'Tela de Perfil em construção!'));
     document.getElementById('btn-fechar-alerta')?.addEventListener('click', () => window.fecharAlerta());
     document.getElementById('btn-fechar-aviso-andamento')?.addEventListener('click', () => { document.getElementById('modal-aviso-andamento').style.display = 'none'; });
     document.getElementById('btn-cancelar-exclusao')?.addEventListener('click', () => window.fecharConfirmacaoExclusao());
@@ -2906,3 +2910,23 @@ function configurarEventosGlobais() {
         }
     });
 }
+
+const profileView = new ProfileView(document.getElementById('profile-content'), {
+    loadPhoto: readProfilePhotoUrl,
+    load: async () => {
+        const sessao = sessaoAtual();
+        const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));
+        if (!sessaoValida(sessao)) return [];
+        const inicio = new Date(); inicio.setHours(0, 0, 0, 0); inicio.setDate(inicio.getDate() - 364);
+        const visits = snap.docs.map(d => ({ ...d.data(), id: d.id })).filter(a => a.status === 'Concluída' && tempoData(a.checkoutDataHora || a.data) >= inicio.getTime());
+        const ids = [...new Set(visits.map(v => v.clienteId).filter(Boolean))];
+        const clients = new Map(await Promise.all(ids.map(async id => [id, await obterCliente(id)])));
+        if (!sessaoValida(sessao)) return [];
+        return visits.map(visit => ({ ...visit, cliente: clients.get(visit.clienteId), nomeCliente: clients.get(visit.clienteId)?.nome || 'Cliente não encontrado' }));
+    },
+    onError: error => informarErro('Erro ao carregar perfil', error),
+    openClient: id => {
+        const client = profileView.data?.find(visit => visit.clienteId === id)?.cliente;
+        if (client) window.mostrarAlerta(client.nome || 'Cliente', [client.enderecoCompleto, client.cnpj ? 'CNPJ: ' + client.cnpj : ''].filter(Boolean).join('\n'));
+    }
+});

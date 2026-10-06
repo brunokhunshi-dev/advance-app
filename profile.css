@@ -1,0 +1,65 @@
+#tela-perfil { padding: 0 0 90px; color: var(--color-dark); background: #f9f9fa; }
+.profile-header { background: #fff; }
+.profile-photo { height: 220px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; background:radial-gradient(ellipse at 50% 95%,#0a0a5b,#040438 70%); }
+.profile-photo > img { height:196px; width:auto; max-width:100%; object-fit:contain; object-position:center bottom; }
+.profile-initials { align-self:center; display:grid; place-items:center; width:110px; height:110px; border-radius:50%; background:#ffffff12; font-size:36px; font-weight:700; color:white; }
+.profile-identity { padding:18px 18px 18px; position:relative; }
+.profile-identity h1 { font-size:18px; line-height:1.2; font-weight:700; margin:2px 40px 14px 0; }
+.profile-role { color:rgba(4,4,56,.4); font-size:12px; font-weight:700; margin:0 40px 0 0; }
+.profile-export { min-height:32px; position:absolute; top:18px; right:18px; width:32px; height:32px; border:1px solid #0404381a; border-radius:9px; background:white; display:grid; place-items:center; cursor:pointer; }
+.profile-contact { display:flex; align-items:center; gap:4px; color:rgba(4,4,56,.4); font-size:12px; margin:0 0 5px; }
+.profile-contact span { overflow-wrap:anywhere; }
+.profile-contact img, .profile-export img, .profile-type img { display:block; flex-shrink:0; }
+.profile-period { padding:0; margin:28px 0 0; border:0; min-width:0; }
+.profile-period legend { font-size:12px; font-weight:700; padding:0; margin-bottom:12px; }
+.profile-period > div { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.profile-period button { height:48px; background:white; border:1px solid #0000001a; border-radius:9px; font:700 12px var(--font-body); color:var(--color-dark); cursor:pointer; }
+.profile-period button[aria-pressed="true"] { background:var(--color-red); color:white; border-color:var(--color-red); }
+.profile-panels { padding:18px; display:flex; flex-direction:column; gap:6px; }
+.profile-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px; }
+.profile-card { min-width:0; background:white; border-radius:18px; padding:18px; }
+.profile-card h2 { margin:0; font-size:12px; font-weight:700; line-height:1.4; }
+.profile-value { display:block; font-size:clamp(25px,8vw,32px); line-height:1.2; margin:12px 0 14px; letter-spacing:-1px; }
+.profile-breakdown { font-size:12px; color:rgba(4,4,56,.4); line-height:1.25; }
+.profile-breakdown p { margin:0; }
+.profile-card-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.profile-type { position:relative; display:flex; align-items:center; gap:4px; max-width:60%; }
+.profile-type select { appearance:none; min-height:32px; width:100%; border:0; background:none; font:700 12px var(--font-body); color:var(--color-red); padding:0 18px 0 0; cursor:pointer; }
+.profile-type img { position:absolute; right:0; pointer-events:none; }
+.profile-bars { height:170px; margin-top:30px; display:flex; gap:8px; }
+.profile-y { display:flex; flex-direction:column; justify-content:space-between; font-size:8px; width:12px; padding-bottom:22px; }
+.profile-bar-grid { display:grid; grid-auto-columns:minmax(0,1fr); grid-auto-flow:column; flex:1; gap:4px; }
+.profile-bar-col { display:flex; flex-direction:column; min-width:0; }
+.profile-bar-track { flex:1; display:flex; align-items:flex-end; }
+.profile-bar { background:var(--color-dark); border-radius:4px 4px 0 0; position:relative; width:100%; max-width:32px; margin:auto auto 0; }
+.profile-bar > span { position:absolute; left:50%; bottom:calc(100% + 6px); transform:translateX(-50%); font-size:8px; }
+.profile-bar-col small { margin-top:10px; height:12px; font-size:8px; white-space:nowrap; }
+.profile-map-tabs { display:flex; background:#f9f9fa; padding:4px; border-radius:9px; }
+.profile-map-tabs button { min-height:24px; min-width:63px; background:none; border:0; border-radius:5px; font:400 12px var(--font-body); color:var(--color-dark); cursor:pointer; }
+.profile-map-tabs button[aria-pressed="true"] { background:white; font-weight:700; }
+.profile-map { height:254px; position:relative; border-radius:18px; overflow:hidden; margin-top:18px; background:#eceef1; }
+.profile-map [data-map] { height:100%; width:100%; touch-action:none; }
+.profile-map [data-map-status] { position:absolute; inset:0; margin:0; padding:20px; display:grid; place-items:center; background:#f9f9fa; text-align:center; font-size:12px; }
+.profile-map [data-map-status]:empty { display:none; }
+.profile-rankings ol { margin:8px 0 0; padding:0; list-style:none; }
+.profile-rankings li button { min-height:19px; display:flex; align-items:center; gap:4px; width:100%; text-align:left; border:0; background:none; padding:2px 0; font:400 12px var(--font-body); color:var(--color-dark); cursor:pointer; }
+.profile-rankings li button span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.profile-most b { color:#2bc704; }
+.profile-least b { color:#ff8d28; }
+.profile-empty,.profile-note { font-size:12px; color:var(--color-muted); line-height:1.4; }
+.profile-note { margin:12px 0; }
+.profile-account { padding:0 18px; }
+.profile-account button { width:100%; }
+
+@media (max-width:350px) { .profile-card { padding:12px; } .profile-breakdown { font-size:10px; } .profile-map-tabs button { min-width:50px; } }
+@media print {
+ body.printing-profile #app-container { display:block !important; }
+ body.printing-profile #app-container > :not(#tela-perfil),body.printing-profile > :not(#app-container) { display:none !important; }
+ body.printing-profile #tela-perfil { display:block !important; padding:0; }
+ body.printing-profile .profile-account,body.printing-profile .profile-export { display:none; }
+ body.printing-profile .profile-card { break-inside:avoid; border:1px solid #eee; }
+ body.printing-profile .profile-map { display:none; }
+ body.printing-profile .profile-period button:not([aria-pressed="true"]) { display:none; }
+}
+
+.profile-type .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
