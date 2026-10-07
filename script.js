@@ -1,5 +1,6 @@
 import { cancelarAgendamento } from './src/services/cancellation.js';
 import { atividadePodeSerCancelada } from './src/domain/cancellation.js';
+import { camposAssistenciaPendentes } from './src/domain/reports.js';
 import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
@@ -2209,7 +2210,7 @@ async function encerrarVisita(id, btn) {
         exigirSessao(sessao);
         const relatorio = await carregarRelatorioDaAtividade(atividade);
         const tipo = normalizarTipoVisita(atividade);
-        if (!relatorio || relatorio.atividadeId !== id || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, tipo)) {
+        if (!relatorio || relatorio.atividadeId !== id || relatorio.ptvId !== sessao.id || (tipo !== ASSISTENCIA_TECNICA_TIPO && !relatorioValidoParaCheckout(relatorio, tipo))) {
             throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
         }
         const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
@@ -2242,7 +2243,7 @@ function atualizarInterfaceVisitaAtual() {
     const areaVisitas = document.getElementById('area-visitas');
     const tipoAtual = normalizarTipoVisita(objetoAtividadeGlobal);
     const relatorioInterface = tipoAtual === 'Treinamento' ? trainingReport?.savedReport(atividadeSelecionadaId) || objetoRelatorioGlobal : tipoAtual === 'Visita comercial' ? commercialReport?.savedReport(atividadeSelecionadaId) || objetoRelatorioGlobal : objetoRelatorioGlobal;
-    const temRelatorio = !!(tipoAtual === 'Treinamento' && trainingReport?.hasSaved(atividadeSelecionadaId)) || !!(tipoAtual === 'Visita comercial' && commercialReport?.hasSaved(atividadeSelecionadaId)) || relatorioValidoParaCheckout(relatorioInterface, tipoAtual);
+    const temRelatorio = !!(tipoAtual === 'Treinamento' && trainingReport?.hasSaved(atividadeSelecionadaId)) || !!(tipoAtual === 'Visita comercial' && commercialReport?.hasSaved(atividadeSelecionadaId)) || (tipoAtual === ASSISTENCIA_TECNICA_TIPO ? Boolean(relatorioInterface) : relatorioValidoParaCheckout(relatorioInterface, tipoAtual));
 
     const etapas = [{
         titulo: 'Check-in',
@@ -2635,6 +2636,8 @@ function configurarEventosGlobais() {
             const pendentes = modulosTreinamentoPendentes(objetoRelatorioGlobal);
             if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos antes de finalizar: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
         } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
+            const pendentes = camposAssistenciaPendentes(objetoRelatorioGlobal);
+            if (pendentes.length) return window.mostrarAlerta('Relatório incompleto', 'Preencha antes de concluir o check-out: ' + pendentes.join(', ') + '. Volte ao relatório para continuar.');
             if (!atAcoes) return window.mostrarAlerta('Atenção', 'Informe as ações definidas.');
             if (!atConclusao) return window.mostrarAlerta('Atenção', 'Informe a conclusão técnica.');
             if (!atResultado) return window.mostrarAlerta('Atenção', 'Selecione o resultado da assistência.');
@@ -2812,15 +2815,6 @@ function configurarEventosGlobais() {
             if (ehAssistencia) {
                 if (document.getElementById('at-constatacoes').value.length > 30000) throw new Error('O relatório deve ter até 30.000 caracteres.');
                 assistenciaTecnica = lerFormularioAssistencia(objetoRelatorioGlobal);
-                const obrigatoriosPreenchidos =
-                    assistenciaTecnica.produto &&
-                    assistenciaTecnica.queixa &&
-                    assistenciaTecnica.constatacoes;
-
-                if (!obrigatoriosPreenchidos) {
-                    window.mostrarAlerta('Atenção', 'Há informações obrigatórias não preenchidas.');
-                    return;
-                }
             } else {
                 texto = document.getElementById('rel-texto').value.trim();
                 if (!texto) {

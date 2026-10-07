@@ -114,13 +114,19 @@ export function modulosComerciaisPendentes(relatorio) {
     return pending;
 }
 
+export function camposAssistenciaPendentes(relatorio) {
+    const dados = dadosAssistenciaDoRelatorio(relatorio);
+    return [['Produto', 'produto'], ['Queixa', 'queixa'], ['Constatações', 'constatacoes']]
+        .filter(([, campo]) => !String(dados[campo] || '').trim())
+        .map(([nome]) => nome);
+}
+
 export function relatorioValidoParaCheckout(relatorio, tipo) {
     if (!relatorio) return false;
     if (tipo === 'Visita comercial' && relatorio.dadosComerciais?.versao === 1) return true;
     if (tipo === 'Treinamento' && relatorio.dadosTreinamento?.versao === 1) return true;
     if (tipo === 'Assistência técnica') {
-        const dados = dadosAssistenciaDoRelatorio(relatorio);
-        return Boolean(String(dados.produto || '').trim() && String(dados.queixa || '').trim() && String(dados.constatacoes || '').trim());
+        return camposAssistenciaPendentes(relatorio).length === 0;
     }
     return Boolean(String(relatorio.textoAtual || '').trim());
 }
