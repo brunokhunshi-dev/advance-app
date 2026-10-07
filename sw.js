@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-profile-v58';
+const CACHE_NAME = 'advance-pwa-profile-v59';
 const APP_SHELL = [
   './', './index.html', './styles.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -24,8 +24,7 @@ const APP_SHELL = [
   './src/ui/home-map.js',
   './src/domain/contact.js', './src/ui/contact-share.js', './src/vendor/qrcodegen.js',
   './src/ui/profile.js', './src/domain/profile.js', './profile.css',
-  './midia/perfil/telefone.svg', './midia/perfil/email.svg',
-  './midia/perfil/exportar.svg', './midia/perfil/seta.svg',
+  './midia/heroicons/plus.svg', './midia/heroicons/minus.svg', './midia/heroicons/x-mark.svg',
   './src/ui/loading.js',
   './src/ui/client-options.js',
   './src/ui/training-report.js',

@@ -17,10 +17,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="styles.css?v=profile-58">
-    <link rel="stylesheet" href="profile.css?v=profile-58">
-    <link rel="stylesheet" href="commercial-report.css?v=profile-58">
-    <link rel="stylesheet" href="pwa-mobile.css?v=profile-58">
+    <link rel="stylesheet" href="styles.css?v=profile-59">
+    <link rel="stylesheet" href="profile.css?v=profile-59">
+    <link rel="stylesheet" href="commercial-report.css?v=profile-59">
+    <link rel="stylesheet" href="pwa-mobile.css?v=profile-59">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             const jaControlado = Boolean(navigator.serviceWorker.controller);
@@ -112,14 +112,7 @@
             <div class="historico-topo">
                 <h1 class="page-title">Histórico de visitas</h1>
                 <button class="historico-filtro-btn" id="btn-filtro-historico" type="button" aria-label="Filtrar histórico" aria-expanded="false">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <line x1="4" y1="6" x2="20" y2="6"></line>
-                        <circle cx="8" cy="6" r="2"></circle>
-                        <line x1="4" y1="12" x2="20" y2="12"></line>
-                        <circle cx="15" cy="12" r="2"></circle>
-                        <line x1="4" y1="18" x2="20" y2="18"></line>
-                        <circle cx="10" cy="18" r="2"></circle>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="adjustments-horizontal" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/> </svg>
                 </button>
             </div>
 
@@ -157,7 +150,7 @@
 
         <!-- TELA 4: NOVA VISITA (Design Atualizado) -->
         <main class="main-content tela-branca screen-form-sheet" id="tela-nova-visita" style="display: none; padding-bottom: 40px;">
-<button class="screen-close" id="btn-cancelar-visita" type="button" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg></button>
+<button class="screen-close" id="btn-cancelar-visita" type="button" aria-label="Fechar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
 <h1 class="page-title" style="margin-bottom: 30px;">Nova visita</h1>
 
             <div class="form-group autocomplete-wrapper">
@@ -216,7 +209,7 @@
                     <h1 class="page-title visualizador-titulo">Sua visita</h1>
                     <div id="visu-resultado" class="visualizador-resultado">...</div>
                 </div>
-                <button id="btn-fechar-visualizador" class="visualizador-fechar" type="button" aria-label="Fechar visualização"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg></button>
+                <button id="btn-fechar-visualizador" class="visualizador-fechar" type="button" aria-label="Fechar visualização"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
             </div>
 
             <section class="visualizador-section visualizador-cliente-section">
@@ -438,14 +431,14 @@
 
         <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->
         <main class="main-content tela-branca screen-form-sheet" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
-<button class="screen-close" id="btn-voltar-detalhes" type="button" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg></button>
+<button class="screen-close" id="btn-voltar-detalhes" type="button" aria-label="Fechar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
                 <div>
                     <h1 class="page-title" style="margin-bottom: 2px;">Visita agendada</h1>
                     <p class="protocolo-id" id="det-protocolo">#...</p>
                 </div>
                 <button class="btn-icon-delete" id="btn-excluir-visita">
-                    <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="trash" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/> </svg>
                 </button>
             </div>
 
@@ -463,12 +456,12 @@
                     <div style="flex: 1; position: relative;">
                         <label>Data</label>
                         <input type="date" id="det-data" class="input-box box-cinza input-date">
-                        <div class="input-icon-right"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+                        <div class="input-icon-right"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="pencil-square" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/> </svg></div>
                     </div>
                     <div style="flex: 1; position: relative;">
                         <label>Hora</label>
                         <input type="time" id="det-hora" class="input-box box-cinza input-time">
-                        <div class="input-icon-right"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+                        <div class="input-icon-right"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="pencil-square" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/> </svg></div>
                     </div>
                 </div>
             </div>
@@ -598,7 +591,7 @@
         <div id="tela-relatorio" class="tela-relatorio-container">
             <header class="relatorio-header-top">
                 <button class="screen-close" id="btn-voltar-relatorio" type="button" aria-label="Fechar relatório">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg>
                 </button>
             </header>
 
@@ -792,7 +785,7 @@
             <div class="relatorio-acoes">
                 <input id="at-media-picker" type="file" accept="image/*" multiple hidden>
                 <input id="at-camera-picker" type="file" accept="image/*" capture="environment" hidden>
-                <button type="button" id="btn-adicionar-midia" class="report-add-media" aria-label="Adicionar imagem" title="Adicionar imagem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+                <button type="button" id="btn-adicionar-midia" class="report-add-media" aria-label="Adicionar imagem" title="Adicionar imagem"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="plus" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/> </svg></button>
                 <button class="btn-checkin" id="btn-salvar-relatorio" style="flex: 1;">Salvar relatório</button>
             </div>
         </div>
@@ -806,19 +799,19 @@
         <!-- BARRA DE NAVEGAÇÃO INFERIOR -->
         <nav class="bottom-nav">
             <button class="nav-item active">
-                <svg viewBox="0 0 24 24"><path d="M4 10.5V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9.5"></path><path d="M2 12l9.3-8.37a1 1 0 0 1 1.4 0L22 12"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="home" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/> </svg>
                 Início
             </button>
             <button class="nav-item">
-                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="calendar-days" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z"/> </svg>
                 Agenda
             </button>
             <button class="nav-item">
-                <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="2" ry="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="3" y1="12" x2="21" y2="12"></line></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="briefcase" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0M12 12.75h.008v.008H12v-.008Z"/> </svg>
                 Visitas
             </button>
             <button class="nav-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="user" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/> </svg>
                 Perfil
             </button>
         </nav>
@@ -850,7 +843,7 @@
 
         <!-- TELA 6.5: CHECK-OUT / CONCLUSÃO DA VISITA -->
         <main class="main-content tela-branca tela-checkout" id="tela-checkout" style="display: none;">
-            <button class="screen-close" id="btn-voltar-checkout" type="button" aria-label="Fechar check-out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5L19 19M19 5L5 19"></path></svg></button>
+            <button class="screen-close" id="btn-voltar-checkout" type="button" aria-label="Fechar check-out"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
 
 
             <h1 class="checkout-titulo">Check-out</h1>
@@ -1025,7 +1018,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=profile-58"></script>
+    <script type="module" src="script.js?v=profile-59"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

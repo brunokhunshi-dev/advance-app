@@ -41,7 +41,7 @@ export function mapTheme(style) {
     });
 }
 
-const PIN = '<svg viewBox="0 0 24 32" aria-hidden="true"><path fill="#EA4335" d="M12 0C5.4 0 0 5.4 0 12c0 8.6 12 20 12 20s12-11.4 12-20C24 5.4 18.6 0 12 0Z"/><circle fill="#FFFFFF" cx="12" cy="12" r="4"/></svg>';
+const PIN = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="map-pin" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/> <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/> </svg>';
 
 export class HomeVisitMap {
     constructor(canvas, status, { getPosition, loadLibrary = loadMapLibrary }) {
@@ -112,7 +112,7 @@ export class HomeVisitMap {
                 element.setAttribute('role', 'img');
                 element.setAttribute('aria-label', label);
                 element.title = label;
-                if (!person) element.innerHTML = PIN;
+                element.innerHTML = person ? "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" aria-hidden=\"true\" class=\"heroicon\" data-heroicon=\"user\" width=\"24\" height=\"24\"> <path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z\"/> </svg>" : PIN;
                 const popup = new gl.Popup({ offset: 20, ...(person ? {} : { className: 'home-store-popup', maxWidth: '280px' }) });
                 if (person) popup.setText(label);
                 else {

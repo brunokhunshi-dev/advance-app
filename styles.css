@@ -97,8 +97,8 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 .home-map-status { position: absolute; left: 12px; right: 12px; top: 12px; z-index: 5; padding: 8px 12px; border-radius: 12px; background-color: var(--color-white); color: var(--color-muted); font-size: .75rem; pointer-events: none; }
 .home-map-status:empty { display: none; }
 .home-map-person { width: 20px; height: 20px; box-sizing: border-box; background-color: #4285F4; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 6px #4285F426; }
-.home-map-destination { width: 26px; height: 35px; }
-.home-map-destination svg { display: block; width: 26px; height: 35px; }
+.home-map-destination { width: 30px; height: 30px; color:#EA4335; }
+.home-map-destination svg { display: block; width: 30px; height: 30px; }
 .home-visit-map .maplibregl-map { font-family: var(--font-body); }
 .home-visit-map .maplibregl-ctrl-attrib { font-size: 9px; line-height: 16px; }
 .home-visit-map .maplibregl-popup-content { color: var(--color-dark); border-radius: 12px; font-family: var(--font-body); }
@@ -153,10 +153,10 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 input[type="date"], input[type="time"], .input-date, .input-time { position: relative; }
 .input-date, .input-time { padding-right: 52px !important; background-repeat: no-repeat; background-position: right 16px center; background-size: 20px 20px; }
 .input-date {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F51E30' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='17' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%23F51E30%22%20aria-hidden%3D%22true%22%20class%3D%22heroicon%22%20data-heroicon%3D%22calendar-days%22%20width%3D%2224%22%20height%3D%2224%22%3E%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M6.75%203v2.25M17.25%203v2.25M3%2018.75V7.5a2.25%202.25%200%200%201%202.25-2.25h13.5A2.25%202.25%200%200%201%2021%207.5v11.25m-18%200A2.25%202.25%200%200%200%205.25%2021h13.5A2.25%202.25%200%200%200%2021%2018.75m-18%200v-7.5A2.25%202.25%200%200%201%205.25%209h13.5A2.25%202.25%200%200%201%2021%2011.25v7.5m-9-6h.008v.008H12v-.008ZM12%2015h.008v.008H12V15Zm0%202.25h.008v.008H12v-.008ZM9.75%2015h.008v.008H9.75V15Zm0%202.25h.008v.008H9.75v-.008ZM7.5%2015h.008v.008H7.5V15Zm0%202.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0%202.25h.008v.008h-.008V15Zm0%202.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0%202.25h.008v.008H16.5V15Z%22%2F%3E%20%3C%2Fsvg%3E");
 }
 .input-time {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F51E30' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpolyline points='12 7 12 12 15 14'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%23F51E30%22%20aria-hidden%3D%22true%22%20class%3D%22heroicon%22%20data-heroicon%3D%22clock%22%20width%3D%2224%22%20height%3D%2224%22%3E%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M12%206v6h4.5m4.5%200a9%209%200%201%201-18%200%209%209%200%200%201%2018%200Z%22%2F%3E%20%3C%2Fsvg%3E");
 }
 input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
 
@@ -326,8 +326,8 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 }
 .visualizador-detalhes summary { cursor:pointer; list-style:none; color:var(--color-dark); font-size:.92rem; font-weight:700; }
 .visualizador-detalhes summary::-webkit-details-marker { display:none; }
-.visualizador-detalhes summary::after { content:"+"; float:right; color:var(--color-red); font-size:1.15rem; font-weight:500; }
-.visualizador-detalhes[open] summary::after { content:"−"; }
+.visualizador-detalhes summary::after { content:""; float:right; width:20px; height:20px; background:var(--color-red); mask:url("midia/heroicons/plus.svg") center/contain no-repeat; color:var(--color-red); font-size:1.15rem; font-weight:500; }
+.visualizador-detalhes[open] summary::after { mask-image:url("midia/heroicons/minus.svg"); }
 .visualizador-local-grid { display:grid; gap:20px; margin-top:20px; }
 .visualizador-local-grid small { display:block; color:#9a9ab5; font-size:.72rem; margin-top:5px; line-height:1.35; word-break:break-word; }
 .visualizador-voltar, .visualizador-exportar { margin-top:16px; }
@@ -483,7 +483,7 @@ select.input-box, .select-wrapper .input-box {
     appearance: none;
     -webkit-appearance: none;
     padding-right: 52px !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F51E30' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%23F51E30%22%20aria-hidden%3D%22true%22%20class%3D%22heroicon%22%20data-heroicon%3D%22chevron-down%22%20width%3D%2224%22%20height%3D%2224%22%3E%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19.5%208.25-7.5%207.5-7.5-7.5%22%2F%3E%20%3C%2Fsvg%3E");
     background-repeat: no-repeat;
     background-position: right 17px center;
     background-size: 18px 18px;
@@ -1341,9 +1341,8 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .relatorio-info-section .page-title, .checkout-titulo { padding-right: 60px; }
 
 .home-map-secondary { width: 18px; height: 24px; }
-.home-map-secondary svg { width: 18px; height: 24px; }
-.home-map-secondary svg path { fill: #A6AFBD; }
-.home-map-secondary svg circle { fill: #F8F9FA; }
+.home-map-secondary { color:#A6AFBD; }
+.home-map-secondary svg.heroicon { width:20px; height:20px; }
 .card-empty-description { color: var(--color-muted); font-size: .85rem; line-height: 1.4; }
 .card-visita-empty .card-titulo { white-space: normal; }
 
@@ -1384,3 +1383,17 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .home-loading-calendar { padding: 20px; border-radius: var(--radius-card); background: var(--color-white); margin-bottom: 20px; }
 .home-loading-calendar > div { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 20px; }
 .home-loading-calendar > div > span { height: 32px; }
+
+/* Heroicons 24px outline. Local SVGs retain the official 1.5px stroke. */
+svg.heroicon { fill:none; stroke:currentColor; stroke-width:1.5; flex-shrink:0; }
+.cr-products > button .heroicon { width:14px; height:14px; vertical-align:middle; }
+.cr-chevron .heroicon { width:22px; height:22px; }
+.report-media-preview .heroicon { width:28px; height:28px; }
+.report-media-play .heroicon { width:20px; height:20px; }
+.report-media-source-action .heroicon { width:24px; height:24px; }
+.home-map-destination svg.heroicon { width:30px; height:30px; fill:white; }
+.home-map-person { width:28px; height:28px; display:grid; place-items:center; color:white; }
+.home-map-person .heroicon { width:18px; height:18px; }
+.home-map-secondary svg.heroicon { width:20px; height:20px; }
+.maplibregl-popup-close-button { font-size:0; width:24px; height:24px; }
+.maplibregl-popup-close-button::after { content:""; display:block; width:16px; height:16px; margin:auto; background:currentColor; mask:url("midia/heroicons/x-mark.svg") center/contain no-repeat; }

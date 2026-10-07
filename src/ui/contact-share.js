@@ -19,7 +19,7 @@ export class ContactShare {
         const version = ++this.version, dialog = document.createElement('dialog');
         this.dialog = dialog; dialog.className = 'profile-share-dialog';
         dialog.setAttribute('aria-labelledby', 'profile-share-title');
-        dialog.innerHTML = `<button type="button" class="profile-share-close" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 id="profile-share-title">Compartilhar contato</h2><p data-name></p><div class="profile-share-qr" aria-busy="true">${loadingMarkup(1)}</div><p data-status role="status">Gerando QR Code…</p><button type="button" class="btn-outline-red" data-retry hidden>Tentar novamente</button>`;
+        dialog.innerHTML = `<button type="button" class="profile-share-close" aria-label="Fechar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button><h2 id="profile-share-title">Compartilhar contato</h2><p data-name></p><div class="profile-share-qr" aria-busy="true">${loadingMarkup(1)}</div><p data-status role="status">Gerando QR Code…</p><button type="button" class="btn-outline-red" data-retry hidden>Tentar novamente</button>`;
         dialog.querySelector('[data-name]').textContent = profile.nome;
         dialog.querySelector('.profile-share-close').onclick = () => this.close();
         dialog.addEventListener('cancel', event => { event.preventDefault(); this.close(); });

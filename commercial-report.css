@@ -13,7 +13,7 @@
 .cr-field { display:flex; flex-direction:column; gap:7px; margin:14px 0 8px; }
 .cr-field input,.cr-field select,.cr-field textarea,.cr-pill,.cr-pills span { border:0; padding:16px; color:var(--color-dark); background-color:var(--color-bg); width:100%; min-height:var(--control-height); }
 .cr-field input::placeholder,.cr-field textarea::placeholder { color:var(--color-placeholder); }
-.cr-field select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F51E30' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 16px center; background-size:18px; padding-right:48px; }
+.cr-field select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%23F51E30%22%20aria-hidden%3D%22true%22%20class%3D%22heroicon%22%20data-heroicon%3D%22chevron-down%22%20width%3D%2224%22%20height%3D%2224%22%3E%20%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19.5%208.25-7.5%207.5-7.5-7.5%22%2F%3E%20%3C%2Fsvg%3E"); background-repeat:no-repeat; background-position:right 16px center; background-size:18px; padding-right:48px; }
 .cr-pills { display:flex; gap:8px; font-size:16px; }
 .cr-pills span { flex:1; }
 .cr-modules { margin:30px 0 24px; }

@@ -9,7 +9,6 @@
 .profile-export { min-height:32px; position:absolute; top:18px; right:18px; width:32px; height:32px; border:1px solid #0404381a; border-radius:9px; background:white; display:grid; place-items:center; cursor:pointer; }
 .profile-contact { display:flex; align-items:center; gap:4px; color:rgba(4,4,56,.4); font-size:12px; margin:0 0 5px; }
 .profile-contact span { overflow-wrap:anywhere; }
-.profile-contact img, .profile-export img, .profile-type img { display:block; flex-shrink:0; }
 .profile-period { padding:0; margin:28px 0 0; border:0; min-width:0; }
 .profile-period legend { font-size:12px; font-weight:700; padding:0; margin-bottom:12px; }
 .profile-period > div { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
@@ -25,7 +24,6 @@
 .profile-card-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .profile-type { position:relative; display:flex; align-items:center; gap:4px; max-width:60%; }
 .profile-type select { appearance:none; min-height:32px; width:100%; border:0; background:none; font:700 12px var(--font-body); color:var(--color-red); padding:0 18px 0 0; cursor:pointer; }
-.profile-type img { position:absolute; right:0; pointer-events:none; }
 .profile-bars { height:170px; margin-top:30px; display:flex; gap:8px; }
 .profile-y { display:flex; flex-direction:column; justify-content:space-between; font-size:8px; width:12px; padding-bottom:22px; }
 .profile-bar-grid { display:grid; grid-auto-columns:minmax(0,1fr); grid-auto-flow:column; flex:1; gap:4px; }
@@ -69,9 +67,12 @@
 .profile-share-dialog h2 { font-size:18px; margin:16px 0 8px; }
 .profile-share-dialog p { font-size:12px; line-height:1.5; margin:8px 0 16px; overflow-wrap:anywhere; }
 .profile-share-close { position:absolute; right:12px; top:12px; width:36px; height:36px; min-height:36px; padding:0; border:1px solid #0404381a; border-radius:9px; background:white; color:var(--color-dark); font-size:25px; cursor:pointer; }
-.profile-share-close svg { display:block; width:20px; height:20px; margin:auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; }
+.profile-share-close svg { display:block; width:20px; height:20px; margin:auto; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; }
 .profile-share-qr { width:100%; max-width:280px; min-height:240px; margin:auto; display:grid; place-items:center; }
 .profile-share-qr svg { display:block; width:100%; height:auto; }
 .profile-share-qr .loading-placeholder { width:100%; }
 .profile-share-qr .loading-card { min-height:220px; }
 .profile-share-dialog [hidden] { display:none; }
+
+.profile-contact .heroicon, .profile-export .heroicon, .profile-type .heroicon { display:block; width:12px; height:12px; color:var(--color-red); }
+.profile-type .heroicon { position:absolute; right:0; pointer-events:none; }
