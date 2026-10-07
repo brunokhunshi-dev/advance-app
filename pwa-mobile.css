@@ -28,11 +28,10 @@ button:disabled { opacity: .6; cursor: wait; }
 .card-visita .btn-checkin { width: 100% !important; }
 .card-titulo, .agenda-cliente, .hist-cliente { white-space: normal; overflow-wrap: anywhere; }
 
-.bottom-nav { max-width:720px; right:0; margin-inline:auto; padding: 8px 8px var(--safe-bottom); min-height: 72px; box-shadow: none; }
-.nav-item { min-width: 64px; min-height: 56px; gap: 3px; color: #697080; }
-.nav-item.active { color: var(--color-red); }
-.nav-item svg { width: 22px; height: 22px; }
-.fab-nova-visita { right: max(var(--mobile-gutter), calc((100vw - 720px) / 2 + var(--mobile-gutter))); bottom: calc(78px + var(--safe-bottom)); box-shadow: none; }
+.bottom-nav { left:max(18px,env(safe-area-inset-left)); right:max(18px,env(safe-area-inset-right)); bottom:max(18px,calc(env(safe-area-inset-bottom) + 12px)); max-width:684px; margin-inline:auto; box-shadow:none; }
+.nav-item { flex-basis:clamp(48px,16vw,64px); min-height:64px; }
+#tela-inicio, #tela-agenda, #tela-historico, #tela-perfil { padding-bottom:calc(112px + env(safe-area-inset-bottom)) !important; }
+.fab-nova-visita { right: max(var(--mobile-gutter), calc((100vw - 720px) / 2 + var(--mobile-gutter))); bottom:calc(104px + env(safe-area-inset-bottom)); box-shadow:none; }
 
 .tela-fullscreen { min-height: 100dvh; height: 100dvh; overflow-y: auto; padding: max(32px, env(safe-area-inset-top)) var(--mobile-gutter) var(--safe-bottom); }
 .titulo-confirmacao { font-size: clamp(1.7rem, 8vw, 2.2rem); margin-bottom: 28px; }

@@ -620,7 +620,11 @@ function mostrarApenasTela(idTelaAlvo) {
 
     const indice = { 'tela-inicio': 0, 'tela-agenda': 1, 'tela-historico': 2, 'tela-perfil': 3 }[idTelaAlvo];
 
-    document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', i === indice));
+    document.querySelectorAll('.nav-item').forEach((el, i) => {
+        el.classList.toggle('active', i === indice);
+        if (i === indice) el.setAttribute('aria-current', 'page');
+        else el.removeAttribute('aria-current');
+    });
 
     document.body.classList.toggle('screen-form-mode', idTelaAlvo === 'tela-nova-visita' || idTelaAlvo === 'tela-detalhes-visita');
 

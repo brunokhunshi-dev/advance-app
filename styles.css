@@ -212,10 +212,14 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .relatorio-acoes { display: flex; gap: 15px; padding: 20px; background-color: var(--color-bg); padding-bottom: 40px; }
 
 /* 12. NAVBAR INFERIOR */
-.bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--color-white); display: flex; justify-content: space-around; align-items: center; padding: 12px 0 20px 0; border-top: 1px solid #EEEEEE; z-index: 1000; }
-.nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--color-dark); font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; gap: 4px; opacity: 0.6; transition: opacity 0.2s; }
-.nav-item.active { opacity: 1; font-weight: 700; color: var(--color-red); }
-.nav-item svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bottom-nav { position:fixed; display:flex; align-items:center; gap:2px; padding:4px; border:1px solid rgba(0,0,0,.05); border-radius:36px; background:rgba(255,255,255,.4); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); z-index:1000; }
+.nav-item { display:flex; flex:0 0 64px; min-width:0; height:64px; align-items:center; justify-content:center; padding:0; gap:0; border:0; border-radius:32px; background:transparent; color:var(--color-red); font-family:inherit; font-size:16px; font-weight:400; cursor:pointer; overflow:hidden; transition:flex-grow .24s ease, flex-basis .24s ease, background-color .2s ease, color .2s ease, gap .24s ease; }
+.nav-item.active { flex:1 0 64px; background:var(--color-red); color:white; gap:8px; }
+.nav-item svg { width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.nav-label { max-width:0; opacity:0; white-space:nowrap; overflow:hidden; transition:max-width .24s ease, opacity .18s ease; }
+.nav-item.active .nav-label { max-width:90px; opacity:1; }
+.nav-item:focus-visible { outline:2px solid var(--color-dark); outline-offset:-3px; }
+@supports not ((backdrop-filter:blur(3px)) or (-webkit-backdrop-filter:blur(3px))) { .bottom-nav { background:rgba(255,255,255,.95); } }
 
 /* === HISTÓRICO DE VISITAS === */
 .tela-historico-visitas { position: relative; }
