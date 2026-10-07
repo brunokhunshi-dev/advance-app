@@ -1,8 +1,12 @@
 export const MOTIVOS_CANCELAMENTO = ['Loja fechada', 'Responsável indisponível', 'Solicitação do cliente', 'Outro'];
 
+export function atividadePodeSerCancelada(atividade) {
+    return ['Pendente', 'Em andamento'].includes(atividade?.status);
+}
+
 export function dadosCancelamento(atividade, { motivo, detalhe = '', usuarioId, agora = new Date() }) {
     if (!usuarioId || atividade.ptvId !== usuarioId) throw new Error('Esta atividade não pertence ao usuário conectado.');
-    if (atividade.status !== 'Pendente') throw new Error('Somente agendamentos pendentes podem ser cancelados. Atualize a agenda.');
+    if (!atividadePodeSerCancelada(atividade)) throw new Error('Esta atividade já foi finalizada ou cancelada. Atualize a agenda.');
     if (!MOTIVOS_CANCELAMENTO.includes(motivo)) throw new Error('Selecione o motivo do cancelamento.');
     const texto = String(detalhe).trim();
     if (motivo === 'Outro' && !texto) throw new Error('Descreva o motivo do cancelamento.');

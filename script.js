@@ -1,4 +1,5 @@
 import { cancelarAgendamento } from './src/services/cancellation.js';
+import { atividadePodeSerCancelada } from './src/domain/cancellation.js';
 import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
@@ -1482,6 +1483,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
 // === TELA 8: DETALHES DA VISITA ===
 
 let visitaEmEdicao = null;
+let abrirCancelamentoAtividade = () => {};
 
 window.abrirDetalhesVisita = function(index, atividadeEscolhida = null) {
 
@@ -1523,7 +1525,8 @@ window.abrirDetalhesVisita = function(index, atividadeEscolhida = null) {
     const inputs = ['det-data', 'det-hora', 'det-nota', 'btn-salvar-detalhes'];
 
     const emAndamento = visitaEmEdicao.status !== 'Pendente';
-    document.getElementById('btn-cancelar-agendamento').hidden = emAndamento;
+    document.getElementById('btn-cancelar-agendamento').hidden = !atividadePodeSerCancelada(visitaEmEdicao);
+    document.getElementById('btn-cancelar-agendamento').textContent = visitaEmEdicao.status === 'Em andamento' ? 'Cancelar atividade' : 'Cancelar agendamento';
 
     inputs.forEach(id => { document.getElementById(id).disabled = emAndamento; });
 
@@ -1560,15 +1563,17 @@ function configurarTelaDetalhesVisita() {
     const close = document.getElementById('btn-fechar-cancelamento');
     const error = document.getElementById('cancelamento-erro');
     let cancelRequest = null;
-    document.getElementById('btn-cancelar-agendamento').addEventListener('click', () => {
-        if (!visitaEmEdicao || operacaoEmCurso || visitaEmEdicao.status !== 'Pendente') return;
-        cancelRequest = { id: visitaEmEdicao.id, sessao: sessaoAtual() };
+    abrirCancelamentoAtividade = atividade => {
+        if (!atividade?.id || operacaoEmCurso || !atividadePodeSerCancelada(atividade)) return;
+        cancelRequest = { id: atividade.id, sessao: sessaoAtual() };
+        document.getElementById('cancelamento-titulo').textContent = atividade.status === 'Em andamento' ? 'Cancelar atividade' : 'Cancelar agendamento';
         cancelForm.reset();
         detalhe.required = false;
         document.getElementById('cancelamento-outro').hidden = true;
         error.textContent = '';
         cancelDialog.showModal();
-    });
+    };
+    document.getElementById('btn-cancelar-agendamento').addEventListener('click', () => abrirCancelamentoAtividade(visitaEmEdicao));
     motivo.addEventListener('change', () => {
         const outro = motivo.value === 'Outro';
         document.getElementById('cancelamento-outro').hidden = !outro;
@@ -1599,7 +1604,7 @@ function configurarTelaDetalhesVisita() {
             historicoCarregado = null;
             navegarParaTela('tela-agenda', { substituir: true, carregar: false });
             void Promise.allSettled([carregarAgenda(), carregarAtividadesPendentes()]);
-            if (sessaoValida(sessao)) window.mostrarAlerta('Agendamento cancelado', 'A atividade foi mantida no histórico com o motivo do cancelamento.');
+            if (sessaoValida(sessao)) window.mostrarAlerta('Atividade cancelada', 'A atividade foi mantida no histórico com o motivo do cancelamento.');
         } catch (erro) {
             if (sessaoValida(sessao)) error.textContent = erro.message || 'Não foi possível cancelar. Tente novamente.';
         } finally {
@@ -2294,8 +2299,9 @@ function atualizarInterfaceVisitaAtual() {
         ? '<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>'
         : '<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>';
 
-    htmlTimeline += '</div>' + htmlBotoes + '</div>';
+    htmlTimeline += '</div>' + htmlBotoes + '<button type="button" class="btn-outline-red" id="btn-cancelar-atividade-inicio" style="margin-top: 10px;">Cancelar atividade</button></div>';
     areaVisitas.innerHTML = htmlTimeline;
+    document.getElementById('btn-cancelar-atividade-inicio')?.addEventListener('click', () => abrirCancelamentoAtividade(objetoAtividadeGlobal));
 
     const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio');
     const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio');

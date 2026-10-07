@@ -111,7 +111,9 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
 
 export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     const cancelada = atividade.status === 'Cancelada';
-    preencherCampoVisualizador('visu-titulo', cancelada ? 'Agendamento cancelado' : 'Sua visita');
+    const semVisita = cancelada && !atividade.checkinDataHora;
+    const mostrarRelatorio = !cancelada || Boolean(relatorio);
+    preencherCampoVisualizador('visu-titulo', cancelada ? semVisita ? 'Agendamento cancelado' : 'Atividade cancelada' : 'Sua visita');
     const cancelamento = document.getElementById('visu-cancelamento');
     if (cancelamento) cancelamento.hidden = !cancelada;
     preencherCampoVisualizador('visu-motivo-cancelamento', motivoCancelamentoTexto(atividade));
@@ -119,7 +121,7 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     preencherCampoVisualizador('visu-cancelamento-data', atividade.canceladoEm ? formatarDataHoraPT(atividade.canceladoEm).completo : null);
     for (const id of ['visu-horarios', 'visu-localizacao']) {
         const section = document.getElementById(id);
-        if (section) section.hidden = cancelada;
+        if (section) section.hidden = semVisita;
     }
     const resultado = obterResultadoHistorico(atividade);
     const resultadoEl = document.getElementById('visu-resultado');
@@ -138,9 +140,9 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     if (enderecoCliente) enderecoCliente.textContent = cliente?.enderecoCompleto || 'Endereço não informado';
 
     const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('visu-tecnica').style.display = !cancelada && tipo === 'Visita comercial' ? 'block' : 'none';
-    document.getElementById('visu-treinamento').style.display = !cancelada && tipo === 'Treinamento' && !relatorio?.dadosTreinamento ? 'block' : 'none';
-    document.getElementById('visu-assistencia').style.display = !cancelada && tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
+    document.getElementById('visu-tecnica').style.display = mostrarRelatorio && tipo === 'Visita comercial' ? 'block' : 'none';
+    document.getElementById('visu-treinamento').style.display = mostrarRelatorio && tipo === 'Treinamento' && !relatorio?.dadosTreinamento ? 'block' : 'none';
+    document.getElementById('visu-assistencia').style.display = mostrarRelatorio && tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
 
     preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
     preencherCampoVisualizador('visu-oportunidade', atividade.oportunidadeIdentificada);
@@ -150,7 +152,7 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
 
     const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
     const relatorioTextoSection = document.getElementById('visu-relatorio-section');
-    if (relatorioTextoSection) relatorioTextoSection.style.display = cancelada || tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
+    if (relatorioTextoSection) relatorioTextoSection.style.display = !mostrarRelatorio || tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
 
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
         const visual = document.getElementById('visu-at-relatorio-visual');
