@@ -2300,9 +2300,8 @@ function atualizarInterfaceVisitaAtual() {
         ? '<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>'
         : '<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>';
 
-    htmlTimeline += '</div>' + htmlBotoes + '<button type="button" class="btn-outline-red" id="btn-cancelar-atividade-inicio" style="margin-top: 10px;">Cancelar atividade</button></div>';
+    htmlTimeline += '</div>' + htmlBotoes + '</div>';
     areaVisitas.innerHTML = htmlTimeline;
-    document.getElementById('btn-cancelar-atividade-inicio')?.addEventListener('click', () => abrirCancelamentoAtividade(objetoAtividadeGlobal));
 
     const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio');
     const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio');

@@ -548,11 +548,11 @@ export class TechnicalReportEditor {
 
             camera.addEventListener('click', () => {
                 dialog.close();
-                this.cameraPicker?.click();
+                dialog.reportEditor?.cameraPicker?.click();
             });
             gallery.addEventListener('click', () => {
                 dialog.close();
-                this.picker.click();
+                dialog.reportEditor?.picker.click();
             });
             cancel.addEventListener('click', () => dialog.close());
             dialog.addEventListener('click', event => {
@@ -560,6 +560,7 @@ export class TechnicalReportEditor {
             });
         }
 
+        dialog.reportEditor = this;
         dialog.showModal();
     }
 
@@ -572,7 +573,10 @@ export class TechnicalReportEditor {
 
         const stored = Array.isArray(blocks) ? structuredClone(blocks) : null;
         const storedMatchesText = stored && reportText(stored) === String(text || '').trim();
-        this.blocks = storedMatchesText ? stored : [textBlock(text)];
+        this.blocks = storedMatchesText ? stored : [textBlock(text), ...(stored || []).filter(block => block.kind === 'media')];
+        // Empty saved reports and photo-only reports must still offer a text field.
+        if (!this.blocks.some(block => block.kind === 'text')) this.blocks.unshift(textBlock(text));
+        if (this.blocks.at(-1)?.kind === 'media') this.blocks.push(textBlock(''));
 
         this.persistedMediaIds = new Set(
             this.blocks
