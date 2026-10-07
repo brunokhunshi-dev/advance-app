@@ -17,11 +17,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="styles.css?v=profile-63">
-    <link rel="stylesheet" href="profile.css?v=profile-63">
-    <link rel="stylesheet" href="commercial-report.css?v=profile-63">
-    <link rel="stylesheet" href="pwa-mobile.css?v=profile-63">
-    <link rel="stylesheet" href="motion.css?v=profile-63">
+    <link rel="stylesheet" href="styles.css?v=profile-64">
+    <link rel="stylesheet" href="profile.css?v=profile-64">
+    <link rel="stylesheet" href="commercial-report.css?v=profile-64">
+    <link rel="stylesheet" href="pwa-mobile.css?v=profile-64">
+    <link rel="stylesheet" href="motion.css?v=profile-64">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             const jaControlado = Boolean(navigator.serviceWorker.controller);
@@ -130,6 +130,15 @@
                     </label>
 
                     <label>
+                        Tipo de atividade
+                        <select id="filtro-historico-tipo" class="input-box">
+                            <option value="todos">Todas</option>
+                            <option value="Visita comercial">Visita comercial</option>
+                            <option value="Treinamento">Treinamento</option>
+                            <option value="Assistência técnica">Assistência técnica</option>
+                        </select>
+                    </label>
+                    <label>
                         Resultado
                         <select id="filtro-historico-resultado" class="input-box">
                             <option value="todos">Todos</option>
@@ -207,7 +216,7 @@
 
             <div class="visualizador-header">
                 <div>
-                    <h1 class="page-title visualizador-titulo">Sua visita</h1>
+                    <h1 class="page-title visualizador-titulo" id="visu-titulo">Sua visita</h1>
                     <div id="visu-resultado" class="visualizador-resultado">...</div>
                 </div>
                 <button id="btn-fechar-visualizador" class="visualizador-fechar" type="button" aria-label="Fechar visualização"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
@@ -220,7 +229,13 @@
                 <div id="visu-endereco-cliente" class="visualizador-endereco-cliente">Endereço não informado</div>
             </section>
 
-            <section class="visualizador-section">
+            <section class="visualizador-section" id="visu-cancelamento" hidden>
+                <label>Motivo do cancelamento</label>
+                <div class="visualizador-texto-box" id="visu-motivo-cancelamento"></div>
+                <div class="visualizador-info"><label>Agendamento</label><div class="visualizador-value" id="visu-cancelamento-agendado"></div></div>
+                <div class="visualizador-info"><label>Cancelado em</label><div class="visualizador-value" id="visu-cancelamento-data"></div></div>
+            </section>
+            <section class="visualizador-section" id="visu-horarios">
                 <div class="visualizador-campo-titulo">Chegada</div>
                 <div class="visualizador-pill-row">
                     <div class="visualizador-pill" id="visu-chegada-data">--/--/----</div>
@@ -296,7 +311,7 @@
                 </div>
             </section>
 
-            <details class="visualizador-detalhes">
+            <details class="visualizador-detalhes" id="visu-localizacao">
                 <summary>Detalhes de localização</summary>
                 <div class="visualizador-local-grid">
                     <div class="visualizador-info">
@@ -338,6 +353,7 @@
                     </tbody>
                 </table>
 
+                <table class="pdf-sheet-table" id="pdf-cancelamento-table" style="display:none;"><tbody><tr><th>Motivo do cancelamento</th><td id="pdf-motivo-cancelamento" colspan="3">—</td></tr><tr><th>Cancelado em</th><td id="pdf-cancelamento-data" colspan="3">—</td></tr></tbody></table>
                 <table class="pdf-sheet-table">
                     <thead><tr><th colspan="4">HORÁRIOS DA VISITA</th></tr></thead>
                     <tbody>
@@ -430,7 +446,7 @@
 
         </main>
 
-        <!-- TELA 8: DETALHES DA VISITA (EDITAR/EXCLUIR) -->
+        <!-- TELA 8: DETALHES DA VISITA (EDITAR/CANCELAR) -->
         <main class="main-content tela-branca screen-form-sheet" id="tela-detalhes-visita" style="display: none; padding-bottom: 40px;">
 <button class="screen-close" id="btn-voltar-detalhes" type="button" aria-label="Fechar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;">
@@ -438,9 +454,6 @@
                     <h1 class="page-title" style="margin-bottom: 2px;">Visita agendada</h1>
                     <p class="protocolo-id" id="det-protocolo">#...</p>
                 </div>
-                <button class="btn-icon-delete" id="btn-excluir-visita">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="trash" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/> </svg>
-                </button>
             </div>
 
             <div class="form-group" style="margin-bottom: 20px;">
@@ -493,6 +506,7 @@
 
             <div class="botoes-acao screen-action-dock">
                 <button class="btn-iniciar" id="btn-salvar-detalhes">Salvar</button>
+                <button type="button" class="btn-outline-red" id="btn-cancelar-agendamento">Cancelar agendamento</button>
             </div>
         </main>
 
@@ -1002,6 +1016,26 @@
             </div>
         </div>
 
+        <dialog id="modal-cancelar-agendamento" class="cancellation-dialog" aria-labelledby="cancelamento-titulo">
+            <button type="button" id="btn-fechar-cancelamento" class="screen-close" aria-label="Fechar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
+            <h2 id="cancelamento-titulo">Cancelar agendamento</h2>
+            <p>A atividade ficará no histórico como cancelada.</p>
+            <form id="form-cancelamento">
+                <label for="cancelamento-motivo">Motivo do cancelamento (obrigatório)</label>
+                <select id="cancelamento-motivo" class="input-box" required>
+                    <option value="">Selecione um motivo</option>
+                    <option>Loja fechada</option><option>Responsável indisponível</option>
+                    <option>Solicitação do cliente</option><option>Outro</option>
+                </select>
+                <div id="cancelamento-outro" hidden>
+                    <label for="cancelamento-detalhe">Descreva o motivo (obrigatório)</label>
+                    <textarea id="cancelamento-detalhe" class="input-box textarea-box" maxlength="600"></textarea>
+                </div>
+                <p id="cancelamento-erro" role="alert"></p>
+                <button type="submit" id="btn-confirmar-cancelamento" class="btn-checkin">Confirmar cancelamento</button>
+            </form>
+        </dialog>
+
         <div id="modal-confirmar-exclusao" class="modal-overlay alert-modal">
             <div class="alert-box">
                 <div class="alert-content">
@@ -1017,7 +1051,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=profile-63"></script>
+    <script type="module" src="script.js?v=profile-64"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');

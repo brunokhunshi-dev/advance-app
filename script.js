@@ -1,3 +1,4 @@
+import { cancelarAgendamento } from './src/services/cancellation.js';
 import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
@@ -153,7 +154,7 @@ let sequenciaPendentes = 0;
 let sequenciaAgenda = 0;
 
 let sequenciaHistorico = 0;
-let filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
+let filtrosHistorico = { periodo: 'todos', resultado: 'todos', tipo: 'todos' };
 
 const APP_HISTORY_KEY = 'advanceCheck';
 const HASH_POR_TELA = Object.freeze({
@@ -388,6 +389,7 @@ function inicializarAplicativo() {
 
     });
 
+    document.body.appendChild(document.getElementById('modal-cancelar-agendamento'));
     configurarHistoricoNativo();
     configurarNavegacao(); configurarBotoesModal(); configurarEventosGlobais(); configurarFiltroHistorico();
 
@@ -463,6 +465,7 @@ function inicializarAplicativo() {
         clienteVisualizadorAtual = null;
         technicalEditor?.reset();
 
+        document.getElementById('modal-cancelar-agendamento')?.close();
         document.getElementById('tela-confirmacao').style.display = 'none';
 
         window.fecharConfirmacaoExclusao();
@@ -1237,6 +1240,7 @@ function configurarFiltroHistorico() {
     const painel = document.getElementById('historico-filtro');
     const periodo = document.getElementById('filtro-historico-periodo');
     const resultado = document.getElementById('filtro-historico-resultado');
+    const tipo = document.getElementById('filtro-historico-tipo');
     const limpar = document.getElementById('btn-limpar-filtro-historico');
 
     if (!botao || !painel) return;
@@ -1259,10 +1263,17 @@ function configurarFiltroHistorico() {
         else carregarHistoricoVisitas();
     });
 
+    tipo?.addEventListener('change', () => {
+        filtrosHistorico.tipo = tipo.value;
+        if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado, filtrosHistorico));
+        else carregarHistoricoVisitas();
+    });
+
     limpar?.addEventListener('click', () => {
-        filtrosHistorico = { periodo: 'todos', resultado: 'todos' };
+        filtrosHistorico = { periodo: 'todos', resultado: 'todos', tipo: 'todos' };
         if (periodo) periodo.value = 'todos';
         if (resultado) resultado.value = 'todos';
+        if (tipo) tipo.value = 'todos';
         if (historicoCarregado) renderizarHistoricoVisitas(aplicarFiltrosHistorico(historicoCarregado, filtrosHistorico));
         else carregarHistoricoVisitas();
     });
@@ -1511,7 +1522,8 @@ window.abrirDetalhesVisita = function(index, atividadeEscolhida = null) {
 
     const inputs = ['det-data', 'det-hora', 'det-nota', 'btn-salvar-detalhes'];
 
-    const emAndamento = (visitaEmEdicao.status === 'Em andamento' || visitaEmEdicao.status === 'Concluída');
+    const emAndamento = visitaEmEdicao.status !== 'Pendente';
+    document.getElementById('btn-cancelar-agendamento').hidden = emAndamento;
 
     inputs.forEach(id => { document.getElementById(id).disabled = emAndamento; });
 
@@ -1540,49 +1552,61 @@ function configurarTelaDetalhesVisita() {
 
     document.getElementById('btn-voltar-detalhes')?.addEventListener('click', () => voltarNavegacao('tela-agenda'));
 
-    document.getElementById('btn-excluir-visita')?.addEventListener('click', () => {
-
-        if (!visitaEmEdicao || operacaoEmCurso) return;
-
-        const id = visitaEmEdicao.id;
-
-        window.mostrarConfirmacaoExclusao(async () => {
-
-            if (operacaoEmCurso) return;
-
-            const sessao = sessaoAtual();
-
-            operacaoEmCurso = true;
-
-            try {
-
-                await runTransaction(db, async tx => {
-
-                    const ref = doc(db, 'atividades', id), snap = await tx.get(ref);
-
-                    if (!snap.exists()) throw new Error('A visita já foi excluída.');
-
-                    validarResponsavel(snap.data(), sessao);
-
-                    tx.set(doc(db, 'atividades_excluidas', id), { ...snap.data(), id, excluidoEm: new Date(), excluidoPor: sessao.id });
-
-                    tx.delete(ref);
-
-                });
-
-                if (!sessaoValida(sessao)) return;
-
-                if (atividadeSelecionadaId === id) limparEstadoVisita();
-
-                window.mostrarAlerta('Sucesso', 'Visita movida para a lixeira.');
-
-                navegarParaTela('tela-agenda', { substituir: true, carregar: false });
-                await carregarAgenda();
-
-            } finally { operacaoEmCurso = false; }
-
-        });
-
+    const cancelDialog = document.getElementById('modal-cancelar-agendamento');
+    const cancelForm = document.getElementById('form-cancelamento');
+    const motivo = document.getElementById('cancelamento-motivo');
+    const detalhe = document.getElementById('cancelamento-detalhe');
+    const confirm = document.getElementById('btn-confirmar-cancelamento');
+    const close = document.getElementById('btn-fechar-cancelamento');
+    const error = document.getElementById('cancelamento-erro');
+    let cancelRequest = null;
+    document.getElementById('btn-cancelar-agendamento').addEventListener('click', () => {
+        if (!visitaEmEdicao || operacaoEmCurso || visitaEmEdicao.status !== 'Pendente') return;
+        cancelRequest = { id: visitaEmEdicao.id, sessao: sessaoAtual() };
+        cancelForm.reset();
+        detalhe.required = false;
+        document.getElementById('cancelamento-outro').hidden = true;
+        error.textContent = '';
+        cancelDialog.showModal();
+    });
+    motivo.addEventListener('change', () => {
+        const outro = motivo.value === 'Outro';
+        document.getElementById('cancelamento-outro').hidden = !outro;
+        detalhe.required = outro;
+        error.textContent = '';
+    });
+    close.addEventListener('click', () => { if (!operacaoEmCurso) cancelDialog.close(); });
+    cancelDialog.addEventListener('cancel', event => { if (operacaoEmCurso) event.preventDefault(); });
+    cancelDialog.addEventListener('close', () => { cancelRequest = null; });
+    cancelForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!cancelRequest || operacaoEmCurso) return;
+        const { id, sessao } = cancelRequest;
+        operacaoEmCurso = true;
+        confirm.disabled = close.disabled = motivo.disabled = detalhe.disabled = true;
+        confirm.textContent = 'Cancelando…';
+        error.textContent = '';
+        try {
+            await cancelarAgendamento({
+                transaction: callback => runTransaction(db, callback), reference: doc(db, 'atividades', id),
+                validateSession: () => exigirSessao(sessao), usuarioId: sessao.id,
+                motivo: motivo.value, detalhe: detalhe.value
+            });
+            if (!sessaoValida(sessao)) return;
+            cancelDialog.close();
+            if (atividadeSelecionadaId === id) limparEstadoVisita();
+            visitaEmEdicao = null;
+            historicoCarregado = null;
+            navegarParaTela('tela-agenda', { substituir: true, carregar: false });
+            void Promise.allSettled([carregarAgenda(), carregarAtividadesPendentes()]);
+            if (sessaoValida(sessao)) window.mostrarAlerta('Agendamento cancelado', 'A atividade foi mantida no histórico com o motivo do cancelamento.');
+        } catch (erro) {
+            if (sessaoValida(sessao)) error.textContent = erro.message || 'Não foi possível cancelar. Tente novamente.';
+        } finally {
+            operacaoEmCurso = false;
+            confirm.disabled = close.disabled = motivo.disabled = detalhe.disabled = false;
+            confirm.textContent = 'Confirmar cancelamento';
+        }
     });
 
     document.getElementById('btn-salvar-detalhes')?.addEventListener('click', async () => {

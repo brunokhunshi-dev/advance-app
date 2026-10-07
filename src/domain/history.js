@@ -1,6 +1,8 @@
 import { obterData } from './formatters.js';
+import { normalizarTipoVisita } from './reports.js';
 
 export function obterResultadoHistorico(visita) {
+    if (visita.status === 'Cancelada') return 'Cancelada';
     if (String(visita.fechamentoAnaliseStatus || '').trim() === 'Pendente de análise') return 'Pendente';
     if (visita.status === 'Em andamento') return 'Em andamento';
     const valor = String(visita.resultado || '').trim().toLowerCase();
@@ -74,6 +76,8 @@ export function aplicarFiltrosHistorico(visitas, filtrosHistorico = { periodo: '
     return visitas.filter(visita => {
         const resultado = obterResultadoHistorico(visita);
         const data = obterDataHistorico(visita);
+
+        if (filtrosHistorico.tipo && filtrosHistorico.tipo !== 'todos' && normalizarTipoVisita(visita) !== filtrosHistorico.tipo) return false;
 
         if (filtrosHistorico.resultado !== 'todos' && resultado !== filtrosHistorico.resultado) return false;
 

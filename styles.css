@@ -1401,3 +1401,16 @@ svg.heroicon { fill:none; stroke:currentColor; stroke-width:1.5; flex-shrink:0; 
 .home-map-secondary svg.heroicon { width:20px; height:20px; }
 .maplibregl-popup-close-button { font-size:0; width:24px; height:24px; }
 .maplibregl-popup-close-button::after { content:""; display:block; width:16px; height:16px; margin:auto; background:currentColor; mask:url("midia/heroicons/x-mark.svg") center/contain no-repeat; }
+
+.cancellation-dialog { position:fixed; inset:0; margin:auto; width:min(420px,calc(100vw - 36px)); max-height:calc(100dvh - 48px); overflow:auto; border:0; border-radius:var(--radius-card); padding:24px; background:var(--color-white); color:var(--color-dark); font-family:inherit; }
+.cancellation-dialog::backdrop { background:rgba(4,4,56,.5); }
+.cancellation-dialog .screen-close { position:absolute; top:16px; right:16px; }
+.cancellation-dialog h2 { padding-right:52px; font-size:1.3rem; line-height:1.3; margin:0 0 16px; }
+.cancellation-dialog p { color:var(--color-muted); font-size:.9rem; line-height:1.4; margin-bottom:18px; }
+.cancellation-dialog label { display:block; font-size:.9rem; margin:16px 0 8px; }
+.cancellation-dialog #cancelamento-erro { color:var(--color-red); margin:12px 0; }
+.cancellation-dialog #cancelamento-erro:empty { display:none; }
+.cancellation-dialog .btn-checkin { margin-top:20px; }
+#btn-cancelar-agendamento[hidden], #visu-cancelamento[hidden], #visu-horarios[hidden], #visu-localizacao[hidden] { display:none; }
+#tela-detalhes-visita .screen-action-dock { flex-direction:column; gap:8px; }
+#tela-detalhes-visita { padding-bottom:calc(176px + env(safe-area-inset-bottom)) !important; }

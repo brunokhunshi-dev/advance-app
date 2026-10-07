@@ -6,6 +6,7 @@ import { obterResultadoHistorico, obterClasseResultadoHistorico } from '../domai
 import { normalizarTipoVisita, dadosAssistenciaDoRelatorio, ASSISTENCIA_TECNICA_TIPO, blocosPersistidosRelatorio } from '../domain/reports.js';
 import { renderFichaAssistencia } from './assistance.js';
 import { reportMarkup } from '../../technical-report-editor.js';
+import { motivoCancelamentoTexto } from '../domain/cancellation.js';
 
 export function formatarProtocoloVisualizador(valor, fallback) {
     const bruto = String(valor || fallback || '').trim();
@@ -51,6 +52,10 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
     preencherCelulaPdf('pdf-tipo', tipo);
     preencherCelulaPdf('pdf-tecnico', nomeUsuarioLogado);
     preencherCelulaPdf('pdf-endereco', cliente?.enderecoCompleto);
+    const cancelamentoPdf = document.getElementById('pdf-cancelamento-table');
+    if (cancelamentoPdf) cancelamentoPdf.style.display = atividade.status === 'Cancelada' ? 'table' : 'none';
+    preencherCelulaPdf('pdf-motivo-cancelamento', motivoCancelamentoTexto(atividade));
+    preencherCelulaPdf('pdf-cancelamento-data', atividade.canceladoEm ? formatarDataHoraPT(atividade.canceladoEm).completo : null);
 
     preencherCelulaPdf('pdf-chegada-data', formatarDataCheckout(atividade.checkinDataHora));
     preencherCelulaPdf('pdf-chegada-hora', formatarHoraCheckout(atividade.checkinDataHora));
@@ -105,6 +110,17 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
 }
 
 export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
+    const cancelada = atividade.status === 'Cancelada';
+    preencherCampoVisualizador('visu-titulo', cancelada ? 'Agendamento cancelado' : 'Sua visita');
+    const cancelamento = document.getElementById('visu-cancelamento');
+    if (cancelamento) cancelamento.hidden = !cancelada;
+    preencherCampoVisualizador('visu-motivo-cancelamento', motivoCancelamentoTexto(atividade));
+    preencherCampoVisualizador('visu-cancelamento-agendado', atividade.data ? formatarDataHoraPT(atividade.data).completo : null);
+    preencherCampoVisualizador('visu-cancelamento-data', atividade.canceladoEm ? formatarDataHoraPT(atividade.canceladoEm).completo : null);
+    for (const id of ['visu-horarios', 'visu-localizacao']) {
+        const section = document.getElementById(id);
+        if (section) section.hidden = cancelada;
+    }
     const resultado = obterResultadoHistorico(atividade);
     const resultadoEl = document.getElementById('visu-resultado');
     resultadoEl.textContent = resultado;
@@ -122,9 +138,9 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     if (enderecoCliente) enderecoCliente.textContent = cliente?.enderecoCompleto || 'Endereço não informado';
 
     const tipo = normalizarTipoVisita(atividade);
-    document.getElementById('visu-tecnica').style.display = tipo === 'Visita comercial' ? 'block' : 'none';
-    document.getElementById('visu-treinamento').style.display = tipo === 'Treinamento' && !relatorio?.dadosTreinamento ? 'block' : 'none';
-    document.getElementById('visu-assistencia').style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
+    document.getElementById('visu-tecnica').style.display = !cancelada && tipo === 'Visita comercial' ? 'block' : 'none';
+    document.getElementById('visu-treinamento').style.display = !cancelada && tipo === 'Treinamento' && !relatorio?.dadosTreinamento ? 'block' : 'none';
+    document.getElementById('visu-assistencia').style.display = !cancelada && tipo === ASSISTENCIA_TECNICA_TIPO ? 'block' : 'none';
 
     preencherCampoVisualizador('visu-objetivo', atividade.objetivo);
     preencherCampoVisualizador('visu-oportunidade', atividade.oportunidadeIdentificada);
@@ -134,7 +150,7 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
 
     const dadosAssistencia = dadosAssistenciaDoRelatorio(relatorio);
     const relatorioTextoSection = document.getElementById('visu-relatorio-section');
-    if (relatorioTextoSection) relatorioTextoSection.style.display = tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
+    if (relatorioTextoSection) relatorioTextoSection.style.display = cancelada || tipo === ASSISTENCIA_TECNICA_TIPO ? 'none' : 'block';
 
     if (tipo === ASSISTENCIA_TECNICA_TIPO) {
         const visual = document.getElementById('visu-at-relatorio-visual');
