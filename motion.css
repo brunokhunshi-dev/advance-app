@@ -1,0 +1,78 @@
+/* Motion compartilhado: feedback curto, sem atrasar navegação ou operações. */
+:root {
+  --motion-fast: 140ms;
+  --motion-normal: 220ms;
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Opacidade nas telas preserva o posicionamento de X fixos e mapas. */
+  .main-content, .tela-login-container, .tela-relatorio-container, .tela-fullscreen {
+    animation: motion-screen var(--motion-normal) ease-out;
+  }
+  #tela-inicio:not(.home-loading) #home-content {
+    animation: motion-screen var(--motion-normal) ease-out;
+  }
+  .home-loading #home-content { animation:none; }
+
+  /* Cards entram ao receber dados; a home continua aparecendo toda junta. */
+  #area-agenda .card-agenda, #area-historico-visitas .historico-card,
+  .profile-card, .cr-module, .cr-body > fieldset, .timeline-step, .visualizador-section,
+  .report-media-block, .visualizador-detalhes[open] .visualizador-local-grid {
+    animation: motion-rise var(--motion-normal) var(--motion-ease);
+  }
+  #area-agenda .card-agenda:nth-child(2), #area-historico-visitas .historico-card:nth-child(2) { animation-duration:240ms; }
+  #area-agenda .card-agenda:nth-child(3), #area-historico-visitas .historico-card:nth-child(3) { animation-duration:260ms; }
+
+  dialog[open] { animation:motion-dialog var(--motion-normal) var(--motion-ease); }
+  dialog[open]::backdrop, .alert-modal { animation:motion-backdrop var(--motion-fast) ease-out; }
+  .alert-modal .alert-box { animation:motion-dialog var(--motion-normal) var(--motion-ease); }
+  .historico-filtro:not([hidden]), .autocomplete-dropdown,
+  .cr-product-results:not(:empty) { animation:motion-rise var(--motion-fast) ease-out; }
+
+  .agenda-calendar-days.motion-month-next { animation:motion-month-next var(--motion-normal) var(--motion-ease); }
+  .agenda-calendar-days.motion-month-previous { animation:motion-month-previous var(--motion-normal) var(--motion-ease); }
+  .profile-bar { transform-origin:bottom; animation:motion-bar 360ms var(--motion-ease); }
+
+  /* Scale individual não substitui transforms usados pelo layout. */
+  :is(.btn-checkin, .btn-iniciar, .btn-outline-red, .btn-gps,
+    .fab-nova-visita, .screen-close, .visualizador-fechar, .visualizador-exportar,
+    .btn-icon-delete, .report-add-media, .report-media-remove, .report-media-open,
+    .report-media-source-action, .profile-export, .profile-share-close,
+    .profile-period button, .profile-map-tabs button, .card-agenda, .historico-card,
+    .cr-module, .cr-primary, .cr-secondary, .cr-products > button,
+    .agenda-calendar-day, .historico-filtro-btn, .alert-actions button) {
+    transition:scale var(--motion-fast) var(--motion-ease),
+      background-color var(--motion-fast) ease, color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease, opacity var(--motion-fast) ease;
+  }
+  :is(.btn-checkin, .btn-iniciar, .btn-outline-red, .btn-gps,
+    .fab-nova-visita, .screen-close, .visualizador-fechar, .visualizador-exportar,
+    .btn-icon-delete, .report-add-media, .report-media-remove, .report-media-open,
+    .report-media-source-action, .profile-export, .profile-share-close,
+    .profile-period button, .profile-map-tabs button, .card-agenda, .historico-card,
+    .cr-module, .cr-primary, .cr-secondary, .cr-products > button,
+    .agenda-calendar-day, .historico-filtro-btn, .alert-actions button):active:not(:disabled) {
+    scale:.97;
+  }
+  .radio-custom, .checkout-radio-custom,
+  .assistencia-checkout-resultados span, .timeline-dot {
+    transition:background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
+  }
+  .nav-item { transition-timing-function:var(--motion-ease); }
+}
+
+@keyframes motion-screen { from { opacity:.55; } to { opacity:1; } }
+@keyframes motion-rise { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes motion-dialog { from { opacity:0; transform:translateY(10px) scale(.97); } to { opacity:1; transform:none; } }
+@keyframes motion-backdrop { from { opacity:0; } to { opacity:1; } }
+@keyframes motion-month-next { from { opacity:.4; transform:translateX(12px); } to { opacity:1; transform:none; } }
+@keyframes motion-month-previous { from { opacity:.4; transform:translateX(-12px); } to { opacity:1; transform:none; } }
+@keyframes motion-bar { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+}
+@media print {
+  *, *::before, *::after { animation:none !important; transition:none !important; }
+}
