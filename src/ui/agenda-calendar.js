@@ -83,7 +83,7 @@ export class AgendaCalendar {
     changeMonth(direction) {
         this.mes = new Date(this.mes.getFullYear(), this.mes.getMonth() + direction, 1, 12);
         this.selecionado = null;
-        this.render();
+        this.render(direction);
         this.onChange();
     }
     reset() {
@@ -97,7 +97,7 @@ export class AgendaCalendar {
         this.atividades = atividades;
         this.render();
     }
-    render() {
+    render(direction = 0) {
         const ano = this.mes.getFullYear(), mes = this.mes.getMonth();
         const titulo = `${MESES[mes]} de ${ano}`;
         const dias = diasCalendario(ano, mes, this.atividades);
@@ -106,7 +106,7 @@ export class AgendaCalendar {
 
         </div>
         <div class="agenda-calendar-week" aria-hidden="true">${SEMANA.map(dia => `<span>${dia}</span>`).join('')}</div>
-        <ol class="agenda-calendar-days" aria-label="${titulo}">${dias.map(dia => {
+        <ol class="agenda-calendar-days${direction ? direction > 0 ? ' motion-month-next' : ' motion-month-previous' : ''}" aria-label="${titulo}">${dias.map(dia => {
             const descricao = `${dia.data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${dia.visitas ? `${dia.visitas} visita${dia.visitas === 1 ? '' : 's'}` : 'sem visitas'}`;
             const selecionado = this.selecionado && chaveDia(dia.data) === chaveDia(this.selecionado);
             return `<li><button type="button" data-calendar-day="${dia.data.getTime()}" aria-pressed="${Boolean(selecionado)}" class="agenda-calendar-day${dia.fimSemana ? ' is-weekend' : ''}${dia.fora ? ' is-outside' : ''}${dia.hoje ? ' is-today' : ''}${selecionado ? ' is-selected' : ''}" aria-label="${escaparHtml(descricao)}"${dia.hoje ? ' aria-current="date"' : ''}>
