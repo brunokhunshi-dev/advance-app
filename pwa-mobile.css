@@ -67,8 +67,8 @@ button:disabled { opacity: .6; cursor: wait; }
 .radio-label, .checkout-radio-label { min-height: 30px; }
 
 .pwa-install-button {
-  position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+  display: block; width: 100%; margin-bottom: 12px;
   padding: 13px 18px; border: 0; border-radius: 999px;
-  background: var(--color-red); color: var(--color-white); font-weight: 700;
+  background: var(--color-red); color: var(--color-white); font-weight: 400;
   box-shadow: none; cursor: pointer;
 }

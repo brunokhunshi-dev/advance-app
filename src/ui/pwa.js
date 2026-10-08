@@ -6,6 +6,8 @@ const installed = () => window.matchMedia('(display-mode: standalone)').matches 
 window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     if (installed()) return;
+    const accountActions = document.querySelector('#tela-perfil .profile-account');
+    if (!accountActions) return;
     deferredPrompt = event;
     if (installButton) return;
     installButton = document.createElement('button');
@@ -29,7 +31,7 @@ window.addEventListener('beforeinstallprompt', event => {
             installButton = null;
         }
     });
-    document.body.appendChild(installButton);
+    accountActions.prepend(installButton);
 });
 window.addEventListener('appinstalled', () => {
     installButton?.remove();
