@@ -76,3 +76,10 @@
 
 .profile-contact .heroicon, .profile-export .heroicon, .profile-type .heroicon { display:block; width:12px; height:12px; color:var(--color-red); }
 .profile-type .heroicon { position:absolute; right:0; pointer-events:none; }
+
+.profile-account { display:flex; flex-direction:column; gap:12px; }
+.password-dialog { box-sizing:border-box; }
+.password-dialog small { display:block; color:var(--color-muted); margin-top:8px; }
+.password-dialog #mudar-senha-erro { color:var(--color-red); margin:12px 0; }
+.password-dialog #mudar-senha-erro:empty { display:none; }
+.password-dialog button:disabled { opacity:.6; cursor:wait; }

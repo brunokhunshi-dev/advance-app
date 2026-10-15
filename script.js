@@ -1,3 +1,4 @@
+import { setupChangePassword, changeAccountPassword } from './src/ui/change-password.js';
 import { cancelarAgendamento } from './src/services/cancellation.js';
 import { atividadePodeSerCancelada } from './src/domain/cancellation.js';
 import { camposAssistenciaPendentes } from './src/domain/reports.js';
@@ -65,7 +66,7 @@ function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, nave
 }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
 
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
 import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, writeBatch, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
@@ -425,6 +426,12 @@ function inicializarAplicativo() {
 
     });
 
+    const passwordDialog = setupChangePassword({
+        document,
+        changePassword: (...values) => changeAccountPassword({ auth, EmailAuthProvider, reauthenticateWithCredential, updatePassword }, ...values),
+        onSuccess: () => window.mostrarAlerta('Senha alterada', 'Sua senha foi alterada com sucesso.')
+    });
+
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
 
         if (operacaoEmCurso) return window.mostrarAlerta('Aguarde', 'Aguarde o término da operação atual.');
@@ -437,6 +444,7 @@ function inicializarAplicativo() {
 
     onAuthStateChanged(auth, async user => {
 
+        passwordDialog.close();
         const versao = ++versaoSessao;
         productRepository.clear();
         commercialReport?.clear();

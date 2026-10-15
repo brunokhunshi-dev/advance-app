@@ -17,11 +17,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="styles.css?v=profile-68">
-    <link rel="stylesheet" href="profile.css?v=profile-68">
-    <link rel="stylesheet" href="commercial-report.css?v=profile-68">
-    <link rel="stylesheet" href="pwa-mobile.css?v=profile-68">
-    <link rel="stylesheet" href="motion.css?v=profile-68">
+    <link rel="stylesheet" href="styles.css?v=profile-69">
+    <link rel="stylesheet" href="profile.css?v=profile-69">
+    <link rel="stylesheet" href="commercial-report.css?v=profile-69">
+    <link rel="stylesheet" href="pwa-mobile.css?v=profile-69">
+    <link rel="stylesheet" href="motion.css?v=profile-69">
     <script>
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             const jaControlado = Boolean(navigator.serviceWorker.controller);
@@ -806,7 +806,7 @@
         <!-- TELA 7: PERFIL (Nova aba) -->
         <main class="main-content" id="tela-perfil" style="display: none; padding-bottom: 90px;">
             <div id="profile-content"></div>
-            <div class="profile-account"><button class="btn-outline-red" id="btn-logout">Sair da conta</button></div>
+            <div class="profile-account"><button type="button" class="btn-outline-red" id="btn-mudar-senha">Mudar a senha</button><button class="btn-outline-red" id="btn-logout">Sair da conta</button></div>
         </main>
 
         <!-- BARRA DE NAVEGAÇÃO INFERIOR -->
@@ -1016,6 +1016,22 @@
             </div>
         </div>
 
+        <dialog id="modal-mudar-senha" class="cancellation-dialog password-dialog" aria-labelledby="mudar-senha-titulo">
+            <button type="button" id="btn-fechar-mudar-senha" class="profile-share-close" aria-label="Fechar">×</button>
+            <h2 id="mudar-senha-titulo">Mudar a senha</h2>
+            <form id="form-mudar-senha">
+                <label for="senha-atual">Senha atual</label>
+                <input id="senha-atual" name="current-password" class="input-box" type="password" autocomplete="current-password" required autofocus>
+                <label for="nova-senha">Nova senha</label>
+                <input id="nova-senha" name="new-password" class="input-box" type="password" autocomplete="new-password" minlength="6" aria-describedby="nova-senha-ajuda" required>
+                <small id="nova-senha-ajuda">Use pelo menos 6 caracteres.</small>
+                <label for="confirmar-nova-senha">Confirmar nova senha</label>
+                <input id="confirmar-nova-senha" name="confirm-password" class="input-box" type="password" autocomplete="new-password" minlength="6" required>
+                <p id="mudar-senha-erro" role="alert" aria-live="polite"></p>
+                <button type="submit" id="btn-salvar-senha" class="btn-checkin">Salvar nova senha</button>
+            </form>
+        </dialog>
+
         <dialog id="modal-cancelar-agendamento" class="cancellation-dialog" aria-labelledby="cancelamento-titulo">
             <button type="button" id="btn-fechar-cancelamento" class="screen-close" aria-label="Fechar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>
             <h2 id="cancelamento-titulo">Cancelar agendamento</h2>
@@ -1051,7 +1067,7 @@
 
     </div>
 
-    <script type="module" src="script.js?v=profile-68"></script>
+    <script type="module" src="script.js?v=profile-69"></script>
     <script>
         window.addEventListener('load', () => {
             const splash = document.getElementById('pwa-splash');
