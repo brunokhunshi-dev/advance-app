@@ -1,6 +1,6 @@
 import {buscarProdutos, nomeProduto, idProduto} from '../domain/products.js';
 import { loadingMarkup } from './loading.js';
-import { TechnicalReportEditor, mediaStore, compressImage, createThumbnail, reportMarkup } from '../../technical-report-editor.js';
+import { TechnicalReportEditor, mediaStore, compressImage, reportMarkup } from '../../technical-report-editor.js';
 // Drafts are staged locally; the application injects database persistence.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modules = [
@@ -16,7 +16,7 @@ export class CommercialReport {
   constructor(host, onClose = () => {}, onSave = () => {}, review = {}) {
     this.reviewCallbacks = review;
     this.productCatalog = []; this.productQueries = {}; this.productLoading = false; this.productLoaded = false; this.productError = '';
-    this.compressPhoto = compressImage; this.thumbnailPhoto = createThumbnail; this.photoGeneration = 0; this.photoBusy = false;
+    this.compressPhoto = compressImage; this.photoGeneration = 0; this.photoBusy = false;
     this.host = host; this.onClose = onClose; this.onSave = onSave; this.baseReports = new Map(); this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
     this.root = document.createElement('section'); this.root.className = 'commercial-report'; this.root.hidden = true; host.append(this.root);
     this.root.addEventListener('click', e => this.click(e));
@@ -102,14 +102,13 @@ export class CommercialReport {
   previews(key) { return `<div class="cr-photo-previews">${this.data[key].map((photo,i)=>`<figure class="report-media-block">${reportMarkup([photo],this.key)}<button type="button" class="report-media-remove" data-remove-image="${key}:${i}" aria-label="Remover ${escape(photo.name)}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button></figure>`).join('')}</div>`; }
   releasePhoto(photo) {
     if(photo.url) URL.revokeObjectURL(photo.url);
-    if(photo.thumbnailUrl) URL.revokeObjectURL(photo.thumbnailUrl);
     if(photo.id) { mediaStore.clearLocal(photo.id); this.staged.delete(photo.id); }
   }
 
   render() {
     const page = this.page; const info = modules.find(([k])=>k===page);
     let body = '';
-    for(const photo of this.data.photos) { const local=this.staged.get(photo.id); if(local && !mediaStore.local(photo.id)) mediaStore.stage(photo.id,local.file,local.thumbnail); }
+    for(const photo of this.data.photos) { const local=this.staged.get(photo.id); if(local && !mediaStore.local(photo.id)) mediaStore.stage(photo.id,local.file); }
     if(page==='overview') body = `<h1>Visita comercial - ${escape(this.context.client)}</h1><p class="cr-code">${escape(this.context.code || '')}</p><label class="cr-field">Chegada<div class="cr-pills"><span>${escape(this.context.date)}</span><span>${escape(this.context.time)}</span></div></label><label class="cr-field">Cliente<div class="cr-pill">${escape(this.context.client)}</div></label>${this.rows()}<div class="cr-footer"><button class="btn-checkin cr-primary" data-action="save">Salvar relatório</button></div>`;
     if(page==='contact') body = this.field('Nome','name','Quem te recebeu?') + this.select('Cargo do responsável','role',['Proprietário','Gerente','Comprador','Vendedor','Responsável técnico']) + this.select('Objetivo principal','goal',['Relacionamento e levantamento de necessidades','Apoio às vendas ou reposição','Apresentação de produto ou lançamento','Orientação aos vendedores','Acompanhamento de pendência']);
     if(page==='availability') body = questions.map(([k,title])=>`<fieldset><legend>${title}</legend>${this.radios(k,['Sim','Não'])}${this.data[k]==='Sim'?`<div class="cr-products">${this.data.products[k].map((p,i)=>`<button type="button" data-remove-product="${k}:${i}" aria-label="Remover ${escape(nomeProduto(p))}">${escape(nomeProduto(p))} <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="x-mark" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/> </svg></button>`).join('')}<div class="cr-product-search"><input type="search" data-product-search="${k}" value="${escape(this.productQueries[k] || '')}" aria-label="Buscar produto em ${title}" placeholder="Buscar produto por nome" role="combobox" aria-autocomplete="list" aria-controls="cr-results-${k}" aria-expanded="false" autocomplete="off"><div id="cr-results-${k}" class="cr-product-results" role="listbox" aria-label="Produtos encontrados"></div></div></div>`:''}</fieldset>`).join('');
@@ -178,7 +177,7 @@ export class CommercialReport {
   }
   mountEditor() {
     const input=this.root.querySelector('[data-field="text"]'); input.value=this.data.text;
-    for (const block of this.data.blocks || []) { const local=this.staged.get(block.id); if(local && !mediaStore.local(block.id)) mediaStore.stage(block.id,local.file,local.thumbnail); }
+    for (const block of this.data.blocks || []) { const local=this.staged.get(block.id); if(local && !mediaStore.local(block.id)) mediaStore.stage(block.id,local.file); }
     const editor = new TechnicalReportEditor(this.root.querySelector('.technical-report-editor'),input,this.root.querySelector('.report-add-media'),this.root.querySelector('.cr-media-picker'),this.root.querySelector('.cr-editor-status'),this.root.querySelector('.cr-camera-picker'));
     editor.reset({activityId:this.key,text:this.data.text,blocks:this.data.blocks,preserveLocal:true});
     this.editor=editor;
@@ -204,9 +203,8 @@ export class CommercialReport {
       try {
         for(const file of files) {
           const compressed=await this.compressPhoto(file);
-          const thumbnail=await this.thumbnailPhoto(compressed.file);
           if(generation!==this.photoGeneration) return;
-          const id=crypto.randomUUID(); mediaStore.stage(id,compressed.file,thumbnail); this.staged.set(id,mediaStore.local(id));
+          const id=crypto.randomUUID(); mediaStore.stage(id,compressed.file); this.staged.set(id,mediaStore.local(id));
           data.photos.push({kind:'media',id,name:compressed.file.name,type:compressed.file.type,storage:'pending',size:compressed.file.size,originalSize:file.size});
         }
       } catch(e) { error=e.message || 'Não foi possível processar a imagem.'; }
