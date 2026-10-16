@@ -1,4 +1,5 @@
 import { createMediaUrlCache } from './src/services/media-url-cache.js';
+import { describeOperationError } from './src/domain/operation-errors.js';
 const DEFAULT_MEDIA_API = 'https://advance-media-api.brunokhunshi.workers.dev';
 
 let mediaApi = {
@@ -451,7 +452,7 @@ function hydrate(root) {
                 const url = await mediaStore.readUrl(activityId, id, 'original');
                 showViewer(url, type, name);
             } catch (error) {
-                showMediaError(error.message || 'Não foi possível abrir o arquivo.');
+                showMediaError(describeOperationError(error, 'abertura do arquivo'));
             } finally {
                 button.disabled = false;
             }
@@ -479,13 +480,23 @@ function hydrate(root) {
                     if (button.isConnected) button.querySelector('.report-media-preview')?.replaceChildren(preview);
                 };
                 preview.src = url;
-            } catch {
-                // Keep the file-type icon when a thumbnail is unavailable.
+            } catch (error) {
+                // Falhas de miniatura não devem se tornar silenciosas quando há bloqueio de cota.
+                notifyMediaLimit(error);
             }
         });
     });
 }
 
+let lastMediaLimitNotice = 0;
+function notifyMediaLimit(error) {
+    const detail = String(error?.message || '');
+    if (!/quota exceeded|resource[-.]exhausted|limite (de consultas|preventivo|de imagens)|consultas de imagens temporariamente suspensas/i.test(detail) && error?.status !== 429) return;
+    const now = Date.now();
+    if (now - lastMediaLimitNotice < 120000) return;
+    lastMediaLimitNotice = now;
+    showMediaError(describeOperationError(error, 'visualização das imagens'));
+}
 function showMediaError(message) {
     if (window.mostrarAlerta) window.mostrarAlerta('Arquivo', message);
     else window.alert(message);
