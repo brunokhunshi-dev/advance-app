@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-profile-v70';
+const CACHE_NAME = 'advance-pwa-profile-v71';
 const APP_SHELL = [
   './', './index.html', './styles.css', './motion.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -17,6 +17,7 @@ const APP_SHELL = [
   './src/domain/reports.js',
   './src/domain/scheduling.js',
   './src/services/media-url-cache.js',
+  './src/domain/operation-errors.js',
   './src/services/location.js',
   './src/services/commercial-save.js',
   './src/ui/assistance.js',
