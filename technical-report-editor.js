@@ -1,3 +1,4 @@
+import { createMediaUrlCache } from './src/services/media-url-cache.js';
 const DEFAULT_MEDIA_API = 'https://advance-media-api.brunokhunshi.workers.dev';
 
 let mediaApi = {
@@ -6,6 +7,7 @@ let mediaApi = {
 };
 
 export function configureMediaApi({ baseUrl = DEFAULT_MEDIA_API, getIdToken } = {}) {
+    mediaUrls.clear();
     mediaApi.baseUrl = String(baseUrl || DEFAULT_MEDIA_API).replace(/\/$/, '');
     mediaApi.getIdToken = getIdToken;
 }
@@ -26,7 +28,11 @@ async function mediaApiRequest(path, body) {
 
     let data = null;
     try { data = await response.json(); } catch {}
-    if (!response.ok) throw new Error(data?.error || ('Falha no serviço de arquivos (HTTP ' + response.status + ').'));
+    if (!response.ok) {
+        const error = new Error(data?.error || ('Falha no serviço de arquivos (HTTP ' + response.status + ').'));
+        error.status = response.status;
+        throw error;
+    }
     return data || {};
 }
 
@@ -45,6 +51,9 @@ async function uploadSigned(url, blob, contentType) {
     });
     if (!response.ok) throw new Error('Falha ao enviar arquivo ao armazenamento (HTTP ' + response.status + ').');
 }
+
+const mediaUrls = createMediaUrlCache({request:mediaApiRequest});
+export const clearMediaUrlCache = () => mediaUrls.clear();
 
 const localMedia = new Map();
 
@@ -106,13 +115,8 @@ export const mediaStore = {
             throw error;
         }
     },
-    async readUrl(activityId, id, variant = 'original') {
-        const result = await mediaApiRequest('/v1/media/read-url', {
-            activityId,
-            mediaId: id,
-            variant
-        });
-        return result.url;
+    readUrl(activityId, id, variant = 'original') {
+        return mediaUrls.read(activityId, id, variant);
     },
     async delete(activityId, id) {
         return mediaApiRequest('/v1/media/delete', {
@@ -409,6 +413,23 @@ function showViewer(src, type, name, revokeOnClose = false) {
     viewer.showModal();
 }
 
+let previewObserver;
+const pendingPreviews = new WeakMap();
+function loadVisiblePreview(button, load) {
+    if (typeof IntersectionObserver === 'undefined') return void load();
+    if (!previewObserver) previewObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            previewObserver.unobserve(entry.target);
+            const callback = pendingPreviews.get(entry.target);
+            pendingPreviews.delete(entry.target);
+            if (entry.target.isConnected) void callback?.();
+        }
+    }, {rootMargin:'100px'});
+    pendingPreviews.set(button, load);
+    previewObserver.observe(button);
+}
+
 function hydrate(root) {
     root.querySelectorAll('[data-report-media]:not([data-ready])').forEach(async button => {
         button.dataset.ready = 'true';
@@ -447,19 +468,21 @@ function hydrate(root) {
         }
 
         if (!activityId) return;
-        try {
-            const url = await mediaStore.readUrl(activityId, id, 'thumbnail');
-            if (!button.isConnected) return;
-            const preview = document.createElement('img');
-            preview.alt = '';
-            preview.width = preview.height = 96;
-            preview.onload = () => {
-                if (button.isConnected) button.querySelector('.report-media-preview')?.replaceChildren(preview);
-            };
-            preview.src = url;
-        } catch {
-            // Keep the file-type icon when a thumbnail is unavailable.
-        }
+        loadVisiblePreview(button, async () => {
+            try {
+                const url = await mediaStore.readUrl(activityId, id, 'thumbnail');
+                if (!button.isConnected) return;
+                const preview = document.createElement('img');
+                preview.alt = '';
+                preview.width = preview.height = 96;
+                preview.onload = () => {
+                    if (button.isConnected) button.querySelector('.report-media-preview')?.replaceChildren(preview);
+                };
+                preview.src = url;
+            } catch {
+                // Keep the file-type icon when a thumbnail is unavailable.
+            }
+        });
     });
 }
 

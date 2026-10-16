@@ -302,7 +302,7 @@ async function firestoreFetch(
   idToken,
   options = {}
 ) {
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers: {
       ...(options.headers || {}),
@@ -310,6 +310,12 @@ async function firestoreFetch(
         "Bearer " + idToken,
     },
   });
+  let quotaExceeded = response.status === 429;
+  if (!response.ok && !quotaExceeded) {
+    try { quotaExceeded = (await response.clone().json())?.error?.status === 'RESOURCE_EXHAUSTED'; } catch {}
+  }
+  if (quotaExceeded) throw new Response('Quota exceeded. O limite de consultas do banco foi atingido.', {status:429});
+  return response;
 }
 async function profileFromDocument(
   document,
@@ -392,7 +398,9 @@ async function findProfileInCollection(
         return uidProfile;
       }
     }
-  } catch {}
+  } catch (error) {
+    if (error instanceof Response && error.status === 429) throw error;
+  }
   if (!user.email) {
     return null;
   }
@@ -622,9 +630,10 @@ async function authorizeActivity(
   env,
   user,
   activityId,
-  requireInProgress = false
+  requireInProgress = false,
+  verifiedProfile = null
 ) {
-  const profile =
+  const profile = verifiedProfile ||
     await getAdvanceProfile(
       env,
       user
@@ -1217,10 +1226,6 @@ export default {
             request,
             env
           );
-        await requireManagement(
-          env,
-          user
-        );
         const body =
           await request.json();
         const items =
@@ -1277,6 +1282,13 @@ export default {
             },
             400
           );
+        }
+        // Resolve the authenticated profile once for the request, then authorize every activity.
+        // No permission result is cached across requests; deactivation still applies immediately.
+        const profile = await getAdvanceProfile(env, user);
+        if (!profile) return json({error: "Perfil do Advance não encontrado."}, 403);
+        for (const activityId of new Set(normalized.map(item => item.activityId))) {
+          await authorizeActivity(env, user, activityId, false, profile);
         }
         const signedItems =
           await Promise.all(

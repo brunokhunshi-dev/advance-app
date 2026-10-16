@@ -26,7 +26,7 @@ import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, bu
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
-import { readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
+import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
     const sessao = sessaoAtual();
     await garantirCatalogoAdvance({
@@ -214,6 +214,8 @@ function informarErro(titulo, erro) {
     console.error(titulo, erro);
 
     const mensagens = {
+
+        'resource-exhausted': 'O limite de consultas do banco foi atingido. Preserve o texto e as fotos e avise o responsável pelo aplicativo.',
 
         'permission-denied': 'Você não tem permissão para esta operação. Confira as regras do Firestore.',
 
@@ -444,6 +446,7 @@ function inicializarAplicativo() {
 
     onAuthStateChanged(auth, async user => {
 
+        clearMediaUrlCache();
         passwordDialog.close();
         const versao = ++versaoSessao;
         productRepository.clear();

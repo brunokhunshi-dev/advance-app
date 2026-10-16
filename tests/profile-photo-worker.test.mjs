@@ -44,3 +44,38 @@ test('normalizing uploaded markdown preserves XML entities and existing health/C
  const r=await s.worker.fetch(new Request('https://worker.test/health'),env);
  assert.equal((await r.json()).ok,true); assert.equal(r.headers.get('Access-Control-Allow-Origin'),'*');
 });
+
+test('field batch authorizes 20 photos with one profile lookup sequence and one activity read',async()=>{
+ const s=setup();
+ const r=await s.worker.fetch(request({items:Array.from({length:20},(_,i)=>({activityId:'visit_01',mediaId:'photo_'+i,variant:'thumbnail'}))},true,'/v1/media/read-urls'),env);
+ assert.equal(r.status,200);assert.equal((await r.json()).items.length,20);
+ assert.equal(s.fetches.filter(f=>f.url.includes('/atividades/')).length,1);
+ assert.equal(s.fetches.filter(f=>f.url.endsWith(':runQuery')).length,4);
+ assert.equal(s.fetches.filter(f=>f.url.includes('firestore.googleapis.com')).length,9);
+});
+test('field batch rejects another owner, mixed activities, inactive profiles and oversized batches',async()=>{
+ const base={items:[{activityId:'visit_01',mediaId:'photo_01'}]};
+ const s=setup();
+ // Override a single activity response without changing profile ownership.
+ const context=vm.createContext({Response,Request,URL,TextEncoder,crypto:webcrypto,console,fetch:async(url,options={})=>{
+  if(url.includes('identitytoolkit')) return Response.json({users:[{localId:'uid',email:'person@example.com'}]});
+  if(url.includes('/atividades/')) return Response.json({fields:{ptvId:{stringValue:url.endsWith('/other_visit')?'someone_else':'ptv_01'}}});
+  if(url.endsWith(':runQuery')) {const kind=JSON.parse(options.body).structuredQuery.from[0].collectionId;return Response.json(kind==='promotores'?[{document:{name:'projects/test/databases/(default)/documents/promotores/ptv_01',fields:{}}}]:[]);}
+  return new Response(null,{status:404});
+ }});
+ vm.runInContext(source.replace('export default {','globalThis.worker = {'),context);
+ const mixed={items:[...base.items,{activityId:'other_visit',mediaId:'photo_02'}]};
+ assert.equal((await context.worker.fetch(request(mixed,true,'/v1/media/read-urls'),env)).status,403);
+ assert.equal((await setup({active:false}).worker.fetch(request(base,true,'/v1/media/read-urls'),env)).status,403);
+ assert.equal((await s.worker.fetch(request({items:Array.from({length:31},()=>base.items[0])},true,'/v1/media/read-urls'),env)).status,400);
+});
+test('Firestore quota error aborts profile fallbacks on the first failed read',async()=>{
+ let reads=0;
+ const context=vm.createContext({Response,Request,URL,TextEncoder,crypto:webcrypto,console,fetch:async(url)=>{
+  if(url.includes('identitytoolkit'))return Response.json({users:[{localId:'uid',email:'person@example.com'}]});
+  reads++;return Response.json({error:{status:'RESOURCE_EXHAUSTED',message:'Quota exceeded.'}},{status:429});
+ }});
+ vm.runInContext(source.replace('export default {','globalThis.worker = {'),context);
+ const r=await context.worker.fetch(request({items:[{activityId:'visit_01',mediaId:'photo_01'}]},true,'/v1/media/read-urls'),env);
+ assert.equal(r.status,429);assert.equal(reads,1);assert.match((await r.json()).error,/Quota exceeded/);
+});
