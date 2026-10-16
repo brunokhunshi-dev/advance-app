@@ -333,6 +333,7 @@ export async function compressImage(inputFile) {
     }
 }
 
+let viewer;
 function showViewer(src, type, name, revokeOnClose = false) {
     if (!viewer) {
         viewer = document.createElement('dialog');
