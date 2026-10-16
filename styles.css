@@ -1263,11 +1263,11 @@ body.screen-form-mode #tela-detalhes-visita { background-color: var(--color-whit
 .report-add-media svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; }
 .report-add-media:disabled { opacity: .5; }
 .report-media-block { position: relative; display: inline-block; vertical-align: top; width: 96px; height: 96px; margin: 6px 8px 6px 0; }
-.report-media-open { position: relative; display: inline-flex; vertical-align: top; width: 96px; height: 96px; box-sizing: border-box; margin: 6px 8px 6px 0; padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: #e9edf4; font: inherit; cursor: pointer; color: #062666; }
+.report-media-open { position: relative; display: inline-flex; flex-direction:column; gap:5px; align-items:center; justify-content:center; vertical-align: top; width: 96px; height: 96px; box-sizing: border-box; margin: 6px 8px 6px 0; padding: 8px 3px; border: 0; border-radius: 8px; overflow: hidden; background: #e9edf4; font: inherit; cursor: pointer; color: #062666; }
 .report-media-block .report-media-open { margin: 0; }
 .report-media-open:focus-visible, .report-add-media:focus-visible, .report-media-remove:focus-visible { outline: 2px solid #062666; outline-offset: 3px; }
-.report-media-preview { display: flex; width: 96px; height: 96px; align-items: center; justify-content: center; font-size: 28px; }
-.report-media-preview img { display: block; width: 96px; height: 96px; object-fit: cover; }
+.report-media-preview { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; font-size: 28px; }
+.report-media-open-label { display: block; font-size: 11px; font-weight: 600; line-height: 1.25; text-align:center; }
 .report-media-play { position: absolute; inset: auto 6px 6px auto; background: #062666; color: white; border-radius: 50%; padding: 4px 6px; font-size: 12px; }
 .report-media-remove { position: absolute; z-index: 1; top: -5px; right: -5px; width: 28px; height: 28px; min-height: 28px; min-width: 28px; box-sizing: border-box; padding: 6px; display: grid; place-items: center; border: 2px solid var(--color-bg); border-radius: 50%; background: #263348; color: #fff; cursor: pointer; }
 .report-media-remove svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
