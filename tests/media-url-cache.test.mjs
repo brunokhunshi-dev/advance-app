@@ -46,3 +46,30 @@ test('clearing a session while a request is in flight discards its result',async
     // The old signed URL was not retained.
     const next=assert.rejects(f.cache.read('v','a'));f.cache.clear();await f.flush();await next;assert.equal(f.calls.length,1);
 });
+
+test('temporary API failures are negatively cached to stop repeated previews', async () => {
+    let calls = 0;
+    const f = fixture(() => { calls++; throw Object.assign(new Error('Serviço indisponível.'), {status:503}); });
+    const first = assert.rejects(f.cache.read('v', 'photo')); await f.flush(); await first;
+    await assert.rejects(f.cache.read('v', 'photo'));
+    assert.equal(calls, 1);
+    f.setTime(15001);
+    const next = assert.rejects(f.cache.read('v', 'photo')); await f.flush(); await next;
+    assert.equal(calls, 2);
+});
+
+test('request budget caps a flood even when all media IDs are distinct', async () => {
+    const f = fixture();
+    const promises = Array.from({length:2100}, (_,i)=>f.cache.read('v', 'media-'+i).catch(e=>e));
+    await f.flush();
+    const results = await Promise.all(promises);
+    assert.equal(f.calls.length, 60);
+    assert.equal(results.filter(item=>item instanceof Error).length, 300);
+});
+
+test('429 suspends new requests for a minute across different images', async () => {
+    const f = fixture(() => { throw Object.assign(new Error('Too many requests'), {status:429}); });
+    const first=assert.rejects(f.cache.read('v','a')); await f.flush(); await first;
+    await assert.rejects(f.cache.read('v','b'));
+    assert.equal(f.calls.length, 1);
+});
