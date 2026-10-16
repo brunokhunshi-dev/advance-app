@@ -38,7 +38,6 @@
 .cr-photo { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; background:#fff3f5; border-radius:16px; padding:16px; color:var(--color-red); font-size:13px; cursor:pointer; }
 .cr-photo>span { font-size:24px; }
 .cr-photo-previews { margin:12px 0; }
-.cr-photo-previews img { width:96px; height:96px; object-fit:cover; }
 .cr-summary { border-radius:18px; background-color:var(--color-bg); padding:18px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .cr-text-link { color:var(--color-red); background:none; border:0; text-decoration:underline; font-weight:600; }
 .cr-status { margin-top:12px; font-size:14px; color:var(--color-muted); }
