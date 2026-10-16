@@ -73,3 +73,28 @@ test('429 suspends new requests for a minute across different images', async () 
     await assert.rejects(f.cache.read('v','b'));
     assert.equal(f.calls.length, 1);
 });
+
+test('overlapping renders serialize network batches', async () => {
+    const tasks = [];
+    let firstRelease, calls = 0, active = 0, maximum = 0;
+    const cache = createMediaUrlCache({
+        schedule: callback => tasks.push(callback),
+        request: async (path, body) => {
+            calls++; active++; maximum = Math.max(maximum, active);
+            if (calls === 1) await new Promise(resolve => { firstRelease = resolve; });
+            active--;
+            return signed(body.items);
+        }
+    });
+    const first = cache.read('v', 'one');
+    const firstFlush = tasks.shift()();
+    await Promise.resolve();
+    const second = cache.read('v', 'two');
+    await tasks.shift()();
+    assert.equal(calls, 1);
+    firstRelease();
+    await firstFlush;
+    await Promise.all([first, second]);
+    assert.equal(calls, 2);
+    assert.equal(maximum, 1);
+});
