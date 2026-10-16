@@ -26,6 +26,7 @@ import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, bu
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
+import { describeOperationError } from './src/domain/operation-errors.js';
 import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
     const sessao = sessaoAtual();
@@ -210,25 +211,11 @@ function validarResponsavel(dados, sessao) {
 }
 
 function informarErro(titulo, erro) {
-
     console.error(titulo, erro);
-
-    const mensagens = {
-
-        'resource-exhausted': 'O limite de consultas do banco foi atingido. Preserve o texto e as fotos e avise o responsável pelo aplicativo.',
-
-        'permission-denied': 'Você não tem permissão para esta operação. Confira as regras do Firestore.',
-
-        'unavailable': 'Serviço indisponível. Confira a conexão e tente novamente.',
-
-        'failed-precondition': 'A operação depende de uma configuração do banco. Consulte o erro no console.',
-
-        'not-found': 'O registro não foi encontrado. Atualize a tela.'
-
-    };
-
-    window.mostrarAlerta(titulo, mensagens[erro?.code] || erro?.message || 'Tente novamente.');
-
+    const contexto = /check-in/i.test(titulo) ? 'check-in' :
+        /check-out/i.test(titulo) ? 'check-out' :
+        /relat[oó]rio/i.test(titulo) ? 'salvamento de relatório' : 'operação';
+    window.mostrarAlerta(titulo, describeOperationError(erro, contexto));
 }
 
 function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, paraNovo = false) {
