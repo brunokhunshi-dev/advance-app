@@ -10,7 +10,7 @@ export async function persistCommercialMedia({activityId, data, base, media, com
             if (block.storage === 'r2') continue;
             const local = media.local(block.id);
             if (!local) throw new Error('Uma imagem não está disponível. Adicione-a novamente antes de salvar.');
-            const stored = await media.upload(activityId, block.id, local.file, local.thumbnail);
+            const stored = await media.upload(activityId, block.id, local.file);
             uploaded.push(block.id);
             Object.assign(block, stored, {storage:'r2'});
         }

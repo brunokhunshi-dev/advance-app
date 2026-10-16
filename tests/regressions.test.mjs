@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configureMediaApi, mediaStore, compressImage, createThumbnail } from '../technical-report-editor.js';
+import { configureMediaApi, mediaStore, compressImage } from '../technical-report-editor.js';
 
 import { createClientRepository } from '../src/data/client-repository.js';
 import { obterIniciais } from '../src/domain/identifiers.js';
@@ -39,23 +39,19 @@ test('initials handle spaces and accents', () => {
     assert.equal(obterIniciais(''),'XX');
 });
 
-test('failed parallel upload waits for the other PUT before deleting', async t => {
-    const originalFetch=globalThis.fetch; t.after(()=>{globalThis.fetch=originalFetch;});
-    const slow=deferred(); const order=[];
+test('failed original upload deletes its own media without generating a thumbnail', async t => {
+    const originalFetch=globalThis.fetch;
+    t.after(()=>{globalThis.fetch=originalFetch;});
+    const order=[];
     configureMediaApi({baseUrl:'https://media.test',getIdToken:async()=> 'test'});
     globalThis.fetch=async (url) => {
-        if (url.endsWith('upload-url')) return Response.json({original:{uploadUrl:'https://put/original',key:'o'},thumbnail:{uploadUrl:'https://put/thumb',key:'t'}});
-        if (url.endsWith('/original')) return new Response('',{status:500});
-        if (url.endsWith('/thumb')) { await slow.promise; order.push('thumbnail finished'); return new Response(''); }
-        if (url.endsWith('/delete')) { order.push('delete'); return Response.json({}); }
-        throw Error('Unexpected fetch');
+        if (url.endsWith('upload-url')) return Response.json({original:{uploadUrl:'https://put/original',key:'o'}});
+        if (url.endsWith('/original')) {order.push('original');return new Response('',{status:500});}
+        if (url.endsWith('/delete')) {order.push('delete');return Response.json({});}
+        throw Error('Unexpected fetch: '+url);
     };
-    const result=mediaStore.upload('a','m',new Blob(['image'],{type:'image/webp'}),new Blob(['thumb']));
-    await new Promise(resolve=>setImmediate(resolve));
-    assert.deepEqual(order,[]);
-    slow.resolve();
-    await assert.rejects(result,/HTTP 500/);
-    assert.deepEqual(order,['thumbnail finished','delete']);
+    await assert.rejects(mediaStore.upload('a','m',new Blob(['image'],{type:'image/webp'})),/HTTP 500/);
+    assert.deepEqual(order,['original','delete']);
 });
 
 function mockCanvas(t, sizeFor) {
@@ -86,10 +82,3 @@ test('compression rejects images that still exceed the output limit', async t =>
     assert.equal(mock.closed(),1);
 });
 
-test('thumbnail uses only one 96px canvas', async t => {
-    const mock=mockCanvas(t,()=>1000);
-    const thumbnail=await createThumbnail(new File(['x'],'test.webp',{type:'image/webp'}));
-    assert.equal(thumbnail.type,'image/jpeg'); assert.equal(mock.canvases.length,1);
-    assert.equal(mock.canvases[0].width,96); assert.equal(mock.canvases[0].height,96);
-    assert.equal(mock.closed(),1);
-});
