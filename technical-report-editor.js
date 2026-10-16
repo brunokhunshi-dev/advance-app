@@ -60,7 +60,6 @@ const localMedia = new Map();
 
 function clearLocalMedia(id) {
     const local = localMedia.get(id);
-    if (local?.thumbnailUrl) URL.revokeObjectURL(local.thumbnailUrl);
     localMedia.delete(id);
 }
 
@@ -69,13 +68,9 @@ function clearAllLocalMedia() {
 }
 
 export const mediaStore = {
-    stage(id, file, thumbnail) {
+    stage(id, file) {
         clearLocalMedia(id);
-        localMedia.set(id, {
-            file,
-            thumbnail,
-            thumbnailUrl: thumbnail ? URL.createObjectURL(thumbnail) : ''
-        });
+        localMedia.set(id, { file });
     },
     local(id) {
         return localMedia.get(id) || null;
@@ -83,35 +78,15 @@ export const mediaStore = {
     clearLocal(id) {
         clearLocalMedia(id);
     },
-    async upload(activityId, id, file, thumbnail) {
+    async upload(activityId, id, file) {
         const signed = await mediaApiRequest('/v1/media/upload-url', {
-            activityId,
-            mediaId: id,
-            contentType: file.type,
-            size: file.size
+            activityId, mediaId: id, contentType: file.type, size: file.size
         });
-
         try {
-            const uploads = [
-                uploadSigned(signed.original.uploadUrl, file, file.type)
-            ];
-            if (thumbnail && signed.thumbnail?.uploadUrl) {
-                uploads.push(uploadSigned(signed.thumbnail.uploadUrl, thumbnail, 'image/jpeg'));
-            }
-
-            // Original e thumbnail não dependem um do outro. Enviar em paralelo
-            // reduz o tempo de salvamento, principalmente em conexões móveis.
-            const results = await Promise.allSettled(uploads);
-            const failure = results.find(result => result.status === 'rejected');
-            if (failure) throw failure.reason;
-
-            return {
-                key: signed.original.key,
-                thumbnailKey: thumbnail ? (signed.thumbnail?.key || null) : null
-            };
+            await uploadSigned(signed.original.uploadUrl, file, file.type);
+            return { key: signed.original.key };
         } catch (error) {
-            // A exclusão é idempotente para o nosso fluxo e limpa qualquer PUT
-            // que tenha terminado antes da outra requisição falhar.
+            // Exclui somente os objetos desta mídia; o Worker mantém a limpeza de legados.
             try { await mediaStore.delete(activityId, id); } catch {}
             throw error;
         }
@@ -142,7 +117,7 @@ function reportText(blocks) {
 export function reportMarkup(blocks, activityId = '') {
     return (blocks || []).map(block => block.kind === 'text'
         ? (block.text ? `<p class="technical-report-paragraph">${escape(block.text)}</p>` : '')
-        : `<button type="button" class="report-media-open" data-report-media="${escape(block.id)}" data-report-activity="${escape(activityId)}" data-media-type="${escape(block.type)}" data-media-name="${escape(block.name)}" aria-label="Abrir ${escape(block.name)}" title="${escape(block.name)}"><span class="report-media-preview" aria-hidden="true">${mediaIcon(block.type)}</span>${block.type.startsWith('video/') ? '<span class="report-media-play" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="play" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/> </svg></span>' : ''}</button>`).join('');
+        : `<button type="button" class="report-media-open" data-report-media="${escape(block.id)}" data-report-activity="${escape(activityId)}" data-media-type="${escape(block.type)}" data-media-name="${escape(block.name)}" aria-label="Abrir ${escape(block.name)}" title="${escape(block.name)}"><span class="report-media-preview" aria-hidden="true">${mediaIcon(block.type)}</span><span class="report-media-open-label">Abrir ${block.type.startsWith('image/') ? 'imagem' : 'arquivo'}</span>${block.type.startsWith('video/') ? '<span class="report-media-play" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="play" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/> </svg></span>' : ''}</button>`).join('');
 }
 
 const IMAGE_TARGET_BYTES = 200 * 1024;
@@ -358,31 +333,6 @@ export async function compressImage(inputFile) {
     }
 }
 
-// Only this 96px compressed image is decoded in the report.
-export async function createThumbnail(file) {
-    if (!file?.type?.startsWith('image/')) return null;
-    const source = await decodeImage(file);
-    try {
-        if (!source.width || !source.height) return null;
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 96;
-        const context = canvas.getContext('2d');
-        if (!context) return null;
-        // Central crop directly into 96px: no full-resolution proxy canvases.
-        const scale = Math.max(96 / source.width, 96 / source.height);
-        const width = source.width * scale, height = source.height * scale;
-        context.fillStyle = '#edf0f5';
-        context.fillRect(0, 0, 96, 96);
-        context.translate((96 - width) / 2, (96 - height) / 2);
-        source.draw(context, width, height);
-        return await canvasBlob(canvas, 'image/jpeg', 0.32);
-    } finally {
-        source.close?.();
-    }
-}
-
-let viewer;
-
 function showViewer(src, type, name, revokeOnClose = false) {
     if (!viewer) {
         viewer = document.createElement('dialog');
@@ -414,32 +364,13 @@ function showViewer(src, type, name, revokeOnClose = false) {
     viewer.showModal();
 }
 
-let previewObserver;
-const pendingPreviews = new WeakMap();
-function loadVisiblePreview(button, load) {
-    if (typeof IntersectionObserver === 'undefined') return void load();
-    if (!previewObserver) previewObserver = new IntersectionObserver(entries => {
-        for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            previewObserver.unobserve(entry.target);
-            const callback = pendingPreviews.get(entry.target);
-            pendingPreviews.delete(entry.target);
-            if (entry.target.isConnected) void callback?.();
-        }
-    }, {rootMargin:'100px'});
-    pendingPreviews.set(button, load);
-    previewObserver.observe(button);
-}
-
 function hydrate(root) {
-    root.querySelectorAll('[data-report-media]:not([data-ready])').forEach(async button => {
+    root.querySelectorAll('[data-report-media]:not([data-ready])').forEach(button => {
         button.dataset.ready = 'true';
         const id = button.dataset.reportMedia;
         const activityId = button.dataset.reportActivity;
         const name = button.dataset.mediaName;
         const type = button.dataset.mediaType;
-        const local = mediaStore.local(id);
-
         button.onclick = async () => {
             button.disabled = true;
             try {
@@ -458,45 +389,10 @@ function hydrate(root) {
             }
         };
 
-        if (!/^(image|video)\//.test(type)) return;
 
-        if (local?.thumbnailUrl) {
-            const preview = document.createElement('img');
-            preview.src = local.thumbnailUrl; preview.alt = '';
-            preview.width = preview.height = 96;
-            button.querySelector('.report-media-preview')?.replaceChildren(preview);
-            return;
-        }
-
-        if (!activityId) return;
-        loadVisiblePreview(button, async () => {
-            try {
-                const url = await mediaStore.readUrl(activityId, id, 'thumbnail');
-                if (!button.isConnected) return;
-                const preview = document.createElement('img');
-                preview.alt = '';
-                preview.width = preview.height = 96;
-                preview.onload = () => {
-                    if (button.isConnected) button.querySelector('.report-media-preview')?.replaceChildren(preview);
-                };
-                preview.src = url;
-            } catch (error) {
-                // Falhas de miniatura não devem se tornar silenciosas quando há bloqueio de cota.
-                notifyMediaLimit(error);
-            }
-        });
     });
 }
 
-let lastMediaLimitNotice = 0;
-function notifyMediaLimit(error) {
-    const detail = String(error?.message || '');
-    if (!/quota exceeded|resource[-.]exhausted|limite (de consultas|preventivo|de imagens)|consultas de imagens temporariamente suspensas/i.test(detail) && error?.status !== 429) return;
-    const now = Date.now();
-    if (now - lastMediaLimitNotice < 120000) return;
-    lastMediaLimitNotice = now;
-    showMediaError(describeOperationError(error, 'visualização das imagens'));
-}
 function showMediaError(message) {
     if (window.mostrarAlerta) window.mostrarAlerta('Arquivo', message);
     else window.alert(message);
@@ -795,9 +691,7 @@ export class TechnicalReportEditor {
                 const compressed = await compressImage(sourceFile);
                 const file = compressed.file;
                 const id = crypto.randomUUID();
-                const thumbnail = await createThumbnail(file);
-
-                mediaStore.stage(id, file, thumbnail);
+                mediaStore.stage(id, file);
                 stagedIds.push(id);
                 media.push({
                     kind: 'media',
@@ -852,21 +746,17 @@ export class TechnicalReportEditor {
                 attempt.previous.push({
                     id: block.id,
                     storage: block.storage,
-                    key: block.key,
-                    thumbnailKey: block.thumbnailKey
+                    key: block.key
                 });
 
                 const stored = await mediaStore.upload(
                     this.activityId,
                     block.id,
-                    local.file,
-                    local.thumbnail
+                    local.file
                 );
 
                 block.storage = 'r2';
                 block.key = stored.key;
-                if (stored.thumbnailKey) block.thumbnailKey = stored.thumbnailKey;
-                else delete block.thumbnailKey;
                 attempt.uploaded.push(block.id);
             }
 
@@ -893,7 +783,6 @@ export class TechnicalReportEditor {
             if (!block) continue;
             block.storage = previous.storage || 'pending';
             if (previous.key) block.key = previous.key; else delete block.key;
-            if (previous.thumbnailKey) block.thumbnailKey = previous.thumbnailKey; else delete block.thumbnailKey;
         }
     }
 
