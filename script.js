@@ -28,7 +28,7 @@ import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVi
 import { createClientRepository } from './src/data/client-repository.js';
 import { createActivityRepository } from './src/data/activity-repository.js';
 import { createRequestScope } from './src/domain/request-scope.js';
-import { createReportDraftStore } from './src/services/report-drafts.js';
+import { createReportDraftStore, reportSignature } from './src/services/report-drafts.js';
 import { describeOperationError } from './src/domain/operation-errors.js';
 import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
@@ -53,8 +53,43 @@ const productRepository = createProductRepository(async () => {
     return snapshot.docs.map(document => ({...document.data(), id:document.id}));
 });
 let technicalEditor;
+let technicalBackupTimer = null;
 let commercialReport;
 let trainingReport;
+
+// Recuperação do editor técnico e dos relatórios legados sem acessar o Firestore.
+function agendarBackupTecnico() {
+    if (!technicalEditor?.activityId || !objetoAtividadeGlobal || operacaoEmCurso) return;
+    const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
+    if (tipo === 'Visita comercial' || tipo === 'Treinamento') return;
+    clearTimeout(technicalBackupTimer);
+    technicalBackupTimer = setTimeout(() => { void gravarBackupTecnico(); }, 350);
+}
+async function gravarBackupTecnico() {
+    clearTimeout(technicalBackupTimer);
+    technicalBackupTimer = null;
+    if (!technicalEditor?.activityId || !objetoAtividadeGlobal || operacaoEmCurso) return;
+    const tipo = normalizarTipoVisita(objetoAtividadeGlobal), id = atividadeSelecionadaId;
+    if (tipo === 'Visita comercial' || tipo === 'Treinamento' || technicalEditor.activityId !== id) return;
+    try {
+        const sessao = sessaoAtual();
+        const blocks = structuredClone(technicalEditor.blocks);
+        const files = blocks.filter(block => block.kind === 'media' && block.storage !== 'r2')
+            .map(block => [block.id, mediaStore.local(block.id)?.file])
+            .filter(([, file]) => !!file);
+        const data = {
+            text: technicalEditor.input.value,
+            blocks,
+            assistencia: tipo === ASSISTENCIA_TECNICA_TIPO ? lerFormularioAssistencia(objetoRelatorioGlobal) : null
+        };
+        await reportDraftStore.save(sessao.uid, id, tipo, data, files, reportSignature(objetoRelatorioGlobal));
+    } catch (error) {
+        console.warn('Não foi possível proteger o relatório técnico no dispositivo.', error);
+        const status = document.getElementById('at-media-status');
+        if (status && !operacaoEmCurso) status.textContent = 'Atenção: o rascunho não foi protegido neste dispositivo. Salve o relatório.';
+    }
+}
+
 function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, navegar = true) {
     const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
     const formato = formatarDataHoraPT(chegada);
@@ -339,6 +374,7 @@ class ErroCheckoutLocalizacao extends Error {}
 function limparEstadoVisita() {
     visualizadorScope.invalidate();
     relatorioScope.invalidate();
+    clearTimeout(technicalBackupTimer); technicalBackupTimer = null;
 
     atividadeSelecionadaId = null; clienteSelecionadoId = null; clienteSelecionadoNome = '';
 
@@ -2408,11 +2444,28 @@ function atualizarInterfaceVisitaAtual() {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
             technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
-            technicalEditor.reset({
-                activityId: atividadeSelecionadaId,
-                text: technicalEditor.input.value,
-                blocks: blocosPersistidosRelatorio(objetoRelatorioGlobal)
+            const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo).catch(error => {
+                console.warn('Rascunho técnico indisponível.', error);
+                return null;
             });
+            if (!pedidoAtual()) return;
+            const compatibilidade = backup?.baseSignature === reportSignature(objetoRelatorioGlobal);
+            if (compatibilidade && tipo === ASSISTENCIA_TECNICA_TIPO && backup.data?.assistencia) {
+                preencherFormularioAssistencia(backup.data.assistencia);
+            }
+            technicalEditor.reset({
+                activityId,
+                text: compatibilidade ? backup.data.text : technicalEditor.input.value,
+                blocks: compatibilidade ? backup.data.blocks : blocosPersistidosRelatorio(objetoRelatorioGlobal),
+                preserveLocal: !!compatibilidade
+            });
+            if (compatibilidade) {
+                for (const { id, file } of backup.files || []) if (file) mediaStore.stage(id, file);
+                technicalEditor.render();
+                document.getElementById('at-media-status').textContent = 'Rascunho e imagens recuperados deste dispositivo. Salve para enviar ao servidor.';
+            } else if (backup?.data) {
+                document.getElementById('at-media-status').textContent = 'Há um rascunho local preservado, mas o relatório mudou no servidor. Ele não foi aplicado automaticamente.';
+            }
 
             document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + nomeCliente;
             document.getElementById('rel-opcao-cliente').textContent = nomeCliente;
@@ -2822,6 +2875,14 @@ function configurarEventosGlobais() {
         document.getElementById('at-media-status'),
         document.getElementById('at-camera-picker')
     );
+    const telaRelatorio = document.getElementById('tela-relatorio');
+    for (const eventName of ['input', 'change']) telaRelatorio.addEventListener(eventName, event => {
+        if (!event.target.closest('.commercial-report')) agendarBackupTecnico();
+    });
+    window.addEventListener('pagehide', () => { void gravarBackupTecnico(); });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') void gravarBackupTecnico();
+    });
 
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
@@ -2980,6 +3041,9 @@ function configurarEventosGlobais() {
             });
 
             firestoreSaved = true;
+            clearTimeout(technicalBackupTimer); technicalBackupTimer = null;
+            try { await reportDraftStore.remove(sessao.uid, atividadeId, tipo); }
+            catch (error) { console.warn('Relatório salvo, mas backup local não pôde ser removido.', error); }
             if (!sessaoValida(sessao)) return;
 
             objetoRelatorioGlobal = salvo;
