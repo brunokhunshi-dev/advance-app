@@ -1,7 +1,7 @@
 # INF-03 — Consumo Firestore, limites esperados e plano de medição
 
 **Data:** 19/10/2026  
-**Status:** **PARCIAL — diagnóstico estático, fórmulas e guardrails propostos; medições reais e metas definitivas pendentes.**  
+**Status:** **ENCERRADO POR ACEITE DO RESPONSÁVEL PARA O PILOTO v0.1 (19/10/2026)** — diagnóstico estático e métricas agregadas recebidas, sem demonstração de custo por ação ou medição controlada. **A análise técnica detalhada e testes permanecem pendentes**, conforme a seção 9.  
 **Referência:** [INF-02 — matriz de consultas e escritas](infra-inf02-matriz-firestore-20261019.md) (A01–A20, B01–B13, W01–W09, D01–D04).  
 **Produção:** Vercel `main`, commit `1d32689dd44ce3d3ffa6e602017fe0cf1918a55e`; **candidata:** PR #26, branch `fix/stability-state-queries-20261019`.  
 **Worker:** arquivo `worker;(1).js` fornecido pelo responsável (identificador informado: `72ad09f0-08c5-43da-a6bd-e67180fb9599`); vínculo técnico com versão publicada não verificado de forma independente.  
@@ -175,4 +175,42 @@ Não incluir UID/email/token real nos logs exportados; mascarar identificadores.
 - [ ] Rodar testes de comparação com cache frio/quente, múltiplos usuários e homologação isolada.
 - [ ] Definir SLO/orçamento **numérico definitivo** por cenário com dados do ambiente, sem inventar baseline.
 
-**Decisão:** INF-03 **EM ANDAMENTO / PARCIAL**. A estrutura para medição está pronta, mas **não** marcar “finalizado” antes de evidência de volume e tráfego real. Não realizar otimizações de produção antes de terminar INF-03/INF-11 e priorização, salvo hotfix comprovadamente crítico.
+**Decisão original do diagnóstico:** medições controladas seriam necessárias para conclusão **técnica plena**. **Decisão posterior do responsável em 19/10/2026:** encerrar **administrativamente o INF-03 para o piloto** com os riscos conhecidos, sem exigir essas medições antes de avançar para INF-04 a INF-07. Não representar o aceite como prova de testes aprovados ou orçamento por operação validado.
+
+## 9. Evidências de produção recebidas e decisão de aceite (19/10/2026)
+
+**Origem:** duas capturas de tela fornecidas pelo responsável — Firebase Firestore Usage e Cloudflare Worker Metrics — e confirmação textual: **3 promotores e aproximadamente 20 clientes**. A janela Cloudflare explicitamente está em **Last 24 hours**; o gráfico Firestore mostra evolução horária, porém sem data inicial/final exata da janela agregada nos prints. **Não afirmar que as duas janelas são perfeitamente coincidentes.**
+
+| Indicador observado | Valor fornecido | O que significa / limite |
+| --- | --- | --- |
+| Leituras Firestore | **744** | Total mostrado no gráfico de operações da captura; concentração horária próxima das **9h** e aumento menor perto do meio-dia. Sem origem por coleção/usuário |
+| Exclusões Firestore | **1** | Total indicado; sem identificação do executor |
+| Gravações Firestore | **sem número legível informado** | Não inferir zero |
+| Avaliações de permissões Firestore Rules | **108** | Não adicionar às 744 leituras como “leituras extras” |
+| Erros de regras, negações | Não se destaca valor no print | Não há demonstração de auditoria completa de negativas |
+| Pico de listeners de snapshot | **2** | Métrica agregada do banco/projeto; **não prova** registro de `onSnapshot` no app, que não foi encontrado na leitura estática |
+| Pico de conexões ativas | **5** | Conexões ≠ usuários ≠ sessões únicas |
+| Cloudflare Worker, invocações | **24** | No painel em 24 h; não divide por rota/usuário |
+| Worker, subrequests | **60** | 52 para `firestore.googleapis.com`; 8 para `identitytoolkit.googleapis.com` |
+| Worker → Firestore, subrequests HTTP 2xx | **28** | Respostas bem-sucedidas no nível HTTP |
+| Worker → Firestore, subrequests HTTP 4xx | **24** | Status específicos não expostos no print. O código tenta localizar perfil por UID e pode receber 404 para documentos inexistentes antes de consultar e-mail; hipótese **não comprovada** |
+| Worker → Identity Toolkit, subrequests 2xx | **8** | Autenticação/lookup; não é operação Firestore |
+| Worker, Errors | **0** | Erros de execução reportados pelo painel, **não prova** que todas as requisições de upstream deram 2xx |
+| Worker ativo | Prefixo mostrado `72ad09f0`, 100% do tráfego | Corrobora o ID informado anteriormente `72ad09f0-08c5-43da-a6bd-e67180fb9599`; o print não prova sozinho hash de código |
+
+**Leitura do cenário:** 744 leituras, com 3 promotores e ~20 clientes, não indicam esgotamento da quota diária gratuita de referência (50 mil leituras), mas **não comprovam consultas eficientes**. O pico pode envolver várias ações/coleções, importação de produtos (até 103 escritas + leituras adicionais quando metadata diverge), reabertura de páginas, Worker ou sessões antigas. Nenhuma causa única foi identificada. Não converter 744 em consumo “por promotor” porque o tráfego pode não estar uniformemente distribuído.
+
+**Índices:** o responsável informou “índices estão desativados”. **Sem captura específica do painel Indexes**, não é possível afirmar quais índices compostos estão ausentes, desativados ou com erro. A consulta ordenada e filtrada do Histórico tem fallback sem limite (INF03-H03), portanto é um **risco conhecido aceito temporariamente**, não um problema tecnicamente descartado. O arquivo versionado `firestore.indexes.json` contém as definições, **sem comprovação de publicação**.
+
+### Escopo de aceite e riscos remanescentes
+
+O responsável optou por **manter a operação atual no piloto com 3 promotores** e encerrar o INF-03, sem solicitar intervenção imediata. **Este aceite NÃO autoriza alterações em produção ou remove a necessidade de testes para a versão v0.1.1.** Pendências mantidas para futura homologação/otimização:
+
+1. Medir leituras por ação/coleção usando sessões controladas; comparar main x candidata.
+2. Confirmar e, se justificado, providenciar índices compostos do Histórico em migração testada.
+3. Investigar status 4xx exatos do Firestore chamados pelo Worker, especialmente 404/permission-denied e impacto de buscas por UID/e-mail.
+4. Verificar que a importação do catálogo não reexecuta em loop e que a lista de clientes/Perfil não escala de forma imprevista.
+5. Estabelecer orçamento por operação com contagem real de atividades, perfis, visitas e fotos.
+
+**Status registrado:** `INF-03 — CONCLUÍDO POR ACEITE PARA PILOTO; HOMOLOGAÇÃO/MEDIÇÃO COMPLETA PENDENTES`. Próxima etapa autorizada conforme checklist: INF-07 após registro de aceite de INF-04/05/06.
+
