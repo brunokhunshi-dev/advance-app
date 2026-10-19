@@ -75,8 +75,11 @@ npm install
 npm run check
 npm test
 npm run test:rules
+npm run test:integration
 ```
 
 Os testes de regras usam somente o projeto fictício `demo-advance-v011` e emulador local. Firebase CLI 14 usa Java 17; adotar Java 21 na próxima atualização do CLI. Os testes do Worker simulam Auth/Firestore/R2 e bindings; não comprovam configuração real da Cloudflare. Android real e homologação integrada continuam exigidos antes da publicação.
 
 Resultado local em 19/10/2026: `npm run check` aprovado (76 arquivos); `npm test` com 162 testes aprovados; `npm run test:rules` com 23 cenários aprovados no emulador. Nenhum teste executado contra dados reais.
+
+Ampliação: sete cenários integrados de Auth/Firestore/Worker, armazenamento simulado e migração CLI aprovados. Evidência e limitações em [homologação local](homologacao-local-2026-10-19.md).

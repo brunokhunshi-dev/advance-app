@@ -42,5 +42,6 @@ Antes do merge, homologar no celular/PWA: troca de conta, cadastro por CNPJ, vis
 As regras e o Worker desta branch exigem migração de vínculos por UID e configuração de limites no servidor antes de liberar o piloto. Não publicar isoladamente.
 
 - [Matriz de acesso](docs/stabilization/access-matrix.md)
+- [Resultados da homologação local integrada](docs/stabilization/homologacao-local-2026-10-19.md)
 - [Homologação, sequência de publicação e rollback](docs/stabilization/release-v011.md)
 - [Snapshot fornecido de produção](docs/baseline-2026-10-19/manifest.json)

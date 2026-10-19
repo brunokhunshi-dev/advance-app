@@ -28,3 +28,4 @@ jobs:
       - run: npm ci --ignore-scripts
       # Only the demo project and local emulator; no service account or production data.
       - run: npm run test:rules
+      - run: npm run test:integration
