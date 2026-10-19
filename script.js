@@ -662,6 +662,9 @@ const buscarClientePorCnpj = createCnpjLookup((campoCnpj, valor) =>
 );
 
 function mostrarApenasTela(idTelaAlvo) {
+    // Também protege navegações pelo botão voltar do navegador (popstate).
+    if (idTelaAlvo !== 'tela-visualizador-visita') visualizadorScope.invalidate();
+    if (idTelaAlvo !== 'tela-relatorio') relatorioScope.invalidate();
     if (idTelaAlvo === 'tela-nova-visita') atualizarLimitesAgendamento();
 
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout', 'tela-visualizador-visita'];
@@ -744,8 +747,6 @@ function desativarHistoricoNavegacao() {
 function navegarParaTela(idTela, opcoes = {}) {
     const { substituir = false, carregar = true, forcar = false } = opcoes;
     if (!HASH_POR_TELA[idTela]) return;
-    if (idTela !== 'tela-visualizador-visita') visualizadorScope.invalidate();
-    if (idTela !== 'tela-relatorio') relatorioScope.invalidate();
 
     if (!navegacaoHistoricoAtiva) {
         mostrarApenasTela(idTela);
