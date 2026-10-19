@@ -2,7 +2,7 @@
 
 **Data da verificação:** 19/10/2026  
 **Tipo:** inspeção somente leitura das integrações Vercel/GitHub e configuração versionada.  
-**Estado:** PARCIAL — produção Vercel comprovada; Worker, regras Firebase e implantação do Admin ainda sem verificação autenticada. Nenhum deploy, alteração de infraestrutura, regra ou dado foi executado.
+**Estado:** PARCIAL — produção Vercel confirmada; usuário forneceu regras Firestore e cópia do código Worker indicado como atual; falta comprovação do deployment ativo/bindings CORS do R2. **Advance Admin foi declarado descontinuado e deixa de ser bloqueador.** Nenhum deploy, alteração de infraestrutura, regra ou dado foi executado.
 
 ## 1. Produção Vercel — comprovada
 
@@ -48,7 +48,22 @@ O estado `READY` do Vercel só confirma o deploy da aplicação, não a correç�
 
 **Achado de alto impacto de homologação:** o Preview de estabilização usa as credenciais públicas/configuração do **mesmo Firebase de produção**. Uma nova URL de Preview do Vercel não cria banco/sessões/dados separados. Enquanto não for criado e validado um ambiente Firebase de homologação, não executar testes destrutivos nem simulações que gerem registros reais.
 
-A cópia `advance-admin/firestore.rules` (blob SHA `1e0881c1ba2169c722252e1c35fa87ba5b3b51de`) **não prova** que essas regras estejam publicadas. Seu conteúdo só permite leitura administrativa de `atividades`, e nega escrita direta em `atividades`; isoladamente, não representa o conjunto de permissões necessário ao PWA de promotores. **Versão, data de publicação, regras em vigor, índices e Functions efetivamente publicados: NÃO VERIFICADOS**.
+A cópia `advance-admin/firestore.rules` (blob SHA `1e0881c1ba2169c722252e1c35fa87ba5b3b51de`) **não representa** as regras que o usuário informou estarem em uso. Seu conteúdo nega escrita direta em `atividades` e não pode substituir diretamente a regra de produção.
+
+### Regras informadas pelo responsável (19/10/2026)
+
+```js
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+**Semântica confirmada:** qualquer conta **autenticada neste projeto Firebase** recebe leitura e escrita sobre todos os caminhos de documentos cobertos por essas regras. Elas **não verificam vínculo com a Advance, UID de proprietário, cargo, status ativo ou validade de relatórios**. Isso é diferente do que afirma o comentário descritivo da regra informada. O usuário optou por **manter as regras nesta fase**; registrar como **risco de autorização conhecido e aceito para o piloto**, sem criar patch/deploy agora. A aceitação do risco não transforma a configuração em segura e não elimina o teste de integridade INF-08. **Data/versão da publicação não foram fornecidas**, portanto não há confirmação independente do histórico no Console.
 
 ## 3. Cloudflare Worker / R2 — versão versionada comprovada, produção não verificada
 
@@ -67,15 +82,24 @@ O endpoint de mídia configurado em `technical-report-editor.js` é idêntico na
 
 **Risco de homologação:** os Previews usam o **mesmo URL de Worker** do aplicativo produtivo. Sem Worker/R2 separados, uploads e exclusões em Preview podem atingir o serviço/bucket real se as demais permissões permitirem.
 
+### Arquivo Worker fornecido e comparado com o GitHub
+
+Em 19/10/2026 o usuário anexou `worker;(1).js`, apresentado no contexto da solicitação do código Worker atualmente utilizado. Foi feita comparação estática com `cloudflare/advance-media-api.js` da `main` (GitHub, blob SHA `38c1dfc660841a5c26e4c6619095d7c536e6e749`). **Os conteúdos NÃO são idênticos.**
+
+- **Worker anexado:** opera com a variante `original`; a resposta da rota de upload assina somente a imagem original. As rotas de leitura individual/em lote também exigem `original`; a exclusão remove apenas o objeto `/original`.
+- **Worker no GitHub:** mantém lógica de upload/leitura/exclusão de `thumbnail.jpg`, oferece `thumbnailUploadUrl` e aceita `original`/`thumbnail` nas leituras; também conta miniaturas nas estatísticas.
+- **Em comum:** autenticação via Firebase ID token, busca de perfis, regra de autorização da atividade, endpoints principais, CORS aberto com `Access-Control-Allow-Origin: *` e exceção de acesso de gestão baseada em e-mail específico.
+- **Conclusão operacional:** não substituir o Worker anexado pelo arquivo da `main` sem revisão, pois isso pode reintroduzir operações com miniaturas removidas do fluxo atual. O anexo comprova o código **fornecido pelo usuário**, mas não identifica por si só o ID, a data e o hash do deployment publicado na Cloudflare.
+
 ## 4. Service Worker / instalação PWA
 
 - `sw.js` na `main`: `CACHE_NAME = 'advance-pwa-profile-v72'` (blob SHA `a32b331a1552c3028f2d1235c6e8b4e0b8779135`).
 - `sw.js` na branch: `CACHE_NAME = 'advance-pwa-stability-v73'` (blob SHA `dcc48e39b1fb7666d412a6a9d068686196618f31`).
 - A correspondência com a versão efetivamente instalada no aparelho não foi testada. O commit de produção é a referência versionada, não uma leitura do cache de cada PWA.
 
-## 5. Advance Admin — implantação ainda não identificada
+## 5. Advance Admin — descontinuado por decisão do responsável
 
-O repositório `brunokhunshi-dev/advance-admin` foi consultado na auditoria estrutural. A equipe Vercel autenticada `khunshiiiis-projects` apresentou **somente** o projeto `advance-app`. Isso **não prova** que o Admin não esteja hospedado; pode usar outro time/conta/provedor, inclusive Firebase Hosting. URL e commit efetivamente servidos: não verificados.
+O usuário informou em 19/10/2026 que **Advance Admin está descontinuado**. Removemos a exigência de identificar seu deployment como bloqueador do INF-01 e das etapas de homologação do aplicativo. A auditoria estrutural anterior registra o código histórico, sem alegar que o painel segue operacional. Se existirem Cloud Functions administrativas ainda publicadas, elas deverão ser tratadas pela auditoria de componentes efetivamente ativos, e não presumidas desligadas.
 
 ## 6. Itens encerrados e pendências exatas
 
@@ -88,14 +112,15 @@ O repositório `brunokhunshi-dev/advance-admin` foi consultado na auditoria estr
 
 ### Ainda pendentes para fechar INF-01
 - [ ] Confirmar no painel Cloudflare o Worker `advance-media-api`: deployment ativo (versão, data, script/hash), rotas, env/bindings sem expor secrets, bucket R2 e configuração de CORS efetiva.
-- [ ] Confirmar no console Firebase a versão/data/conteúdo das **regras Firestore publicadas**, índices relevantes e Functions publicadas. Evitar assumir equivalência com `advance-admin/firestore.rules`.
-- [ ] Identificar a hospedagem/commit do Advance Admin.
+- [x] Registrar as regras Firestore **informadas pelo usuário** e documentar a abrangência de permissões e decisão de mantê-las por enquanto.
+- [ ] Caso seja necessária auditoria formal de deployment, confirmar data/versão das regras no console (não bloqueia o diagnóstico estático aceito pelo responsável).
+- [x] Retirar Advance Admin do escopo ativo, por estar descontinuado.
 - [ ] Registrar e testar rollback **operacional** em ambiente de homologação, inclusive compatibilidade entre Vercel, Worker e regras.
 - [ ] Garantir projetos Firebase/Worker/R2 distintos para testes de escrita, upload, check-in/out e falhas.
 
 ## 7. Decisão / próximo passo
 
-**INF-01 permanece PARCIAL.** A linha de base Vercel está identificada com evidência autenticada; Cloudflare e regras Firestore precisam de acesso de leitura/inspeção ou registros oficiais para conclusão, sem solicitar tokens ou segredos em chat.
+**INF-01 permanece PARCIAL:** linha de base Vercel identificada; regras Firestore informadas e aceitas para esta fase; Worker anexado comparado, porém faltam **ID/data da versão ativa na Cloudflare e nome do bucket R2/CORS efetivo**. Nenhum token ou segredo é necessário. Advance Admin está fora do escopo ativo.
 
 Enquanto isso, **INF-02 pode iniciar como matriz estática de consultas e gravações**, mas nenhuma validação de segurança real ou consumo de infraestrutura deve ser declarada concluída sem a configuração efetivamente publicada.
 
