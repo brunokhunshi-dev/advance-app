@@ -1,3 +1,4 @@
+import { createLatestRequestGuard } from './src/services/latest-request.js';
 import { resolveFieldProfile } from './src/data/auth-profile.js';
 import { setupChangePassword, changeAccountPassword } from './src/ui/change-password.js';
 import { cancelarAgendamento } from './src/services/cancellation.js';
@@ -34,6 +35,7 @@ const productRepository = createProductRepository(async () => {
     const snapshot = await getDocs(collection(db, 'produtos'));
     return snapshot.docs.map(document => ({...document.data(), id:document.id}));
 });
+const leiturasVisita = createLatestRequestGuard();
 let technicalEditor;
 let commercialReport;
 let trainingReport;
@@ -312,6 +314,7 @@ function mostrarEditorRelatorioPorTipo(tipo) {
 class ErroCheckoutLocalizacao extends Error {}
 
 function limparEstadoVisita() {
+    leiturasVisita.invalidate();
 
     atividadeSelecionadaId = null; clienteSelecionadoId = null; clienteSelecionadoNome = '';
 
@@ -419,6 +422,7 @@ function inicializarAplicativo() {
     onAuthStateChanged(auth, async user => {
 
         clearMediaUrlCache();
+        leiturasVisita.invalidate();
         passwordDialog.close();
         const versao = ++versaoSessao;
         productRepository.clear();
@@ -576,6 +580,7 @@ const buscarClientePorCnpj = createCnpjLookup((campoCnpj, valor) =>
 );
 
 function mostrarApenasTela(idTelaAlvo) {
+    leiturasVisita.invalidate();
     if (idTelaAlvo === 'tela-nova-visita') atualizarLimitesAgendamento();
 
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout', 'tela-visualizador-visita'];
@@ -1128,7 +1133,7 @@ function renderizarHistoricoVisitas(visitas) {
     });
 }
 
-async function carregarHistoricoVisitas() {
+async function carregarHistoricoVisitas({propagarErro = false} = {}) {
     if (!idUsuarioLogado) return;
     if (dadosPerfilLogado?.permissoes?.verHistorico === false) {
         document.getElementById('area-historico-visitas').textContent = 'Seu perfil não tem acesso ao histórico.';
@@ -1197,6 +1202,7 @@ async function carregarHistoricoVisitas() {
     } catch (error) {
         if (sessaoValida(sessao) && pedido === sequenciaHistorico) {
             areaHistorico.textContent = "Não foi possível carregar o histórico.";
+            if (propagarErro) throw error;
             informarErro("Erro no histórico", error);
         }
     }
@@ -1408,13 +1414,14 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
 
     area.style.display = 'block';
     navegarParaTela('tela-visualizador-visita', { carregar: false });
+    const pedidoAtual = leiturasVisita.begin(() => sessaoValida(sessao));
     preencherCampoVisualizador('visu-cliente', 'Carregando...');
     preencherCampoVisualizador('visu-relatorio', 'Carregando...');
     window.scrollTo(0, 0);
 
     try {
         const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeId));
-        exigirSessao(sessao);
+        if (!pedidoAtual()) return;
 
         if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
         const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
@@ -1425,7 +1432,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
             atividade.relatorioId ? carregarRelatorioDaAtividade(atividade) : Promise.resolve(null)
         ]);
 
-        exigirSessao(sessao);
+        if (!pedidoAtual()) return;
 
         if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
             throw new Error('O relatório associado não corresponde a esta visita.');
@@ -1441,6 +1448,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         clienteVisualizadorAtual = cliente;
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
+        if (!pedidoAtual()) return;
         informarErro('Não foi possível abrir a visita', erro);
         navegarParaTela('tela-historico', { substituir: true });
     }
@@ -2277,36 +2285,37 @@ function atualizarInterfaceVisitaAtual() {
         commercialReport.deactivate();
         trainingReport.deactivate();
 
+        const atividadeId = atividadeSelecionadaId;
+        const sessao = sessaoAtual();
+        const pedidoAtual = leiturasVisita.begin(() => sessaoValida(sessao) && atividadeSelecionadaId === atividadeId);
         try {
-            const sessao = sessaoAtual();
-            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeSelecionadaId));
-            exigirSessao(sessao);
+            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeId));
+            if (!pedidoAtual()) return;
             if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
 
-            objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
-            validarResponsavel(objetoAtividadeGlobal, sessao);
+            const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            validarResponsavel(atividade, sessao);
 
             // O estado da tela inicial pode ter sido carregado minutos antes ou em
             // outro dispositivo. Recarrega o relatório do servidor imediatamente
             // antes de editar para evitar conflito falso com uma cópia antiga.
-            objetoRelatorioGlobal = objetoAtividadeGlobal.relatorioId
-                ? await carregarRelatorioDaAtividade(objetoAtividadeGlobal, true)
+            const relatorio = atividade.relatorioId
+                ? await carregarRelatorioDaAtividade(atividade, true)
                 : null;
-            exigirSessao(sessao);
+            if (!pedidoAtual()) return;
 
-            if (objetoRelatorioGlobal &&
-                (objetoRelatorioGlobal.atividadeId !== atividadeSelecionadaId ||
-                 objetoRelatorioGlobal.ptvId !== sessao.id)) {
+            if (relatorio &&
+                (relatorio.atividadeId !== atividadeId ||
+                 relatorio.ptvId !== sessao.id)) {
                 throw new Error('O relatório associado não corresponde a esta visita.');
             }
 
-            if (objetoAtividadeGlobal.clienteId) {
-                const cliente = await obterCliente(objetoAtividadeGlobal.clienteId);
-                if (cliente?.nome) {
-                    clienteSelecionadoId = objetoAtividadeGlobal.clienteId;
-                    clienteSelecionadoNome = cliente.nome;
-                }
-            }
+            const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
+            if (!pedidoAtual()) return;
+            objetoAtividadeGlobal = atividade;
+            objetoRelatorioGlobal = relatorio;
+            clienteSelecionadoId = atividade.clienteId || null;
+            clienteSelecionadoNome = cliente?.nome || '';
 
             const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
             const formatoData = formatarDataHoraPT(chegada);
@@ -2315,26 +2324,26 @@ function atualizarInterfaceVisitaAtual() {
             let codigoRelatorio = '';
 
             if (objetoRelatorioGlobal) {
-                codigoRelatorio = objetoRelatorioGlobal.codigo || '#' + atividadeSelecionadaId;
+                codigoRelatorio = objetoRelatorioGlobal.codigo || '#' + atividadeId;
                 document.getElementById('rel-texto').value = objetoRelatorioGlobal.textoAtual || '';
             } else {
                 const dataPura = new Date();
-                codigoRelatorio = '#' + dataPura.getFullYear() + String(dataPura.getMonth() + 1).padStart(2, '0') + String(dataPura.getDate()).padStart(2, '0') + obterIniciais(nomeUsuarioLogado || 'TEC') + '-' + atividadeSelecionadaId;
+                codigoRelatorio = '#' + dataPura.getFullYear() + String(dataPura.getMonth() + 1).padStart(2, '0') + String(dataPura.getDate()).padStart(2, '0') + obterIniciais(nomeUsuarioLogado || 'TEC') + '-' + atividadeId;
                 document.getElementById('rel-texto').value = '';
             }
 
             if (tipo === 'Visita comercial') {
-                const existing = commercialReport.drafts.get(atividadeSelecionadaId);
-                const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeSelecionadaId) || commercialReport.initial.get(atividadeSelecionadaId));
-                commercialReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                const existing = commercialReport.drafts.get(atividadeId);
+                const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeId) || commercialReport.initial.get(atividadeId));
+                commercialReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
                 abrirPrototipoComercial();
                 return;
             }
 
             if (tipo === 'Treinamento') {
-                const existing = trainingReport.drafts.get(atividadeSelecionadaId);
-                const unsaved = existing && JSON.stringify(existing) !== (trainingReport.saved.get(atividadeSelecionadaId) || trainingReport.initial.get(atividadeSelecionadaId));
-                trainingReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                const existing = trainingReport.drafts.get(atividadeId);
+                const unsaved = existing && JSON.stringify(existing) !== (trainingReport.saved.get(atividadeId) || trainingReport.initial.get(atividadeId));
+                trainingReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
                 abrirPrototipoComercial();
                 return;
             }
@@ -2345,7 +2354,7 @@ function atualizarInterfaceVisitaAtual() {
             }
             technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
             technicalEditor.reset({
-                activityId: atividadeSelecionadaId,
+                activityId: atividadeId,
                 text: technicalEditor.input.value,
                 blocks: blocosPersistidosRelatorio(objetoRelatorioGlobal)
             });
@@ -2360,6 +2369,7 @@ function atualizarInterfaceVisitaAtual() {
             document.getElementById('rel-texto')?.blur();
             window.scrollTo(0, 0);
         } catch (erro) {
+            if (!pedidoAtual()) return;
             informarErro('Não foi possível abrir o relatório', erro);
         }
     };
@@ -2402,8 +2412,9 @@ async function enviarFechamentoManual() {
     operacaoEmCurso = true;
     btn.disabled = true;
     btn.textContent = 'ENVIANDO...';
+    let gravado = false, sessao;
     try {
-        const sessao = sessaoAtual();
+        sessao = sessaoAtual();
         await runTransaction(db, async tx => {
             const atvRef = doc(db, 'atividades', atividadeId);
             const atvSnap = await tx.get(atvRef);
@@ -2437,15 +2448,20 @@ async function enviarFechamentoManual() {
             tx.update(relRef, { ...manual });
         });
 
+        gravado = true;
         if (!sessaoValida(sessao)) return;
-        const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
-        if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') throw new Error('O fechamento não foi confirmado no banco. Tente novamente.');
         fecharModalFechamentoManual();
         limparEstadoVisita();
         navegarParaTela('tela-historico', { substituir: true, carregar: false });
-        await carregarHistoricoVisitas();
+        await carregarHistoricoVisitas({propagarErro:true});
+        if (!sessaoValida(sessao)) return;
         window.mostrarAlerta('Sucesso', 'Fechamento manual enviado para análise do gestor.');
     } catch (erro) {
+        if (sessao && !sessaoValida(sessao)) return;
+        if (gravado) {
+            window.mostrarAlerta('Fechamento enviado', 'O fechamento foi salvo e enviado para análise. Não foi possível atualizar a tela. Abra o histórico novamente; não repita o fechamento.');
+            return;
+        }
         informarErro('Não foi possível solicitar o fechamento manual', erro);
     } finally {
         operacaoEmCurso = false;
@@ -2617,8 +2633,9 @@ function configurarEventosGlobais() {
         btn.disabled = true;
         btn.textContent = 'Concluindo...';
 
+        let gravado = false, sessao;
         try {
-            const sessao = sessaoAtual();
+            sessao = sessaoAtual();
             const saida = checkoutPendenteGlobal.posicao;
             if (!saida || !coordenadasValidas(saida.lat, saida.lng)) throw new Error('A localização de saída não está mais disponível.');
 
@@ -2713,18 +2730,20 @@ function configurarEventosGlobais() {
                 tx.update(relRef, atualizacaoRelatorio);
             });
 
-            if (!sessaoValida(sessao)) return;
-
-            const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
-            if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') {
-                throw new Error('A visita não foi confirmada como concluída no banco. Tente novamente.');
-            }
+            gravado = true;
+                if (!sessaoValida(sessao)) return;
 
             limparEstadoVisita();
             navegarParaTela('tela-historico', { substituir: true, carregar: false });
-            await carregarHistoricoVisitas();
+            await carregarHistoricoVisitas({propagarErro:true});
+            if (!sessaoValida(sessao)) return;
             window.mostrarAlerta('Sucesso', tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica concluída.' : 'Visita concluída.');
         } catch (erro) {
+            if (sessao && !sessaoValida(sessao)) return;
+            if (gravado) {
+                window.mostrarAlerta('Visita concluída', 'A visita foi concluída e salva. Não foi possível atualizar a tela. Abra o histórico novamente; não repita o check-out.');
+                return;
+            }
             informarErro('Erro ao concluir visita', erro);
         } finally {
             operacaoEmCurso = false;

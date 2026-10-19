@@ -1,3 +1,4 @@
+// EST-02/04 retired after fixes; see tests/stabilization-state.test.mjs.
 // Diagnostic replays for the structural audit, NOT tests that define desired behavior.
 // Assertions describe the observed defects on the audited commit. Retire each replay
 // when its defect is fixed and replace it with a regression test for correct behavior.
@@ -22,25 +23,6 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {
  record('EST-01',{moduleDonePersists:false,page:controller.page});
 }
 
-// Source-executed checkout commits, then a failed confirmation is reported as save failure.
-{
- const activity={ptvId:'p1',clienteId:'c1',status:'Em andamento',tipoVisita:'Visita comercial',relatorioId:'r1'};
- const report={atividadeId:'a1',ptvId:'p1',textoAtual:'Relatório válido legado'};
- let handler,committed=false;const errors=[],button={disabled:false,textContent:'',addEventListener:(_,fn)=>handler=fn};
- const ctx=vm.createContext({...reports,Date,operacaoEmCurso:false,checkoutPendenteGlobal:{atividadeId:'a1',posicao:{lat:-23,lng:-47,accuracy:20,endereco:'Rua'}},objetoAtividadeGlobal:activity,objetoRelatorioGlobal:report,db:{},
-  document:{getElementById:id=>id==='btn-concluir-checkout'?button:{value:'Relacionamento'},querySelector:()=>({value:'Sim'})},
-  sessaoAtual:()=>({id:'p1'}),sessaoValida:()=>true,validarResponsavel(){},coordenadasValidas:()=>true,
-  referenciaRelatorio:()=>({collection:'relatorios',id:'r1'}),doc:(_,collection,id)=>({collection,id}),
-  runTransaction:async(_,fn)=>{const writes=[];await fn({get:async ref=>({exists:()=>true,data:()=>structuredClone(ref.collection==='atividades'?activity:report)}),update:(ref,data)=>writes.push([ref,data])});for(const[ref,data]of writes)Object.assign(ref.collection==='atividades'?activity:report,data);committed=true;},
-  getDoc:async()=>{throw Error('Quota exceeded na confirmação');},informarErro:(title,error)=>errors.push({title,message:error.message}),window:{mostrarAlerta(){}}
- });
- const start=source.indexOf("    document.getElementById('btn-concluir-checkout')?.addEventListener");
- const end=source.indexOf("    document.querySelectorAll('input[name=\"atEspecificacao\"]')",start);
- vm.runInContext(source.slice(start,end),ctx);await handler();
- assert.equal(committed,true);assert.equal(activity.status,'Concluída');assert.equal(errors[0].title,'Erro ao concluir visita');
- record('EST-02',{databaseStatus:activity.status,uiError:errors[0].title});
-}
-
 // Generation checks discard old UI answers but do not deduplicate in-flight reads.
 {
  const pending=[],el=()=>({classList:{add(){},remove(){}},setAttribute(){},removeAttribute(){},replaceChildren(){},querySelector:()=>({addEventListener(){}}),innerHTML:'',hidden:false});
@@ -54,23 +36,6 @@ const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {
  const tasks=Array.from({length:6},()=>ctx.carregarAtividadesPendentes());assert.equal(calls,6);
  pending.forEach(d=>d.resolve({docs:[]}));await Promise.all(tasks);
  record('EST-03',{concurrentNavigationRequests:6,firestoreReadsStarted:calls});
-}
-
-// Same-session activity changes are not rejected by the editor opening callback.
-{
- const wait=deferred(),hydrations=[];
- const controller={deactivate(){},drafts:new Map(),saved:new Map(),initial:new Map(),hydrate:(id)=>hydrations.push(id)};
- const ctx=vm.createContext({...reports,Date,operacaoEmCurso:false,atividadeSelecionadaId:'a1',commercialReport:controller,trainingReport:controller,
-  sessaoAtual:()=>({id:'p1'}),exigirSessao(){},db:{},doc:(_,c,id)=>({id}),getDocFromServer:()=>wait.promise,validarResponsavel(){},
-  objetoAtividadeGlobal:null,objetoRelatorioGlobal:null,clienteSelecionadoNome:'Cliente',nomeUsuarioLogado:'Pessoa',
-  document:{getElementById:()=>({value:''})},formatarDataHoraPT:()=>({data:'',hora:''}),obterIniciais:()=> 'PE',abrirPrototipoComercial(){},informarErro:(_,e)=>{throw e;}
- });
- const start=source.indexOf('    const acaoAbrirRelatorio = async () =>');const end=source.indexOf('    if (btnEscrever)',start);
- vm.runInContext(source.slice(start,end)+'\nglobalThis.openReport=acaoAbrirRelatorio;',ctx);
- const task=ctx.openReport();ctx.atividadeSelecionadaId='a2';
- wait.resolve({exists:()=>true,id:'a1',data:()=>({ptvId:'p1',status:'Em andamento',tipoVisita:'Visita comercial'})});await task;
- assert.equal(ctx.objetoAtividadeGlobal.id,'a1');assert.deepEqual(hydrations,['a2']);
- record('EST-04',{activityObject:ctx.objetoAtividadeGlobal.id,editorHydratedFor:hydrations[0]});
 }
 
 // A hung authorization from a previous session prevents the next session's queue from flushing.
