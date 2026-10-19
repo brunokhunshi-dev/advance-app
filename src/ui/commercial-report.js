@@ -1,6 +1,7 @@
 import {buscarProdutos, nomeProduto, idProduto} from '../domain/products.js';
 import { loadingMarkup } from './loading.js';
 import { TechnicalReportEditor, mediaStore, compressImage, reportMarkup } from '../../technical-report-editor.js';
+import { reportSignature } from '../services/report-drafts.js';
 // Drafts are staged locally; the application injects database persistence.
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modules = [
@@ -17,11 +18,14 @@ export class CommercialReport {
     this.reviewCallbacks = review;
     this.productCatalog = []; this.productQueries = {}; this.productLoading = false; this.productLoaded = false; this.productError = '';
     this.compressPhoto = compressImage; this.photoGeneration = 0; this.photoBusy = false;
-    this.host = host; this.onClose = onClose; this.onSave = onSave; this.baseReports = new Map(); this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
+    this.host = host; this.onClose = onClose; this.onSave = onSave; this.backupTimer = null; this.baseReports = new Map(); this.revisions = new Map(); this.staged = new Map(); this.drafts = new Map(); this.saved = new Map(); this.initial = new Map();
     this.root = document.createElement('section'); this.root.className = 'commercial-report'; this.root.hidden = true; host.append(this.root);
     this.root.addEventListener('click', e => this.click(e));
-    this.root.addEventListener('input', e => this.input(e));
-    this.root.addEventListener('change', e => this.change(e));
+    this.root.addEventListener('input', e => { this.input(e); this.scheduleBackup(); });
+    this.root.addEventListener('change', e => {
+      void Promise.resolve(this.change(e)).then(() => this.scheduleBackup()).catch(error => this.status(error.message || 'Falha ao processar o formulário.'));
+    });
+    this.root.addEventListener('click', () => this.scheduleBackup());
     this.root.addEventListener('keydown', e => {
       const key = e.target.dataset.productSearch;
       if (key && e.key === 'ArrowDown') { e.preventDefault(); this.root.querySelector('#cr-results-' + key + ' button')?.focus(); }
@@ -29,6 +33,10 @@ export class CommercialReport {
       if (e.target.dataset.selectProduct && e.key === 'Escape') this.root.querySelector('[data-product-search="' + e.target.dataset.productQuestion + '"]')?.focus();
     });
     window.addEventListener('beforeunload', e => { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } });
+    window.addEventListener('pagehide', () => { if (this.active && !this.reviewCheckout) void this.flushBackup(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && this.active && !this.reviewCheckout) void this.flushBackup();
+    });
   }
   get dataField() { return 'dadosComerciais'; }
   blankData() { return blank(); }
@@ -64,6 +72,9 @@ export class CommercialReport {
       }
       this.hydrate(key, report, true);
       this.data = this.drafts.get(key);
+      clearTimeout(this.backupTimer); this.backupTimer = null;
+      try { await this.reviewCallbacks.removeBackup?.(key); }
+      catch (backupError) { console.warn('Relatório salvo, mas rascunho local não foi removido.', backupError); }
       try {
         this.onSave(key);
       } catch (interfaceError) {
@@ -83,6 +94,47 @@ export class CommercialReport {
       }
     }
   }
+  scheduleBackup() {
+    if (!this.active || this.reviewCheckout || !this.reviewCallbacks.backupDraft || this.saving) return;
+    clearTimeout(this.backupTimer);
+    this.backupTimer = setTimeout(() => { void this.flushBackup(); }, 350);
+  }
+  async flushBackup() {
+    clearTimeout(this.backupTimer);
+    this.backupTimer = null;
+    if (!this.active || this.reviewCheckout || !this.reviewCallbacks.backupDraft || this.saving || !this.key) return;
+    const entries = [...(this.data.photos || []), ...(this.data.blocks || [])]
+      .filter(item => item?.kind === 'media' && item.storage !== 'r2');
+    const files = [];
+    for (const entry of entries) {
+      const file = this.staged.get(entry.id)?.file || mediaStore.local(entry.id)?.file;
+      if (file) files.push([entry.id, file]);
+    }
+    try {
+      await this.reviewCallbacks.backupDraft(
+        this.key, structuredClone(this.data), files, reportSignature(this.baseReports.get(this.key))
+      );
+    } catch (error) {
+      console.warn('Falha ao proteger rascunho neste dispositivo.', error);
+      if (this.active && !this.saving) this.status('Atenção: não foi possível proteger o rascunho neste dispositivo. Salve o relatório assim que possível.');
+    }
+  }
+  restoreBackup(key, backup) {
+    if (!backup?.data) return 'absent';
+    if (backup.baseSignature !== reportSignature(this.baseReports.get(key))) return 'conflict';
+    const data = structuredClone({ ...this.blankData(), ...backup.data });
+    const files = new Map((backup.files || []).map(({ id, file }) => [id, file]));
+    let missing = false;
+    for (const entry of [...(data.photos || []), ...(data.blocks || [])]) {
+      if (entry?.kind !== 'media' || entry.storage === 'r2') continue;
+      const file = files.get(entry.id);
+      if (!file) { missing = true; continue; }
+      mediaStore.stage(entry.id, file);
+      this.staged.set(entry.id, { file });
+    }
+    this.drafts.set(key, data);
+    return missing ? 'missing-files' : 'restored';
+  }
   hasSaved(key) { return this.saved.has(key); }
   open(context, page = 'overview', reviewCheckout = false) {
     this.key = context.id; this.context = context; this.reviewCheckout = reviewCheckout;
@@ -91,6 +143,7 @@ export class CommercialReport {
     this.host.classList.add('commercial-mode'); this.root.hidden = false; this.render();
   }
   clear() {
+    clearTimeout(this.backupTimer); this.backupTimer=null;
     this.productCatalog=[]; this.productQueries={}; this.productLoaded=false; this.productLoading=false; this.productError='';
     this.photoGeneration++; this.photoBusy=false; this.saving=false; this.checkoutResizeObserver?.disconnect();
     if (this.editor) this.editor.generation = (this.editor.generation || 0) + 1;
