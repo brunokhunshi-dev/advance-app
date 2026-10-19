@@ -3,14 +3,14 @@
 **Atualizado em:** 19/10/2026  
 **Branch de trabalho:** `fix/stability-state-queries-20261019` — PR #26 (draft)  
 **Produção:** nenhuma correção desta PR foi mesclada/publicada.  
-**Etapa atual:** auditoria estrutural **estática concluída**; **próxima: auditoria de integridade e infraestrutura**.
+**Etapa atual:** auditoria estrutural **estática concluída**; INF-01 da auditoria de infraestrutura **iniciado e parcialmente verificado** (Vercel confirmado, Worker/regras reais pendentes).
 
 **Legenda:** [x] feito/registrado; [ ] não concluído; `PARCIAL` = houve trabalho, mas não existe evidência suficiente para encerrar o item.  
 **Importante:** implementação na branch não significa teste aprovado, homologação nem deploy.
 
 ## 1. Preparação e preservação
 
-- [ ] Registrar o deployment/commit efetivamente publicado no Vercel.
+- [x] Registrar o deployment/commit efetivamente publicado no Vercel: produção `1d32689dd44ce3d3ffa6e602017fe0cf1918a55e`, deployment `dpl_8WPq6oNVxToLWDySozZ9x91gi89m` (`READY`, `2026-10-16`).
 - [ ] Registrar versão, hash/código e configurações não secretas do Worker efetivamente publicado na Cloudflare.
 - [x] Criar branch isolada de auditoria/correções e manter PR como draft.
 - [x] Preservar a `main` sem merge da PR #26 até a revisão.
@@ -35,7 +35,7 @@
 
 ## 3. Auditoria de integridade e infraestrutura — PRÓXIMA ETAPA
 
-- [ ] **INF-01 — Baseline real:** confrontar Vercel, Worker, Firebase e regras publicados com os commits/configurações versionados. Preview do Vercel **não** cria Firebase/R2 de teste.
+- [ ] **INF-01 — Baseline real (PARCIAL):** Vercel produção, commit e aliases conferidos; Preview identificado, com **mesmo Firebase e Worker da produção** no código. Pendem confirmação autenticada do script Worker ativo, regras Firestore publicadas, deploy do Admin e bindings R2. Evidências em `docs/infra-inf01-baseline-20261019.md`. **Não executar testes destrutivos no Preview atual.**
 - [ ] **INF-02 — Matriz Firestore:** inventariar TODAS as consultas/escritas por tela, ação, usuário e componente (App, Admin, Worker, Functions); distinguir leituras de SDK, chamadas REST do Worker e avaliações das regras.
 - [ ] **INF-03 — Custo/limites:** definir leitura esperada por login, abrir Início, Agenda, Histórico, relatório, fotos, check-in/out e telas Admin; revisar frequência, `getDocs` não limitado, deduplicação, retries e quota.
 - [ ] **INF-04 — Permissões reais:** inspecionar regras **efetivamente publicadas** e testar leitura/escrita por promotor, assistente, gestor e conta desativada. `advance-admin/firestore.rules` não substitui prova das regras de produção.
@@ -101,7 +101,8 @@
 ## Referências
 
 - [Auditoria estrutural — evidências e decisões](auditoria-estrutural-v011-20261019.md)
+- [INF-01 — baseline Vercel, configuração Firebase e pendências de Worker/R2](infra-inf01-baseline-20261019.md)
 - [Estabilização — código implementado, riscos e roteiro de teste](stabilizacao-v01-20261019.md)
 - PR de trabalho: https://github.com/brunokhunshi-dev/advance-app/pull/26
 
-**Ponto de retomada:** seção **3 — INF-01** (verificar versões implantadas), seguida da matriz de consultas **INF-02**, permissões **INF-04** e rotas de upload **INF-06**. Registrar achados antes de alterar código.
+**Ponto de retomada:** confirmar Cloudflare/Firestore/Admin para fechar **INF-01**; a matriz estática **INF-02** pode começar em paralelo com as pendências de acesso. Depois executar **INF-04** e **INF-06** em ambiente de homologação separado. Registrar achados antes de alterar código.
