@@ -4,7 +4,7 @@ Estado: candidata; não publicada. Não mesclar na main antes de homologar Fireb
 
 ## Bloqueios adicionais encontrados na auditoria
 
-A revisão de 19/10 reproduziu EST-01 a EST-08, incluindo perda de rascunho, erro após commit, consultas concorrentes e invariantes ausentes no servidor. Esses defeitos ainda não foram corrigidos nesta candidata. Resolver e homologar antes do lançamento; ver [auditoria estrutural](auditoria-estrutural-2026-10-19.md). Testes anteriores aprovados não eliminam esses bloqueios.
+A revisão de 19/10 reproduziu EST-01 a EST-08, incluindo perda de rascunho, erro após commit, consultas concorrentes e invariantes ausentes no servidor. A primeira rodada corrigiu localmente EST-02/04/06 e a concorrência de EST-03; EST-01/05/07/08 permanecem abertos. Ver [correções e validação](correcoes-estado-consultas-2026-10-19.md). Resolver os demais e homologar antes do lançamento; ver [auditoria estrutural](auditoria-estrutural-2026-10-19.md). Testes anteriores aprovados não eliminam esses bloqueios.
 
 ## Correções
 
@@ -16,7 +16,7 @@ A revisão de 19/10 reproduziu EST-01 a EST-08, incluindo perda de rascunho, err
 - Bindings Cloudflare: `AUTH_RATE_LIMITER` com 180/min por IP (proteção anterior à autenticação) e `MEDIA_RATE_LIMITER` com 60/min por UID validado (todas as rotas). Sem binding, resposta 503 antes de consultar Firestore; sem fallback inseguro em memória.
 - 429 inclui Retry-After:60. Um esgotamento do Firestore abre pausa de 60s no isolate atual; isso não é um bloqueio global distribuído. Não há repetição automática no Worker.
 - Firestore deixa de autorizar todo usuário autenticado a alterar qualquer documento.
-- App v73 resolve UID e perfil por dois documentos e consulta catálogo sem importação automática.
+- App v75 resolve UID e perfil por dois documentos e consulta catálogo sem importação automática.
 
 ## Diagnóstico e vínculos
 

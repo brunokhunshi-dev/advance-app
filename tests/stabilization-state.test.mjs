@@ -101,3 +101,8 @@ for(const propagarErro of [false,true])test(`history failure ${propagarErro?'pro
  if(propagarErro)await assert.rejects(ctx.carregarHistoricoVisitas({propagarErro}),e=>e===error);else await ctx.carregarHistoricoVisitas();
  assert.equal(errors.length,propagarErro?0:1);assert.match(area.textContent,/Não foi possível/);
 });
+
+test('editor handles a session lost before starting the read',async()=>{
+ const {ctx,pending,hydrations,errors}=editorContext();ctx.sessaoAtual=()=>{throw Error('Entre novamente');};
+ await ctx.openReport();assert.equal(pending.length,0);assert.deepEqual(hydrations,[]);assert.equal(errors.length,1);
+});

@@ -1,5 +1,7 @@
 # Auditoria estrutural — 19/10/2026
 
+> Atualização posterior: EST-02/04/06 e a concorrência de EST-03 receberam correções locais. Consulte [correções de estado e consultas](correcoes-estado-consultas-2026-10-19.md). O conteúdo abaixo registra a base auditada e os JSONs preservam suas evidências originais. A candidata segue bloqueada.
+
 ## Decisão
 
 A revisão estrutural do App e do Worker foi concluída no escopo de código próprio. A candidata **ainda não deve ser liberada**: há oito riscos P1 reproduzidos abaixo. Este commit documenta a auditoria e acrescenta reproduções; não corrige esses riscos nem altera produção. A aprovação dos testes anteriores não cobre os defeitos agora demonstrados.

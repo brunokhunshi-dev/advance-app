@@ -1,3 +1,4 @@
+import { createQueryCoordinator } from './src/services/query-coordinator.js';
 import { createLatestRequestGuard } from './src/services/latest-request.js';
 import { resolveFieldProfile } from './src/data/auth-profile.js';
 import { setupChangePassword, changeAccountPassword } from './src/ui/change-password.js';
@@ -35,7 +36,14 @@ const productRepository = createProductRepository(async () => {
     const snapshot = await getDocs(collection(db, 'produtos'));
     return snapshot.docs.map(document => ({...document.data(), id:document.id}));
 });
+const consultasEmCurso = createQueryCoordinator();
 const leiturasVisita = createLatestRequestGuard();
+function consultarNaSessao(sessao, chave, carregar) {
+    return consultasEmCurso.run(JSON.stringify([sessao.uid, sessao.id, sessao.versao, chave]), () => {
+        exigirSessao(sessao);
+        return carregar();
+    });
+}
 let technicalEditor;
 let commercialReport;
 let trainingReport;
@@ -422,6 +430,7 @@ function inicializarAplicativo() {
     onAuthStateChanged(auth, async user => {
 
         clearMediaUrlCache();
+        consultasEmCurso.clear();
         leiturasVisita.invalidate();
         passwordDialog.close();
         const versao = ++versaoSessao;
@@ -576,7 +585,8 @@ window.mostrarConfirmacaoDescarteRelatorio = function(callback) {
 // === FUNÇÕES AUXILIARES ===
 
 const buscarClientePorCnpj = createCnpjLookup((campoCnpj, valor) =>
-    getDocs(query(collection(db, 'clientes'), where(campoCnpj, '==', valor)))
+    consultarNaSessao(sessaoAtual(), JSON.stringify(['cnpj', campoCnpj, valor]), () =>
+        getDocs(query(collection(db, 'clientes'), where(campoCnpj, '==', valor))))
 );
 
 function mostrarApenasTela(idTelaAlvo) {
@@ -824,7 +834,7 @@ async function carregarAtividadesPendentes() {
 
     try {
 
-        const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', 'in', ['Pendente','Em andamento'])));
+        const snap = await consultarNaSessao(sessao, 'atividades-abertas', () => getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', 'in', ['Pendente','Em andamento']))));
 
         const atividades = snap.docs.map(d => ({ ...d.data(), id: d.id }));
 
@@ -961,7 +971,7 @@ async function carregarAgenda() {
 
         const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "in", ["Pendente", "Em andamento"]));
 
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await consultarNaSessao(sessao, 'atividades-abertas', () => getDocs(q));
 
         if (!sessaoValida(sessao) || pedido !== sequenciaAgenda) return;
 
@@ -1157,14 +1167,14 @@ async function carregarHistoricoVisitas({propagarErro = false} = {}) {
         let documentosHistorico;
 
         try {
-            documentosHistorico = (await getDocs(q)).docs;
+            documentosHistorico = (await consultarNaSessao(sessao, 'historico', () => getDocs(q))).docs;
         } catch (erro) {
             if (erro.code !== 'failed-precondition') throw erro;
             console.warn('Índice do histórico indisponível; usando consulta de compatibilidade. Consulte firestore.indexes.json.');
-            documentosHistorico = (await getDocs(query(
+            documentosHistorico = (await consultarNaSessao(sessao, 'historico-compatibilidade', () => getDocs(query(
                 collection(db, 'atividades'),
                 where('ptvId', '==', sessao.id)
-            ))).docs;
+            )))).docs;
         }
 
         documentosHistorico = documentosHistorico.filter(documento => {
@@ -1654,7 +1664,7 @@ async function carregarDadosParaAutocomplete() {
     }
 
     try {
-        const snap = await getDocs(query(collection(db,'clientes'), where('status','in',['Ativo','Provisorio'])));
+        const snap = await consultarNaSessao(sessao, 'clientes-autocomplete', () => getDocs(query(collection(db,'clientes'), where('status','in',['Ativo','Provisorio']))));
         if (!sessaoValida(sessao)) return;
 
         listaClientes = snap.docs.map(d => {
@@ -2286,9 +2296,10 @@ function atualizarInterfaceVisitaAtual() {
         trainingReport.deactivate();
 
         const atividadeId = atividadeSelecionadaId;
-        const sessao = sessaoAtual();
-        const pedidoAtual = leiturasVisita.begin(() => sessaoValida(sessao) && atividadeSelecionadaId === atividadeId);
+        let pedidoAtual = () => true;
         try {
+            const sessao = sessaoAtual();
+            pedidoAtual = leiturasVisita.begin(() => sessaoValida(sessao) && atividadeSelecionadaId === atividadeId);
             const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeId));
             if (!pedidoAtual()) return;
             if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
@@ -2449,6 +2460,7 @@ async function enviarFechamentoManual() {
         });
 
         gravado = true;
+        consultasEmCurso.clear();
         if (!sessaoValida(sessao)) return;
         fecharModalFechamentoManual();
         limparEstadoVisita();
@@ -2731,7 +2743,8 @@ function configurarEventosGlobais() {
             });
 
             gravado = true;
-                if (!sessaoValida(sessao)) return;
+            consultasEmCurso.clear();
+            if (!sessaoValida(sessao)) return;
 
             limparEstadoVisita();
             navegarParaTela('tela-historico', { substituir: true, carregar: false });
@@ -2973,7 +2986,7 @@ const profileView = new ProfileView(document.getElementById('profile-content'), 
     load: async () => {
         if (dadosPerfilLogado?.permissoes?.verHistorico === false) return [];
         const sessao = sessaoAtual();
-        const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));
+        const snap = await consultarNaSessao(sessao, 'perfil-atividades', () => getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id))));
         if (!sessaoValida(sessao)) return [];
         const inicio = new Date(); inicio.setHours(0, 0, 0, 0); inicio.setDate(inicio.getDate() - 364);
         const visits = snap.docs.map(d => ({ ...d.data(), id: d.id })).filter(a => a.status === 'Concluída' && tempoData(a.checkoutDataHora || a.data) >= inicio.getTime());
