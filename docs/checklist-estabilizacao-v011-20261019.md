@@ -3,7 +3,7 @@
 **Atualizado em:** 19/10/2026  
 **Branch de trabalho:** `fix/stability-state-queries-20261019` — PR #26 (draft)  
 **Produção:** nenhuma correção desta PR foi mesclada/publicada.  
-**Etapa atual:** auditoria estrutural **estática concluída**; INF-01 **parcial** (Vercel confirmado, Worker/regras reais pendentes). Próxima execução técnica: completar análise de infraestrutura e matriz Firestore **INF-02**, sem publicar alterações de backend.
+**Etapa atual:** auditoria estrutural **estática concluída**; INF-01 **parcial** (Vercel identificado; regras Firestore fornecidas e mantidas por decisão do responsável; Worker recebido/comparado, metadados Cloudflare/R2 pendentes). Concluir INF-01 antes do INF-02.
 
 **Legenda:** [x] feito/registrado; [ ] não concluído; `PARCIAL` = houve trabalho, mas não existe evidência suficiente para encerrar o item.  
 **Importante:** implementação na branch não significa teste aprovado, homologação nem deploy. **Decisão de 19/10/2026:** não publicar novas regras Firestore nem Worker na Cloudflare enquanto a auditoria e homologação não forem concluídas; exceção somente para hotfix crítico comprovado, isolado e com rollback.
@@ -35,14 +35,14 @@
 
 ## 3. Auditoria de integridade e infraestrutura — PRÓXIMA ETAPA
 
-- [ ] **INF-01 — Baseline real (PARCIAL):** Vercel produção, commit e aliases conferidos; Preview identificado, com **mesmo Firebase e Worker da produção** no código. Pendem confirmação autenticada do script Worker ativo, regras Firestore publicadas, deploy do Admin e bindings R2. Evidências em `docs/infra-inf01-baseline-20261019.md`. **Não executar testes destrutivos no Preview atual.**
-- [ ] **INF-02 — Matriz Firestore:** inventariar TODAS as consultas/escritas por tela, ação, usuário e componente (App, Admin, Worker, Functions); distinguir leituras de SDK, chamadas REST do Worker e avaliações das regras.
+- [ ] **INF-01 — Baseline real (PARCIAL):** Vercel produção, commit e aliases conferidos; Preview compartilha o mesmo Firebase/endpoint Worker. Regras Firestore atuais **informadas pelo usuário e registradas**; decisão: **mantê-las nesta fase**, com risco de autorização documentado. Arquivo Worker **recebido e comparado** com GitHub (diferença de tratamento de miniaturas); faltam versão/data efetivas do deployment Cloudflare, bucket e CORS R2. **Admin descontinuado, fora do escopo ativo.** Evidências: `docs/infra-inf01-baseline-20261019.md`. **Não executar testes destrutivos no Preview atual.**
+- [ ] **INF-02 — Matriz Firestore:** inventariar as consultas/escritas de componentes **em uso** (App, Worker e Functions ainda publicadas, se existirem); **excluir o painel Admin descontinuado** dos fluxos operacionais. Distinguir leituras SDK, REST do Worker e avaliações de regras.
 - [ ] **INF-03 — Custo/limites:** definir leitura esperada por login, abrir Início, Agenda, Histórico, relatório, fotos, check-in/out e telas Admin; revisar frequência, `getDocs` não limitado, deduplicação, retries e quota.
-- [ ] **INF-04 — Permissões reais:** inspecionar regras **efetivamente publicadas** e testar leitura/escrita por promotor, assistente, gestor e conta desativada. **Não publicar `advance-admin/firestore.rules` isoladamente:** o arquivo versionado proíbe gravações de `atividades` e pode bloquear a operação do PWA; preparar regra consolidada e testada para todas as funções necessárias.
-- [ ] **INF-05 — Worker/Auth:** consultar o código **atualmente publicado** (somente leitura), comparar com o repositório e auditar perfis ativos, autorização por atividade, quota, lote de mídias e exceção associada a e-mail fixo. **Não substituir o Worker ainda.**
+- [ ] **INF-04 — Permissões reais:** regras **informadas pelo usuário** permitem `read, write` em qualquer documento para qualquer conta autenticada no projeto Firebase, sem restrição por perfil/propriedade. **Decisão do responsável: não alterar agora**. Registrar como risco conhecido/aceito, sem considerá-lo segurança validada. Auditoria pode confirmar comportamentos sem deploy; qualquer regra futura terá de preservar os fluxos de campo. **Nunca publicar `advance-admin/firestore.rules` isoladamente.**
+- [ ] **INF-05 — Worker/Auth:** arquivo fornecido pelo responsável já foi comparado à cópia do GitHub; **não são iguais** (Worker fornecido usa só `original`, GitHub mantém miniaturas). Falta confirmar ID/data do deployment ativo no painel Cloudflare; examinar perfil, autorização, quota, lote e exceção de gestão. **Não substituir o Worker ainda.**
 - [ ] **INF-06 — CORS e upload:** confirmar origem/métodos/headers e o caminho `POST upload-url → PUT R2 → commit Firestore`; reproduzir `Failed to fetch`.
 - [ ] **INF-07 — Consistência e rollback:** inspecionar todas as transações, estados intermediários, arquivos órfãos, exclusões, concorrência, falha antes/depois do commit e tratamento de erro após sucesso.
-- [ ] **INF-08 — Relatórios obrigatórios:** testar se escrita direta autenticada pode concluir atividade sem relatório válido ou vínculo correto; bloquear via regras/serviço caso possível.
+- [ ] **INF-08 — Relatórios obrigatórios:** documentar e testar se escrita autenticada pode concluir atividade sem relatório válido/vinculado. Com a regra atual informada, **não há validação no Firestore Rules** para essa transição; manter a decisão de não mudar as regras agora, sem afirmar que o backend valida a integridade.
 - [ ] **INF-09 — Cache/PWA:** testar atualização do SW, invalidação, reinstalação, alternância de contas e compatibilidade de versões.
 - [ ] **INF-10 — Rascunhos e retenção:** validar isolamento por UID, dados e Blobs no IndexedDB, falta de espaço, fechamento abrupto e resolução de conflitos.
 - [ ] **INF-11 — Evidências:** registrar resultados com local do código, regra/deploy consultado, cenário reproduzido, impacto, custo provável e teste necessário.
@@ -87,7 +87,7 @@
 - [ ] Simular rede instável, perda de sessão, fechamento forçado, falha de upload e escrita parcial.
 - [ ] Testar autorizações, escrita direta inválida, revogação de acesso e casos de quota.
 - [ ] Comparar consumo real de leituras e chamadas ao Worker antes/depois.
-- [ ] Homologar Admin e coerência dos relatórios com App/Worker.
+- [ ] Homologar coerência dos relatórios entre App, Firestore e Worker; painel Advance Admin descontinuado fica fora do escopo operacional.
 - [ ] Homologar atualização de PWA instalado, Service Worker e rollback.
 
 ## Política aprovada para Firebase Rules e Cloudflare Worker
@@ -105,7 +105,7 @@
 
 - [ ] Aprovar os bloqueadores com evidência e testes.
 - [ ] Aprovar CI em App e Admin.
-- [ ] Validar uma proposta consolidada de Firestore Rules no Emulator/ambiente isolado, incluindo permissões de campo, Admin e relatórios; nunca substituir a regra ativa apenas pelo arquivo do Admin.
+- [ ] **Se houver proposta futura de alteração** de Firestore Rules, validá-la no Emulator/ambiente isolado para os fluxos de campo; **não está autorizada nem programada alteração de regras nesta fase**. Nunca substituir a regra ativa pelo arquivo do Admin descontinuado.
 - [ ] Validar versão proposta do Cloudflare Worker em ambiente de testes, com bucket R2 separado, permissões e fluxo de upload/leitura/exclusão.
 - [ ] Comparar as versões ativas dos dois serviços com os patches revisados e planejar implantação compatível com o aplicativo já instalado.
 - [ ] Preservar cópias/versionamento das regras Firestore e do Worker **efetivamente em produção** e confirmar o procedimento de rollback para ambos.
@@ -121,4 +121,4 @@
 - [Estabilização — código implementado, riscos e roteiro de teste](stabilizacao-v01-20261019.md)
 - PR de trabalho: https://github.com/brunokhunshi-dev/advance-app/pull/26
 
-**Ponto de retomada:** concluir a inspeção **somente leitura** de Cloudflare/Firestore/Admin (INF-01) e iniciar **INF-02 — matriz completa de leituras/gravações**. Depois, INF-04 e INF-06 com evidências; só planejar deploy de Rules/Worker **após** testar e homologar, salvo hotfix crítico isolado.
+**Ponto de retomada:** concluir **INF-01** com os metadados do deployment ativo Cloudflare (versão/data) e bucket/CORS R2; regras fornecidas foram registradas e mantidas por decisão do responsável; Admin está descontinuado. **Depois INF-02**, sem pular a ordem. Não publicar Rules/Worker nesta fase, salvo hotfix crítico isolado.
