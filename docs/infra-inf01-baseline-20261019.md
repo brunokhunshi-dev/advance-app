@@ -2,7 +2,7 @@
 
 **Data da verificação:** 19/10/2026  
 **Tipo:** inspeção somente leitura das integrações Vercel/GitHub e configuração versionada.  
-**Estado:** PARCIAL — produção Vercel confirmada; usuário forneceu regras Firestore e cópia do código Worker indicado como atual; falta comprovação do deployment ativo/bindings CORS do R2. **Advance Admin foi declarado descontinuado e deixa de ser bloqueador.** Nenhum deploy, alteração de infraestrutura, regra ou dado foi executado.
+**Estado:** PARCIAL — Vercel confirmado; usuário informou as regras Firestore, o código do Worker e sua versão identificadora (`72ad09f0-08c5-43da-a6bd-e67180fb9599`, publicada em 17/10/2026 segundo o responsável), além da política CORS do R2. **Falta o nome do bucket/binding R2 e não houve confirmação autenticada independente do deployment do Worker.** Advance Admin descontinuado. Nenhum deploy, alteração de infraestrutura, regra ou dado foi executado.
 
 ## 1. Produção Vercel — comprovada
 
@@ -65,7 +65,7 @@ service cloud.firestore {
 
 **Semântica confirmada:** qualquer conta **autenticada neste projeto Firebase** recebe leitura e escrita sobre todos os caminhos de documentos cobertos por essas regras. Elas **não verificam vínculo com a Advance, UID de proprietário, cargo, status ativo ou validade de relatórios**. Isso é diferente do que afirma o comentário descritivo da regra informada. O usuário optou por **manter as regras nesta fase**; registrar como **risco de autorização conhecido e aceito para o piloto**, sem criar patch/deploy agora. A aceitação do risco não transforma a configuração em segura e não elimina o teste de integridade INF-08. **Data/versão da publicação não foram fornecidas**, portanto não há confirmação independente do histórico no Console.
 
-## 3. Cloudflare Worker / R2 — versão versionada comprovada, produção não verificada
+## 3. Cloudflare Worker / R2 — versão e CORS informados pelo responsável
 
 O endpoint de mídia configurado em `technical-report-editor.js` é idêntico na `main` e na branch:
 
@@ -74,13 +74,32 @@ O endpoint de mídia configurado em `technical-report-editor.js` é idêntico na
 
 `cloudflare/README.md` afirma expressamente que atualizar o GitHub/Vercel **não publica o Worker**. Portanto o SHA acima **NÃO** é o hash ativo do script executado pela Cloudflare.
 
-- Deploy ativo / ID da versão Cloudflare: **não verificado**.
-- Data e histórico de publicação do Worker: **não verificados**.
-- Binding/bucket real de R2 e política CORS efetiva: **não verificados**.
+- **Identificador de versão do Worker informado pelo responsável:** `72ad09f0-08c5-43da-a6bd-e67180fb9599`.
+- **Data informada:** publicado em 17/10/2026 (dois dias antes de 19/10/2026). **Não foram fornecidos horário ou histórico de implantação.**
+- **Código de referência fornecido pelo responsável:** arquivo anexado `worker;(1).js`. A correspondência exata entre esse arquivo e a versão de ID informado **não foi confirmada por acesso autenticado à Cloudflare**.
+- **Configuração CORS do bucket R2:** fornecida pelo responsável e registrada abaixo. **Nome do bucket e associação com `env.R2_BUCKET_NAME` ainda não informados.**
 - Endpoint `/health`: inspeção pública foi tentada, mas o acesso externo retornou indisponível no ambiente de auditoria; portanto não foi considerado evidência positiva/negativa de disponibilidade do serviço.
 - Exceção de gestão baseada em e-mail específico existe na cópia versionada; **não afirmar que está ativa** sem conferir a versão efetivamente publicada.
 
 **Risco de homologação:** os Previews usam o **mesmo URL de Worker** do aplicativo produtivo. Sem Worker/R2 separados, uploads e exclusões em Preview podem atingir o serviço/bucket real se as demais permissões permitirem.
+
+### Política CORS do R2 fornecida em 19/10/2026
+
+```json
+[
+  {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "HEAD", "PUT", "DELETE"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+**Compatibilidade estática:** `technical-report-editor.js` chama o endpoint do Worker com `POST`, `Authorization: Bearer ...` e `Content-Type: application/json`. O **Worker** responde a preflight `OPTIONS` com `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Headers: Authorization, Content-Type` e `Access-Control-Allow-Methods: GET, POST, OPTIONS`. Já o **upload diretamente ao R2** usa `fetch(url, {method: 'PUT', headers: {'Content-Type': contentType}, body: blob})`. Portanto o CORS do **R2** cobre os métodos/cabeçalho enviados ao **R2**, e o CORS do **Worker** cobre os métodos/cabeçalhos enviados ao **Worker**. Não é necessário incluir `POST` nem `Authorization` na política **R2** para esse fluxo. O `ETag` fica legível no browser se utilizado. Fonte: [documentação Cloudflare sobre CORS R2](https://developers.cloudflare.com/r2/buckets/cors/).
+
+**Veredito:** sem incompatibilidade evidente do CORS com o fluxo de upload documentado. **O erro `Failed to fetch` não foi reproduzido e sua causa não está provada**; o INF-06 examinará requests reais, status, presigned URLs expiradas, `Content-Type` assinado, rede e falhas entre Worker, R2 e Firestore. Não alterar CORS nesta fase.
 
 ### Arquivo Worker fornecido e comparado com o GitHub
 
@@ -111,7 +130,10 @@ O usuário informou em 19/10/2026 que **Advance Admin está descontinuado**. Rem
 - [x] Registrar cache SW versionado e candidato de rollback Vercel (sem executar rollback).
 
 ### Ainda pendentes para fechar INF-01
-- [ ] Confirmar no painel Cloudflare o Worker `advance-media-api`: deployment ativo (versão, data, script/hash), rotas, env/bindings sem expor secrets, bucket R2 e configuração de CORS efetiva.
+- [x] Registrar ID e data informados do Worker: `72ad09f0-08c5-43da-a6bd-e67180fb9599`, 17/10/2026.
+- [x] Registrar política CORS R2 informada e compatibilidade estática com POST no Worker e PUT no R2.
+- [ ] Identificar **nome do bucket R2** associado à variável `R2_BUCKET_NAME` do Worker; confirmar que a configuração CORS enviada pertence ao bucket utilizado.
+- [ ] Se necessária certificação formal do deployment, validar no painel Cloudflare vínculo entre ID de versão, código anexado e dados do ambiente, sem compartilhar secrets.
 - [x] Registrar as regras Firestore **informadas pelo usuário** e documentar a abrangência de permissões e decisão de mantê-las por enquanto.
 - [ ] Caso seja necessária auditoria formal de deployment, confirmar data/versão das regras no console (não bloqueia o diagnóstico estático aceito pelo responsável).
 - [x] Retirar Advance Admin do escopo ativo, por estar descontinuado.
@@ -120,8 +142,8 @@ O usuário informou em 19/10/2026 que **Advance Admin está descontinuado**. Rem
 
 ## 7. Decisão / próximo passo
 
-**INF-01 permanece PARCIAL:** linha de base Vercel identificada; regras Firestore informadas e aceitas para esta fase; Worker anexado comparado, porém faltam **ID/data da versão ativa na Cloudflare e nome do bucket R2/CORS efetivo**. Nenhum token ou segredo é necessário. Advance Admin está fora do escopo ativo.
+**INF-01 permanece PARCIAL:** Vercel identificado; regras Firestore recebidas/aceitas; Worker fornecido comparado com o GitHub; **ID e data do Worker e CORS do R2 informados**. Falta **nome do bucket R2** e vínculo efetivo bucket ↔ Worker, além de verificação independente da versão publicada caso se exija evidência formal. Nenhum token ou segredo é necessário. Advance Admin está fora do escopo ativo.
 
-Enquanto isso, **INF-02 pode iniciar como matriz estática de consultas e gravações**, mas nenhuma validação de segurança real ou consumo de infraestrutura deve ser declarada concluída sem a configuração efetivamente publicada.
+**Respeitar a ordem acordada:** finalizar o escopo documental do INF-01 (nome do bucket R2 e confirmação de vínculo das configurações) antes de iniciar o INF-02. A validação formal no painel Cloudflare poderá complementar a evidência sem implicar deploy.
 
 **Nenhum arquivo de aplicação, deploy, bucket, regra ou dado foi alterado nesta inspeção.**
