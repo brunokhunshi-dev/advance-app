@@ -18,7 +18,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         validarResponsavel:atv=>{if(atv.ptvId!=='user')throw new Error('responsável');},
-        gerarIdRelatorio:()=> 'report',mediaStore:{},
+        gerarIdRelatorio:()=> 'report',mediaStore:{},activityRepository:{invalidate(){}},
         doc:(_,collection,id)=>({id,path:collection+'/'+id}),
         runTransaction:async (_,callback)=>{
             const pending=[];
