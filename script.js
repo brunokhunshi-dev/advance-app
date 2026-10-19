@@ -28,6 +28,7 @@ import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVi
 import { createClientRepository } from './src/data/client-repository.js';
 import { createActivityRepository } from './src/data/activity-repository.js';
 import { createRequestScope } from './src/domain/request-scope.js';
+import { createReportDraftStore } from './src/services/report-drafts.js';
 import { describeOperationError } from './src/domain/operation-errors.js';
 import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
@@ -80,6 +81,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 const db = getFirestore(app);
+const reportDraftStore = createReportDraftStore();
 
 configureMediaApi({
     getIdToken: async () => {
@@ -2370,16 +2372,34 @@ function atualizarInterfaceVisitaAtual() {
             if (tipo === 'Visita comercial') {
                 const existing = commercialReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeSelecionadaId) || commercialReport.initial.get(atividadeSelecionadaId));
-                commercialReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo).catch(error => {
+                    console.warn('Rascunho local indisponível.', error);
+                    return null;
+                });
+                if (!pedidoAtual()) return;
+                commercialReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
+                const recovered = unsaved ? 'memory' : commercialReport.restoreBackup(atividadeId, backup);
                 abrirPrototipoComercial();
+                if (recovered === 'restored') commercialReport.status('Rascunho e fotos recuperados deste dispositivo. Salve o relatório para enviar ao servidor.');
+                if (recovered === 'missing-files') commercialReport.status('Rascunho recuperado, mas algumas fotos locais estão ausentes. Adicione-as novamente antes de salvar.');
+                if (recovered === 'conflict') commercialReport.status('Existe um rascunho local, mas a versão do servidor mudou. O backup foi preservado sem sobrescrever o relatório.');
                 return;
             }
 
             if (tipo === 'Treinamento') {
                 const existing = trainingReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (trainingReport.saved.get(atividadeSelecionadaId) || trainingReport.initial.get(atividadeSelecionadaId));
-                trainingReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo).catch(error => {
+                    console.warn('Rascunho local indisponível.', error);
+                    return null;
+                });
+                if (!pedidoAtual()) return;
+                trainingReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
+                const recovered = unsaved ? 'memory' : trainingReport.restoreBackup(atividadeId, backup);
                 abrirPrototipoComercial();
+                if (recovered === 'restored') trainingReport.status('Rascunho e fotos recuperados deste dispositivo. Salve o relatório para enviar ao servidor.');
+                if (recovered === 'missing-files') trainingReport.status('Rascunho recuperado, mas algumas fotos locais estão ausentes. Adicione-as novamente antes de salvar.');
+                if (recovered === 'conflict') trainingReport.status('Existe um rascunho local, mas a versão do servidor mudou. O backup foi preservado sem sobrescrever o relatório.');
                 return;
             }
 
@@ -2566,6 +2586,8 @@ function configurarEventosGlobais() {
         atualizarInterfaceVisitaAtual();
     }, {
         persist: salvarRelatorioComercial,
+        backupDraft: (id, data, files, signature) => reportDraftStore.save(sessaoAtual().uid, id, 'Visita comercial', data, files, signature),
+        removeBackup: id => reportDraftStore.remove(sessaoAtual().uid, id, 'Visita comercial'),
         loadProducts: options => productRepository.list(options),
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
@@ -2580,6 +2602,8 @@ function configurarEventosGlobais() {
         atualizarInterfaceVisitaAtual();
     }, {
         persist: (id, data, base) => salvarRelatorioComercial(id, data, base, 'Treinamento'),
+        backupDraft: (id, data, files, signature) => reportDraftStore.save(sessaoAtual().uid, id, 'Treinamento', data, files, signature),
+        removeBackup: id => reportDraftStore.remove(sessaoAtual().uid, id, 'Treinamento'),
         loadProducts: options => productRepository.list(options),
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
