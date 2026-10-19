@@ -66,6 +66,7 @@ test('checkout transaction revalidates server modules and persists feedback, pen
         document:{getElementById:get,querySelector:()=>null},
         referenciaRelatorio:()=>({path:'relatorios_comerciais/report'}),
         commercialReport:{drafts:new Map([['visit',{feedback:['Argumentos de venda'],pending:'Sem pendências'}]])},
+        sessaoValida:()=>true,consultasEmCurso:{clear(){}},limparEstadoVisita(){},navegarParaTela(){},carregarHistoricoVisitas:async()=>{},
         coordenadasValidas:()=>true,informarErro:(_,error)=>{throw error;}});
     const start=source.indexOf("    document.getElementById('btn-concluir-checkout')?.addEventListener");
     const end=source.indexOf("    document.querySelectorAll('input[name=\"atEspecificacao\"]')",start);
@@ -121,6 +122,7 @@ test('training checkout revalidates modules from server and persists completion 
     const button={addEventListener:(_,fn)=>handler=fn};
     Object.assign(app.context, {checkoutPendenteGlobal:{atividadeId:'visit',posicao:{lat:1,lng:2,accuracy:10,endereco:'Loja'}},
         document:{getElementById:()=>button,querySelector:()=>null},referenciaRelatorio:()=>({path:'relatorios_treinamentos/report'}),
+        sessaoValida:()=>true,consultasEmCurso:{clear(){}},limparEstadoVisita(){},navegarParaTela(){},carregarHistoricoVisitas:async()=>{},
         coordenadasValidas:()=>true,informarErro:(_,error)=>{throw error;}});
     // Unrelated hidden controls still exist for the other visit types.
     button.value='';

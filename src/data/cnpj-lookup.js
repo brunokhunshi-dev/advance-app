@@ -17,13 +17,16 @@ export function createCnpjLookup(lookup) {
                 ultimoSnap = snap;
                 if (!snap.empty) return snap;
             } catch (erro) {
+                const code = String(erro?.code || '').split('/').at(-1);
+                if (['resource-exhausted', 'permission-denied', 'unauthenticated', 'unavailable'].includes(code) ||
+                    [401, 403, 429].includes(erro?.status) || /quota exceeded|resource[-.]exhausted/i.test(erro?.message || '')) throw erro;
                 ultimoErro = erro;
                 console.warn('Consulta de CNPJ por ' + campoCnpj + ' indisponível:', erro);
             }
         }
     
-        if (ultimoSnap) return ultimoSnap;
         if (ultimoErro) throw ultimoErro;
+        if (ultimoSnap) return ultimoSnap;
         throw new Error('Não foi possível consultar a base de clientes.');
     };
 }

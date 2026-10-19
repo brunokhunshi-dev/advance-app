@@ -1,0 +1,3856 @@
+{
+  "scope": "App runtime + Worker; vendor internals excluded",
+  "rows": [
+    {
+      "file": "firebase-config.js",
+      "bytes": 348,
+      "lines": 9,
+      "imports": [],
+      "exports": [
+        "firebaseConfig"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "script.js",
+      "bytes": 137647,
+      "lines": 2972,
+      "imports": [
+        {
+          "from": "./src/data/auth-profile.js",
+          "imported": "resolveFieldProfile",
+          "local": "resolveFieldProfile",
+          "line": 1
+        },
+        {
+          "from": "./src/ui/change-password.js",
+          "imported": "setupChangePassword",
+          "local": "setupChangePassword",
+          "line": 2
+        },
+        {
+          "from": "./src/ui/change-password.js",
+          "imported": "changeAccountPassword",
+          "local": "changeAccountPassword",
+          "line": 2
+        },
+        {
+          "from": "./src/services/cancellation.js",
+          "imported": "cancelarAgendamento",
+          "local": "cancelarAgendamento",
+          "line": 3
+        },
+        {
+          "from": "./src/domain/cancellation.js",
+          "imported": "atividadePodeSerCancelada",
+          "local": "atividadePodeSerCancelada",
+          "line": 4
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "camposAssistenciaPendentes",
+          "local": "camposAssistenciaPendentes",
+          "line": 5
+        },
+        {
+          "from": "./src/data/product-repository.js",
+          "imported": "createProductRepository",
+          "local": "createProductRepository",
+          "line": 6
+        },
+        {
+          "from": "./src/services/commercial-save.js",
+          "imported": "persistCommercialMedia",
+          "local": "persistCommercialMedia",
+          "line": 7
+        },
+        {
+          "from": "./src/ui/commercial-report.js",
+          "imported": "CommercialReport",
+          "local": "CommercialReport",
+          "line": 8
+        },
+        {
+          "from": "./src/ui/training-report.js",
+          "imported": "TrainingReport",
+          "local": "TrainingReport",
+          "line": 9
+        },
+        {
+          "from": "./src/domain/training.js",
+          "imported": "modulosTreinamentoPendentes",
+          "local": "modulosTreinamentoPendentes",
+          "line": 10
+        },
+        {
+          "from": "./src/ui/agenda-cards.js",
+          "imported": "cardAgenda",
+          "local": "cardAgenda",
+          "line": 11
+        },
+        {
+          "from": "./src/ui/agenda-cards.js",
+          "imported": "proximasVisitas",
+          "local": "proximasVisitas",
+          "line": 11
+        },
+        {
+          "from": "./src/ui/agenda-cards.js",
+          "imported": "visitasSecundarias",
+          "local": "visitasSecundarias",
+          "line": 11
+        },
+        {
+          "from": "./src/ui/profile.js",
+          "imported": "ProfileView",
+          "local": "ProfileView",
+          "line": 12
+        },
+        {
+          "from": "./src/ui/home-map.js",
+          "imported": "HomeVisitMap",
+          "local": "HomeVisitMap",
+          "line": 13
+        },
+        {
+          "from": "./src/ui/loading.js",
+          "imported": "loadingMarkup",
+          "local": "loadingMarkup",
+          "line": 14
+        },
+        {
+          "from": "./src/ui/loading.js",
+          "imported": "homeLoadingMarkup",
+          "local": "homeLoadingMarkup",
+          "line": 14
+        },
+        {
+          "from": "./src/ui/client-options.js",
+          "imported": "filtrarClientes",
+          "local": "filtrarClientes",
+          "line": 15
+        },
+        {
+          "from": "./src/ui/client-options.js",
+          "imported": "tituloCliente",
+          "local": "tituloCliente",
+          "line": 15
+        },
+        {
+          "from": "./src/ui/client-options.js",
+          "imported": "detalhesCliente",
+          "local": "detalhesCliente",
+          "line": 15
+        },
+        {
+          "from": "./src/ui/client-options.js",
+          "imported": "opcaoCliente",
+          "local": "opcaoCliente",
+          "line": 15
+        },
+        {
+          "from": "./src/ui/agenda-calendar.js",
+          "imported": "AgendaCalendar",
+          "local": "AgendaCalendar",
+          "line": 16
+        },
+        {
+          "from": "./src/ui/agenda-calendar.js",
+          "imported": "filtrarAgenda",
+          "local": "filtrarAgenda",
+          "line": 16
+        },
+        {
+          "from": "./src/domain/scheduling.js",
+          "imported": "limitesAgendamento",
+          "local": "limitesAgendamento",
+          "line": 17
+        },
+        {
+          "from": "./src/domain/scheduling.js",
+          "imported": "validarAgendamento",
+          "local": "validarAgendamento",
+          "line": 17
+        },
+        {
+          "from": "./src/data/cnpj-lookup.js",
+          "imported": "createCnpjLookup",
+          "local": "createCnpjLookup",
+          "line": 18
+        },
+        {
+          "from": "./src/ui/pwa.js",
+          "sideEffect": true,
+          "line": 19
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escaparHtml",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "tempoData",
+          "local": "tempoData",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "lerDataHora",
+          "local": "lerDataHora",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "formatarDataHoraPT",
+          "local": "formatarDataHoraPT",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "formatarDataAgenda",
+          "local": "formatarDataAgenda",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "formatarDataCheckout",
+          "local": "formatarDataCheckout",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "formatarHoraCheckout",
+          "local": "formatarHoraCheckout",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "formatarDuracaoVisita",
+          "local": "formatarDuracaoVisita",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/formatters.js",
+          "imported": "serializarEstavel",
+          "local": "serializarEstavel",
+          "line": 20
+        },
+        {
+          "from": "./src/domain/identifiers.js",
+          "imported": "obterIniciais",
+          "local": "obterIniciais",
+          "line": 21
+        },
+        {
+          "from": "./src/domain/identifiers.js",
+          "imported": "gerarIdAtividade",
+          "local": "gerarIdAtividade",
+          "line": 21
+        },
+        {
+          "from": "./src/domain/identifiers.js",
+          "imported": "gerarIdRelatorio",
+          "local": "gerarIdRelatorio",
+          "line": 21
+        },
+        {
+          "from": "./src/domain/identifiers.js",
+          "imported": "gerarIdClienteCnpj",
+          "local": "gerarIdClienteCnpj",
+          "line": 21
+        },
+        {
+          "from": "./src/domain/identifiers.js",
+          "imported": "gerarIdClienteProvisorio",
+          "local": "gerarIdClienteProvisorio",
+          "line": 21
+        },
+        {
+          "from": "./src/domain/identifiers.js",
+          "imported": "cnpjValido",
+          "local": "cnpjValido",
+          "line": 21
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "normalizarTipoVisita",
+          "local": "normalizarTipoVisita",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "colecaoRelatorioPorTipo",
+          "local": "colecaoRelatorioPorTipo",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "colecaoRelatorioDaAtividade",
+          "local": "colecaoRelatorioDaAtividade",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "blocosPersistidosRelatorio",
+          "local": "blocosPersistidosRelatorio",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "dadosAssistenciaDoRelatorio",
+          "local": "dadosAssistenciaDoRelatorio",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "secoesAssistenciaParaDocumento",
+          "local": "secoesAssistenciaParaDocumento",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "relatorioValidoParaCheckout",
+          "local": "relatorioValidoParaCheckout",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "normalizarAssistenciaComparacao",
+          "local": "normalizarAssistenciaComparacao",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "modulosComerciaisPendentes",
+          "local": "modulosComerciaisPendentes",
+          "line": 22
+        },
+        {
+          "from": "./src/domain/reports.js",
+          "imported": "ASSISTENCIA_TECNICA_TIPO",
+          "local": "ASSISTENCIA_TECNICA_TIPO",
+          "line": 23
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "obterResultadoHistorico",
+          "local": "obterResultadoHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "obterClasseResultadoHistorico",
+          "local": "obterClasseResultadoHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "obterDataHistorico",
+          "local": "obterDataHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "formatarDiaHistorico",
+          "local": "formatarDiaHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "formatarHorarioVisitaHistorico",
+          "local": "formatarHorarioVisitaHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "periodoHistorico",
+          "local": "periodoHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/domain/history.js",
+          "imported": "aplicarFiltrosHistorico",
+          "local": "aplicarFiltrosHistorico",
+          "line": 24
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "buscarCentroCidade",
+          "local": "buscarCentroCidade",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "referenciaLocalizacao",
+          "local": "referenciaLocalizacao",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "dadosLocalizacaoCadastro",
+          "local": "dadosLocalizacaoCadastro",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "buscarJson",
+          "local": "buscarJson",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "coordenadasValidas",
+          "local": "coordenadasValidas",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "obterPosicao",
+          "local": "obterPosicao",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "obterEnderecoPorCoords",
+          "local": "obterEnderecoPorCoords",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "obterCoordsPorEndereco",
+          "local": "obterCoordsPorEndereco",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "calcularDistancia",
+          "local": "calcularDistancia",
+          "line": 25
+        },
+        {
+          "from": "./src/services/location.js",
+          "imported": "validarPrecisaoGps",
+          "local": "validarPrecisaoGps",
+          "line": 25
+        },
+        {
+          "from": "./src/ui/assistance.js",
+          "imported": "radioAssistencia",
+          "local": "radioAssistencia",
+          "line": 26
+        },
+        {
+          "from": "./src/ui/assistance.js",
+          "imported": "lerFormularioAssistencia",
+          "local": "lerFormularioAssistencia",
+          "line": 26
+        },
+        {
+          "from": "./src/ui/assistance.js",
+          "imported": "preencherFormularioAssistencia",
+          "local": "preencherFormularioAssistencia",
+          "line": 26
+        },
+        {
+          "from": "./src/ui/assistance.js",
+          "imported": "renderFichaAssistencia",
+          "local": "renderFichaAssistencia",
+          "line": 26
+        },
+        {
+          "from": "./src/ui/visit-view.js",
+          "imported": "preencherCampoVisualizador",
+          "local": "preencherCampoVisualizador",
+          "line": 27
+        },
+        {
+          "from": "./src/ui/visit-view.js",
+          "imported": "prepararImpressaoVisualizador",
+          "local": "prepararImpressaoVisualizador",
+          "line": 27
+        },
+        {
+          "from": "./src/ui/visit-view.js",
+          "imported": "renderizarVisualizadorVisita",
+          "local": "renderizarVisualizadorVisita",
+          "line": 27
+        },
+        {
+          "from": "./src/ui/visit-view.js",
+          "imported": "preencherConteudoRelatorio",
+          "local": "preencherConteudoRelatorio",
+          "line": 27
+        },
+        {
+          "from": "./src/data/client-repository.js",
+          "imported": "createClientRepository",
+          "local": "createClientRepository",
+          "line": 28
+        },
+        {
+          "from": "./src/domain/operation-errors.js",
+          "imported": "describeOperationError",
+          "local": "describeOperationError",
+          "line": 29
+        },
+        {
+          "from": "./technical-report-editor.js",
+          "imported": "clearMediaUrlCache",
+          "local": "clearMediaUrlCache",
+          "line": 30
+        },
+        {
+          "from": "./technical-report-editor.js",
+          "imported": "readProfilePhotoUrl",
+          "local": "readProfilePhotoUrl",
+          "line": 30
+        },
+        {
+          "from": "./technical-report-editor.js",
+          "imported": "TechnicalReportEditor",
+          "local": "TechnicalReportEditor",
+          "line": 30
+        },
+        {
+          "from": "./technical-report-editor.js",
+          "imported": "initializeMediaPreviews",
+          "local": "initializeMediaPreviews",
+          "line": 30
+        },
+        {
+          "from": "./technical-report-editor.js",
+          "imported": "configureMediaApi",
+          "local": "configureMediaApi",
+          "line": 30
+        },
+        {
+          "from": "./technical-report-editor.js",
+          "imported": "mediaStore",
+          "local": "mediaStore",
+          "line": 30
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js",
+          "imported": "initializeApp",
+          "local": "initializeApp",
+          "line": 53
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "getAuth",
+          "local": "getAuth",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "signInWithEmailAndPassword",
+          "local": "signInWithEmailAndPassword",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "onAuthStateChanged",
+          "local": "onAuthStateChanged",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "signOut",
+          "local": "signOut",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "EmailAuthProvider",
+          "local": "EmailAuthProvider",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "reauthenticateWithCredential",
+          "local": "reauthenticateWithCredential",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "updatePassword",
+          "local": "updatePassword",
+          "line": 55
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "getFirestore",
+          "local": "getFirestore",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "collection",
+          "local": "collection",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "query",
+          "local": "query",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "where",
+          "local": "where",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "getDocs",
+          "local": "getDocs",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "doc",
+          "local": "doc",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "getDoc",
+          "local": "getDoc",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "getDocFromServer",
+          "local": "getDocFromServer",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "setDoc",
+          "local": "setDoc",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "runTransaction",
+          "local": "runTransaction",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "orderBy",
+          "local": "orderBy",
+          "line": 57
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "limit",
+          "local": "limit",
+          "line": 57
+        },
+        {
+          "from": "./firebase-config.js",
+          "imported": "firebaseConfig",
+          "local": "firebaseConfig",
+          "line": 59
+        }
+      ],
+      "exports": [],
+      "unreferencedImports": [],
+      "mutableTop": [
+        {
+          "name": "technicalEditor",
+          "kind": "let",
+          "line": 37
+        },
+        {
+          "name": "commercialReport",
+          "kind": "let",
+          "line": 38
+        },
+        {
+          "name": "trainingReport",
+          "kind": "let",
+          "line": 39
+        },
+        {
+          "name": "idUsuarioLogado",
+          "kind": "let",
+          "line": 76
+        },
+        {
+          "name": "nomeUsuarioLogado",
+          "kind": "let",
+          "line": 78
+        },
+        {
+          "name": "perfilUsuarioLogado",
+          "kind": "let",
+          "line": 80
+        },
+        {
+          "name": "dadosPerfilLogado",
+          "kind": "let",
+          "line": 81
+        },
+        {
+          "name": "atividadeSelecionadaId",
+          "kind": "let",
+          "line": 83
+        },
+        {
+          "name": "clienteSelecionadoId",
+          "kind": "let",
+          "line": 85
+        },
+        {
+          "name": "clienteSelecionadoNome",
+          "kind": "let",
+          "line": 87
+        },
+        {
+          "name": "dataCheckinAtual",
+          "kind": "let",
+          "line": 89
+        },
+        {
+          "name": "objetoAtividadeGlobal",
+          "kind": "let",
+          "line": 91
+        },
+        {
+          "name": "objetoRelatorioGlobal",
+          "kind": "let",
+          "line": 93
+        },
+        {
+          "name": "checkoutPendenteGlobal",
+          "kind": "let",
+          "line": 94
+        },
+        {
+          "name": "fechamentoManualPendente",
+          "kind": "let",
+          "line": 95
+        },
+        {
+          "name": "listaClientes",
+          "kind": "let",
+          "line": 97
+        },
+        {
+          "name": "clientesAutocompleteCarregados",
+          "kind": "let",
+          "line": 98
+        },
+        {
+          "name": "historicoCarregado",
+          "kind": "let",
+          "line": 104
+        },
+        {
+          "name": "clienteVisualizadorAtual",
+          "kind": "let",
+          "line": 105
+        },
+        {
+          "name": "listaAtividadesAgenda",
+          "kind": "let",
+          "line": 107
+        },
+        {
+          "name": "agendaCarregando",
+          "kind": "let",
+          "line": 111
+        },
+        {
+          "name": "nvClienteSelecionadoId",
+          "kind": "let",
+          "line": 121
+        },
+        {
+          "name": "cnpjNovoCliente",
+          "kind": "let",
+          "line": 123
+        },
+        {
+          "name": "callbackExclusaoAtual",
+          "kind": "let",
+          "line": 125
+        },
+        {
+          "name": "versaoSessao",
+          "kind": "let",
+          "line": 129
+        },
+        {
+          "name": "operacaoEmCurso",
+          "kind": "let",
+          "line": 131
+        },
+        {
+          "name": "versaoConsultaCnpj",
+          "kind": "let",
+          "line": 133
+        },
+        {
+          "name": "versaoConsultaEndereco",
+          "kind": "let",
+          "line": 135
+        },
+        {
+          "name": "consultasCadastro",
+          "kind": "let",
+          "line": 137
+        },
+        {
+          "name": "cadastroSalvando",
+          "kind": "let",
+          "line": 139
+        },
+        {
+          "name": "sequenciaPendentes",
+          "kind": "let",
+          "line": 141
+        },
+        {
+          "name": "sequenciaAgenda",
+          "kind": "let",
+          "line": 143
+        },
+        {
+          "name": "sequenciaHistorico",
+          "kind": "let",
+          "line": 145
+        },
+        {
+          "name": "filtrosHistorico",
+          "kind": "let",
+          "line": 146
+        },
+        {
+          "name": "navegacaoHistoricoAtiva",
+          "kind": "let",
+          "line": 162
+        },
+        {
+          "name": "estadoNavegacaoAtual",
+          "kind": "let",
+          "line": 163
+        },
+        {
+          "name": "ignorarProtecaoRelatorioUmaVez",
+          "kind": "let",
+          "line": 164
+        },
+        {
+          "name": "visitaEmEdicao",
+          "kind": "let",
+          "line": 1451
+        },
+        {
+          "name": "abrirCancelamentoAtividade",
+          "kind": "let",
+          "line": 1452
+        }
+      ],
+      "windowWrites": [
+        {
+          "name": "mostrarAlerta",
+          "line": 513
+        },
+        {
+          "name": "fecharAlerta",
+          "line": 523
+        },
+        {
+          "name": "mostrarAvisoAndamento",
+          "line": 525
+        },
+        {
+          "name": "mostrarConfirmacaoExclusao",
+          "line": 527
+        },
+        {
+          "name": "confirmarExclusao",
+          "line": 543
+        },
+        {
+          "name": "fecharConfirmacaoExclusao",
+          "line": 553
+        },
+        {
+          "name": "mostrarConfirmacaoDescarteRelatorio",
+          "line": 561
+        },
+        {
+          "name": "abrirVisualizadorVisita",
+          "line": 1402
+        },
+        {
+          "name": "abrirDetalhesVisita",
+          "line": 1454
+        },
+        {
+          "name": "abrirConfirmacaoCheckin",
+          "line": 2003
+        }
+      ],
+      "events": [
+        {
+          "method": "disconnect",
+          "line": 278,
+          "argument": null
+        },
+        {
+          "method": "disconnect",
+          "line": 279,
+          "argument": null
+        },
+        {
+          "method": "addEventListener",
+          "line": 379,
+          "argument": "submit"
+        },
+        {
+          "method": "addEventListener",
+          "line": 409,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 507,
+          "argument": "DOMContentLoaded"
+        },
+        {
+          "method": "addEventListener",
+          "line": 735,
+          "argument": "popstate"
+        },
+        {
+          "method": "addEventListener",
+          "line": 835,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 891,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 930,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1020,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1112,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1113,
+          "argument": "keydown"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1215,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1221,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1227,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1233,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1239,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1268,
+          "argument": "focus"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1269,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1277,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1295,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1303,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1313,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1319,
+          "argument": "focus"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1324,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1332,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1519,
+          "argument": null
+        },
+        {
+          "method": "addEventListener",
+          "line": 1522,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1542,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1543,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1549,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1550,
+          "argument": "cancel"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1551,
+          "argument": "close"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1552,
+          "argument": "submit"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1583,
+          "argument": "click"
+        },
+        {
+          "method": "setTimeout",
+          "line": 1686,
+          "argument": null
+        },
+        {
+          "method": "addEventListener",
+          "line": 1706,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1712,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1714,
+          "argument": "blur"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1791,
+          "argument": "blur"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1825,
+          "argument": "blur"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1831,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1839,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1956,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1980,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 1995,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2027,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2028,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2029,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2030,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2032,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2038,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2367,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2368,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2372,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2506,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2546,
+          "argument": "click"
+        },
+        {
+          "method": "setTimeout",
+          "line": 2564,
+          "argument": null
+        },
+        {
+          "method": "addEventListener",
+          "line": 2548,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2567,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2568,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2573,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2577,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2580,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2582,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2584,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2736,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2739,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2744,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2747,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2760,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 2762,
+          "argument": "click"
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 31
+        },
+        {
+          "name": "getIdToken",
+          "line": 68
+        },
+        {
+          "name": "(callback)",
+          "line": 99
+        },
+        {
+          "name": "carregarRelatorioDaAtividade",
+          "line": 211
+        },
+        {
+          "name": "(callback)",
+          "line": 379
+        },
+        {
+          "name": "(callback)",
+          "line": 409
+        },
+        {
+          "name": "(callback)",
+          "line": 473
+        },
+        {
+          "name": "(callback)",
+          "line": 419
+        },
+        {
+          "name": "(callback)",
+          "line": 543
+        },
+        {
+          "name": "carregarAtividadesPendentes",
+          "line": 796
+        },
+        {
+          "name": "(callback)",
+          "line": 920
+        },
+        {
+          "name": "renderizarProximasVisitasInicio",
+          "line": 916
+        },
+        {
+          "name": "(callback)",
+          "line": 966
+        },
+        {
+          "name": "carregarAgenda",
+          "line": 940
+        },
+        {
+          "name": "(callback)",
+          "line": 1179
+        },
+        {
+          "name": "carregarHistoricoVisitas",
+          "line": 1131
+        },
+        {
+          "name": "(callback)",
+          "line": 1332
+        },
+        {
+          "name": "(callback)",
+          "line": 1402
+        },
+        {
+          "name": "(callback)",
+          "line": 1552
+        },
+        {
+          "name": "(callback)",
+          "line": 1607
+        },
+        {
+          "name": "(callback)",
+          "line": 1583
+        },
+        {
+          "name": "carregarDadosParaAutocomplete",
+          "line": 1638
+        },
+        {
+          "name": "localizarLoja",
+          "line": 1677
+        },
+        {
+          "name": "(callback)",
+          "line": 1714
+        },
+        {
+          "name": "(callback)",
+          "line": 1791
+        },
+        {
+          "name": "(callback)",
+          "line": 1891
+        },
+        {
+          "name": "(callback)",
+          "line": 1913
+        },
+        {
+          "name": "(callback)",
+          "line": 1839
+        },
+        {
+          "name": "(callback)",
+          "line": 2038
+        },
+        {
+          "name": "centroParaCliente",
+          "line": 2065
+        },
+        {
+          "name": "(callback)",
+          "line": 2096
+        },
+        {
+          "name": "processarCheckin",
+          "line": 2072
+        },
+        {
+          "name": "encerrarVisita",
+          "line": 2136
+        },
+        {
+          "name": "acaoAbrirRelatorio",
+          "line": 2275
+        },
+        {
+          "name": "(callback)",
+          "line": 2407
+        },
+        {
+          "name": "enviarFechamentoManual",
+          "line": 2394
+        },
+        {
+          "name": "(callback)",
+          "line": 2468
+        },
+        {
+          "name": "salvarRelatorioComercial",
+          "line": 2456
+        },
+        {
+          "name": "(callback)",
+          "line": 2625
+        },
+        {
+          "name": "(callback)",
+          "line": 2584
+        },
+        {
+          "name": "(callback)",
+          "line": 2810
+        },
+        {
+          "name": "(callback)",
+          "line": 2762
+        },
+        {
+          "name": "shareContact",
+          "line": 2946
+        },
+        {
+          "name": "(callback)",
+          "line": 2962
+        },
+        {
+          "name": "load",
+          "line": 2954
+        }
+      ],
+      "firestore": [
+        {
+          "method": "collection",
+          "line": 34
+        },
+        {
+          "method": "getDocs",
+          "line": 34
+        },
+        {
+          "method": "getFirestore",
+          "line": 65
+        },
+        {
+          "method": "doc",
+          "line": 100
+        },
+        {
+          "method": "getDoc",
+          "line": 100
+        },
+        {
+          "method": "doc",
+          "line": 208
+        },
+        {
+          "method": "getDocFromServer",
+          "line": 214
+        },
+        {
+          "method": "getDoc",
+          "line": 214
+        },
+        {
+          "method": "doc",
+          "line": 474
+        },
+        {
+          "method": "getDocFromServer",
+          "line": 474
+        },
+        {
+          "method": "collection",
+          "line": 575
+        },
+        {
+          "method": "getDocs",
+          "line": 575
+        },
+        {
+          "method": "collection",
+          "line": 822
+        },
+        {
+          "method": "getDocs",
+          "line": 822
+        },
+        {
+          "method": "collection",
+          "line": 957
+        },
+        {
+          "method": "getDocs",
+          "line": 959
+        },
+        {
+          "method": "collection",
+          "line": 1145
+        },
+        {
+          "method": "getDocs",
+          "line": 1155
+        },
+        {
+          "method": "collection",
+          "line": 1160
+        },
+        {
+          "method": "getDocs",
+          "line": 1159
+        },
+        {
+          "method": "doc",
+          "line": 1368
+        },
+        {
+          "method": "setDoc",
+          "line": 1368
+        },
+        {
+          "method": "doc",
+          "line": 1416
+        },
+        {
+          "method": "getDoc",
+          "line": 1416
+        },
+        {
+          "method": "runTransaction",
+          "line": 1562
+        },
+        {
+          "method": "doc",
+          "line": 1562
+        },
+        {
+          "method": "doc",
+          "line": 1609
+        },
+        {
+          "method": "runTransaction",
+          "line": 1607
+        },
+        {
+          "method": "collection",
+          "line": 1649
+        },
+        {
+          "method": "getDocs",
+          "line": 1649
+        },
+        {
+          "method": "doc",
+          "line": 1889
+        },
+        {
+          "method": "runTransaction",
+          "line": 1891
+        },
+        {
+          "method": "doc",
+          "line": 1912
+        },
+        {
+          "method": "runTransaction",
+          "line": 1913
+        },
+        {
+          "method": "collection",
+          "line": 2082
+        },
+        {
+          "method": "getDocs",
+          "line": 2082
+        },
+        {
+          "method": "doc",
+          "line": 2098
+        },
+        {
+          "method": "doc",
+          "line": 2100
+        },
+        {
+          "method": "doc",
+          "line": 2119
+        },
+        {
+          "method": "runTransaction",
+          "line": 2096
+        },
+        {
+          "method": "doc",
+          "line": 2156
+        },
+        {
+          "method": "getDoc",
+          "line": 2157
+        },
+        {
+          "method": "doc",
+          "line": 2282
+        },
+        {
+          "method": "getDocFromServer",
+          "line": 2282
+        },
+        {
+          "method": "doc",
+          "line": 2408
+        },
+        {
+          "method": "runTransaction",
+          "line": 2407
+        },
+        {
+          "method": "doc",
+          "line": 2441
+        },
+        {
+          "method": "getDoc",
+          "line": 2441
+        },
+        {
+          "method": "doc",
+          "line": 2470
+        },
+        {
+          "method": "doc",
+          "line": 2477
+        },
+        {
+          "method": "runTransaction",
+          "line": 2468
+        },
+        {
+          "method": "doc",
+          "line": 2626
+        },
+        {
+          "method": "runTransaction",
+          "line": 2625
+        },
+        {
+          "method": "doc",
+          "line": 2718
+        },
+        {
+          "method": "getDoc",
+          "line": 2718
+        },
+        {
+          "method": "doc",
+          "line": 2811
+        },
+        {
+          "method": "doc",
+          "line": 2821
+        },
+        {
+          "method": "runTransaction",
+          "line": 2810
+        },
+        {
+          "method": "doc",
+          "line": 2950
+        },
+        {
+          "method": "getDoc",
+          "line": 2950
+        },
+        {
+          "method": "collection",
+          "line": 2957
+        },
+        {
+          "method": "getDocs",
+          "line": 2957
+        }
+      ]
+    },
+    {
+      "file": "src/data/auth-profile.js",
+      "bytes": 1090,
+      "lines": 18,
+      "imports": [],
+      "exports": [
+        "resolveFieldProfile"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "resolveFieldProfile",
+          "line": 5
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/data/client-repository.js",
+      "bytes": 1167,
+      "lines": 32,
+      "imports": [],
+      "exports": [
+        "createClientRepository"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/data/cnpj-lookup.js",
+      "bytes": 971,
+      "lines": 30,
+      "imports": [
+        {
+          "from": "../domain/identifiers.js",
+          "imported": "codigoCnpjLegado",
+          "local": "codigoCnpjLegado",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "createCnpjLookup"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "buscarClientePorCnpj",
+          "line": 4
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/data/product-import.js",
+      "bytes": 1767,
+      "lines": 33,
+      "imports": [
+        {
+          "from": "../domain/products.js",
+          "imported": "prepararCatalogo",
+          "local": "prepararCatalogo",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "importarCatalogo",
+        "garantirCatalogoAdvance"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "importarCatalogo",
+          "line": 3
+        },
+        {
+          "name": "garantirCatalogoAdvance",
+          "line": 25
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/data/product-repository.js",
+      "bytes": 803,
+      "lines": 18,
+      "imports": [],
+      "exports": [
+        "createProductRepository"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/cancellation.js",
+      "bytes": 1500,
+      "lines": 26,
+      "imports": [],
+      "exports": [
+        "MOTIVOS_CANCELAMENTO",
+        "atividadePodeSerCancelada",
+        "dadosCancelamento",
+        "motivoCancelamentoTexto"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/contact.js",
+      "bytes": 1947,
+      "lines": 36,
+      "imports": [],
+      "exports": [
+        "contactPhone",
+        "contactVCard"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/formatters.js",
+      "bytes": 3473,
+      "lines": 91,
+      "imports": [],
+      "exports": [
+        "escaparHtml",
+        "obterData",
+        "tempoData",
+        "lerDataHora",
+        "formatarDataHoraPT",
+        "formatarDataAgenda",
+        "formatarDataCheckout",
+        "formatarHoraCheckout",
+        "formatarDuracaoVisita",
+        "serializarEstavel"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/history.js",
+      "bytes": 4223,
+      "lines": 95,
+      "imports": [
+        {
+          "from": "./formatters.js",
+          "imported": "obterData",
+          "local": "obterData",
+          "line": 1
+        },
+        {
+          "from": "./reports.js",
+          "imported": "normalizarTipoVisita",
+          "local": "normalizarTipoVisita",
+          "line": 2
+        }
+      ],
+      "exports": [
+        "obterResultadoHistorico",
+        "obterClasseResultadoHistorico",
+        "obterDataHistorico",
+        "formatarDiaHistorico",
+        "formatarHoraHistorico",
+        "formatarHorarioVisitaHistorico",
+        "inicioDaSemanaHistorico",
+        "periodoHistorico",
+        "aplicarFiltrosHistorico"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/identifiers.js",
+      "bytes": 2770,
+      "lines": 82,
+      "imports": [
+        {
+          "from": "./formatters.js",
+          "imported": "obterData",
+          "local": "obterData",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "obterIniciais",
+        "formatarDataId",
+        "gerarSufixoId",
+        "gerarIdAtividade",
+        "gerarIdRelatorio",
+        "gerarIdClienteCnpj",
+        "gerarIdClienteProvisorio",
+        "cnpjValido",
+        "codigoCnpjLegado"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/operation-errors.js",
+      "bytes": 3518,
+      "lines": 47,
+      "imports": [],
+      "exports": [
+        "describeOperationError"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/products.js",
+      "bytes": 2079,
+      "lines": 26,
+      "imports": [],
+      "exports": [
+        "nomeProduto",
+        "idProduto",
+        "normalizarNomeProduto",
+        "buscarProdutos",
+        "prepararCatalogo"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/profile.js",
+      "bytes": 2562,
+      "lines": 37,
+      "imports": [
+        {
+          "from": "./formatters.js",
+          "imported": "tempoData",
+          "local": "tempoData",
+          "line": 1
+        },
+        {
+          "from": "./reports.js",
+          "imported": "normalizarTipoVisita",
+          "local": "normalizarTipoVisita",
+          "line": 2
+        }
+      ],
+      "exports": [
+        "PROFILE_TYPES",
+        "profileStats",
+        "profileDuration",
+        "rankClients"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/reports.js",
+      "bytes": 7175,
+      "lines": 143,
+      "imports": [
+        {
+          "from": "./products.js",
+          "imported": "nomeProduto",
+          "local": "nomeProduto",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "ASSISTENCIA_TECNICA_TIPO",
+        "normalizarTipoVisita",
+        "colecaoRelatorioPorTipo",
+        "colecaoRelatorioDaAtividade",
+        "blocosPersistidosRelatorio",
+        "dadosAssistenciaDoRelatorio",
+        "secoesAssistenciaParaDocumento",
+        "modulosComerciaisPendentes",
+        "camposAssistenciaPendentes",
+        "relatorioValidoParaCheckout",
+        "normalizarAssistenciaComparacao"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/scheduling.js",
+      "bytes": 1193,
+      "lines": 22,
+      "imports": [],
+      "exports": [
+        "limitesAgendamento",
+        "validarAgendamento"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/domain/training.js",
+      "bytes": 4128,
+      "lines": 32,
+      "imports": [
+        {
+          "from": "./products.js",
+          "imported": "nomeProduto",
+          "local": "nomeProduto",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "PARTICIPANTES",
+        "OBJETIVOS",
+        "CONTEUDOS",
+        "SUBSTRATOS",
+        "RESULTADOS",
+        "SATISFACAO",
+        "TRAINING_MODULES",
+        "blankTraining",
+        "trainingModuleComplete",
+        "modulosTreinamentoPendentes",
+        "resumoTreinamento"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/services/cancellation.js",
+      "bytes": 562,
+      "lines": 13,
+      "imports": [
+        {
+          "from": "../domain/cancellation.js",
+          "imported": "dadosCancelamento",
+          "local": "dadosCancelamento",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "cancelarAgendamento"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 5
+        },
+        {
+          "name": "cancelarAgendamento",
+          "line": 3
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/services/commercial-save.js",
+      "bytes": 1630,
+      "lines": 30,
+      "imports": [],
+      "exports": [
+        "commercialMedia",
+        "persistCommercialMedia"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "persistCommercialMedia",
+          "line": 3
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/services/location.js",
+      "bytes": 6561,
+      "lines": 140,
+      "imports": [],
+      "exports": [
+        "localizacaoIncerta",
+        "referenciaLocalizacao",
+        "dadosLocalizacaoCadastro",
+        "buscarCentroCidade",
+        "buscarJson",
+        "coordenadasValidas",
+        "obterPosicao",
+        "obterEnderecoPorCoords",
+        "obterCoordsPorEndereco",
+        "calcularDistancia",
+        "validarPrecisaoGps"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "setTimeout",
+          "line": 44,
+          "argument": null
+        },
+        {
+          "method": "clearTimeout",
+          "line": 54,
+          "argument": null
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "buscarCentroCidade",
+          "line": 25
+        },
+        {
+          "name": "buscarJson",
+          "line": 40
+        },
+        {
+          "name": "obterEnderecoPorCoords",
+          "line": 82
+        },
+        {
+          "name": "obterCoordsPorEndereco",
+          "line": 93
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/services/media-url-cache.js",
+      "bytes": 6503,
+      "lines": 118,
+      "imports": [],
+      "exports": [
+        "createMediaUrlCache"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "setTimeout",
+          "line": 2,
+          "argument": null
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "requestWithBudget",
+          "line": 11
+        },
+        {
+          "name": "(callback)",
+          "line": 50
+        },
+        {
+          "name": "singles",
+          "line": 48
+        },
+        {
+          "name": "flush",
+          "line": 62
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/agenda-calendar.js",
+      "bytes": 6698,
+      "lines": 118,
+      "imports": [
+        {
+          "from": "../domain/formatters.js",
+          "imported": "obterData",
+          "local": "obterData",
+          "line": 1
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escaparHtml",
+          "line": 1
+        }
+      ],
+      "exports": [
+        "diasCalendario",
+        "filtrarAgenda",
+        "AgendaCalendar"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 42,
+          "argument": "pointerdown"
+        },
+        {
+          "method": "addEventListener",
+          "line": 47,
+          "argument": "pointermove"
+        },
+        {
+          "method": "addEventListener",
+          "line": 54,
+          "argument": "pointerup"
+        },
+        {
+          "method": "addEventListener",
+          "line": 62,
+          "argument": "pointercancel"
+        },
+        {
+          "method": "addEventListener",
+          "line": 63,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 67,
+          "argument": "keydown"
+        }
+      ],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/agenda-cards.js",
+      "bytes": 2413,
+      "lines": 28,
+      "imports": [
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escaparHtml",
+          "line": 1
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "formatarDataAgenda",
+          "local": "formatarDataAgenda",
+          "line": 1
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "obterData",
+          "local": "obterData",
+          "line": 1
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "normalizarTipoVisita",
+          "local": "normalizarTipoVisita",
+          "line": 2
+        }
+      ],
+      "exports": [
+        "proximasVisitas",
+        "visitasSecundarias",
+        "cardAgenda"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/assistance.js",
+      "bytes": 9102,
+      "lines": 188,
+      "imports": [
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escaparHtml",
+          "line": 1
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "dadosAssistenciaDoRelatorio",
+          "local": "dadosAssistenciaDoRelatorio",
+          "line": 2
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "blocosPersistidosRelatorio",
+          "local": "blocosPersistidosRelatorio",
+          "line": 2
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "reportMarkup",
+          "local": "reportMarkup",
+          "line": 3
+        }
+      ],
+      "exports": [
+        "valorCampoAssistencia",
+        "valoresMarcadosAssistencia",
+        "radioAssistencia",
+        "marcarRadioAssistencia",
+        "marcarChecksAssistencia",
+        "limparFormularioAssistencia",
+        "lerFormularioAssistencia",
+        "preencherFormularioAssistencia",
+        "valorVisualAssistencia",
+        "listaVisualAssistencia",
+        "renderFichaAssistencia"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/change-password.js",
+      "bytes": 3599,
+      "lines": 60,
+      "imports": [],
+      "exports": [
+        "changeAccountPassword",
+        "setupChangePassword"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 22,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 26,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 27,
+          "argument": "cancel"
+        },
+        {
+          "method": "addEventListener",
+          "line": 28,
+          "argument": "close"
+        },
+        {
+          "method": "addEventListener",
+          "line": 29,
+          "argument": "submit"
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "changeAccountPassword",
+          "line": 1
+        },
+        {
+          "name": "(callback)",
+          "line": 29
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/client-options.js",
+      "bytes": 1816,
+      "lines": 34,
+      "imports": [
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escaparHtml",
+          "line": 1
+        },
+        {
+          "from": "../services/location.js",
+          "imported": "localizacaoIncerta",
+          "local": "localizacaoIncerta",
+          "line": 2
+        }
+      ],
+      "exports": [
+        "cnpjCliente",
+        "tituloCliente",
+        "detalhesCliente",
+        "opcaoCliente",
+        "filtrarClientes"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/commercial-report.js",
+      "bytes": 27549,
+      "lines": 250,
+      "imports": [
+        {
+          "from": "../domain/products.js",
+          "imported": "buscarProdutos",
+          "local": "buscarProdutos",
+          "line": 1
+        },
+        {
+          "from": "../domain/products.js",
+          "imported": "nomeProduto",
+          "local": "nomeProduto",
+          "line": 1
+        },
+        {
+          "from": "../domain/products.js",
+          "imported": "idProduto",
+          "local": "idProduto",
+          "line": 1
+        },
+        {
+          "from": "./loading.js",
+          "imported": "loadingMarkup",
+          "local": "loadingMarkup",
+          "line": 2
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "TechnicalReportEditor",
+          "local": "TechnicalReportEditor",
+          "line": 3
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "mediaStore",
+          "local": "mediaStore",
+          "line": 3
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "compressImage",
+          "local": "compressImage",
+          "line": 3
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "reportMarkup",
+          "local": "reportMarkup",
+          "line": 3
+        }
+      ],
+      "exports": [
+        "CommercialReport"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 22,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 23,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 24,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 25,
+          "argument": "keydown"
+        },
+        {
+          "method": "addEventListener",
+          "line": 31,
+          "argument": "beforeunload"
+        },
+        {
+          "method": "disconnect",
+          "line": 84,
+          "argument": null
+        },
+        {
+          "method": "revokeObjectURL",
+          "line": 104,
+          "argument": null
+        },
+        {
+          "method": "disconnect",
+          "line": 134,
+          "argument": null
+        },
+        {
+          "method": "addEventListener",
+          "line": 184,
+          "argument": "input"
+        }
+      ],
+      "observers": [
+        {
+          "kind": "ResizeObserver",
+          "line": 136
+        }
+      ],
+      "asyncs": [
+        {
+          "name": "savePersisted",
+          "line": 51
+        },
+        {
+          "name": "loadProducts",
+          "line": 145
+        },
+        {
+          "name": "change",
+          "line": 191
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/contact-share.js",
+      "bytes": 3600,
+      "lines": 48,
+      "imports": [
+        {
+          "from": "../vendor/qrcodegen.js",
+          "imported": "QrCode",
+          "local": "QrCode",
+          "line": 1
+        },
+        {
+          "from": "../domain/contact.js",
+          "imported": "contactVCard",
+          "local": "contactVCard",
+          "line": 2
+        },
+        {
+          "from": "./loading.js",
+          "imported": "loadingMarkup",
+          "local": "loadingMarkup",
+          "line": 3
+        }
+      ],
+      "exports": [
+        "contactQrSvg",
+        "ContactShare"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 25,
+          "argument": "cancel"
+        },
+        {
+          "method": "addEventListener",
+          "line": 26,
+          "argument": "click"
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 15
+        },
+        {
+          "name": "open",
+          "line": 17
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/home-map.js",
+      "bytes": 9794,
+      "lines": 163,
+      "imports": [
+        {
+          "from": "../services/location.js",
+          "imported": "coordenadasValidas",
+          "local": "coordenadasValidas",
+          "line": 1
+        },
+        {
+          "from": "https://unpkg.com/maplibre-gl@6.12.0/dist/maplibre-gl.mjs",
+          "dynamic": true,
+          "line": 6
+        }
+      ],
+      "exports": [
+        "loadMapLibrary",
+        "mapTheme",
+        "HomeVisitMap"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [
+        {
+          "name": "mapLibraryPending",
+          "kind": "let",
+          "line": 3
+        }
+      ],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "clearTimeout",
+          "line": 58,
+          "argument": null
+        },
+        {
+          "method": "setTimeout",
+          "line": 68,
+          "argument": null
+        },
+        {
+          "method": "clearTimeout",
+          "line": 73,
+          "argument": null
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "update",
+          "line": 64
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/loading.js",
+      "bytes": 1359,
+      "lines": 19,
+      "imports": [],
+      "exports": [
+        "loadingMarkup",
+        "homeLoadingMarkup"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/product-import-page.js",
+      "bytes": 2768,
+      "lines": 41,
+      "imports": [
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js",
+          "imported": "initializeApp",
+          "local": "initializeApp",
+          "line": 1
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "getAuth",
+          "local": "getAuth",
+          "line": 2
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "onAuthStateChanged",
+          "local": "onAuthStateChanged",
+          "line": 2
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js",
+          "imported": "signInWithEmailAndPassword",
+          "local": "signInWithEmailAndPassword",
+          "line": 2
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "getFirestore",
+          "local": "getFirestore",
+          "line": 3
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "writeBatch",
+          "local": "writeBatch",
+          "line": 3
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "doc",
+          "local": "doc",
+          "line": 3
+        },
+        {
+          "from": "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js",
+          "imported": "getDocFromServer",
+          "local": "getDocFromServer",
+          "line": 3
+        },
+        {
+          "from": "../../firebase-config.js",
+          "imported": "firebaseConfig",
+          "local": "firebaseConfig",
+          "line": 4
+        },
+        {
+          "from": "../data/product-import.js",
+          "imported": "importarCatalogo",
+          "local": "importarCatalogo",
+          "line": 5
+        },
+        {
+          "from": "../domain/products.js",
+          "imported": "prepararCatalogo",
+          "local": "prepararCatalogo",
+          "line": 6
+        }
+      ],
+      "exports": [],
+      "unreferencedImports": [],
+      "mutableTop": [
+        {
+          "name": "catalog",
+          "kind": "let",
+          "line": 9
+        },
+        {
+          "name": "busy",
+          "kind": "let",
+          "line": 9
+        }
+      ],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 22,
+          "argument": "submit"
+        },
+        {
+          "method": "addEventListener",
+          "line": 27,
+          "argument": "click"
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 22
+        },
+        {
+          "name": "commit",
+          "line": 32
+        },
+        {
+          "name": "read",
+          "line": 33
+        },
+        {
+          "name": "(callback)",
+          "line": 27
+        }
+      ],
+      "firestore": [
+        {
+          "method": "getFirestore",
+          "line": 7
+        },
+        {
+          "method": "writeBatch",
+          "line": 32
+        },
+        {
+          "method": "doc",
+          "line": 32
+        },
+        {
+          "method": "doc",
+          "line": 33
+        },
+        {
+          "method": "getDocFromServer",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "file": "src/ui/profile.js",
+      "bytes": 13450,
+      "lines": 111,
+      "imports": [
+        {
+          "from": "./contact-share.js",
+          "imported": "ContactShare",
+          "local": "ContactShare",
+          "line": 1
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "esc",
+          "line": 2
+        },
+        {
+          "from": "../domain/profile.js",
+          "imported": "PROFILE_TYPES",
+          "local": "PROFILE_TYPES",
+          "line": 3
+        },
+        {
+          "from": "../domain/profile.js",
+          "imported": "profileStats",
+          "local": "profileStats",
+          "line": 3
+        },
+        {
+          "from": "../domain/profile.js",
+          "imported": "profileDuration",
+          "local": "profileDuration",
+          "line": 3
+        },
+        {
+          "from": "../domain/profile.js",
+          "imported": "rankClients",
+          "local": "rankClients",
+          "line": 3
+        },
+        {
+          "from": "../services/location.js",
+          "imported": "coordenadasValidas",
+          "local": "coordenadasValidas",
+          "line": 4
+        },
+        {
+          "from": "./home-map.js",
+          "imported": "loadMapLibrary",
+          "local": "loadMapLibrary",
+          "line": 5
+        },
+        {
+          "from": "./home-map.js",
+          "imported": "mapTheme",
+          "local": "mapTheme",
+          "line": 5
+        },
+        {
+          "from": "./loading.js",
+          "imported": "loadingMarkup",
+          "local": "loadingMarkup",
+          "line": 6
+        }
+      ],
+      "exports": [
+        "ProfileView"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 10
+        },
+        {
+          "name": "open",
+          "line": 16
+        },
+        {
+          "name": "renderMap",
+          "line": 79
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/pwa.js",
+      "bytes": 1526,
+      "lines": 41,
+      "imports": [],
+      "exports": [],
+      "unreferencedImports": [],
+      "mutableTop": [
+        {
+          "name": "deferredPrompt",
+          "kind": "let",
+          "line": 2
+        },
+        {
+          "name": "installButton",
+          "kind": "let",
+          "line": 3
+        }
+      ],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 18,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 6,
+          "argument": "beforeinstallprompt"
+        },
+        {
+          "method": "addEventListener",
+          "line": 36,
+          "argument": "appinstalled"
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 18
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/training-report.js",
+      "bytes": 15813,
+      "lines": 99,
+      "imports": [
+        {
+          "from": "./commercial-report.js",
+          "imported": "CommercialReport",
+          "local": "CommercialReport",
+          "line": 1
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escape",
+          "line": 2
+        },
+        {
+          "from": "../domain/products.js",
+          "imported": "nomeProduto",
+          "local": "nomeProduto",
+          "line": 3
+        },
+        {
+          "from": "../domain/products.js",
+          "imported": "buscarProdutos",
+          "local": "buscarProdutos",
+          "line": 3
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "reportMarkup",
+          "local": "reportMarkup",
+          "line": 4
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "mediaStore",
+          "local": "mediaStore",
+          "line": 4
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "PARTICIPANTES",
+          "local": "PARTICIPANTES",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "OBJETIVOS",
+          "local": "OBJETIVOS",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "CONTEUDOS",
+          "local": "CONTEUDOS",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "SUBSTRATOS",
+          "local": "SUBSTRATOS",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "RESULTADOS",
+          "local": "RESULTADOS",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "SATISFACAO",
+          "local": "SATISFACAO",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "TRAINING_MODULES",
+          "local": "TRAINING_MODULES",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "blankTraining",
+          "local": "blankTraining",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "trainingModuleComplete",
+          "local": "trainingModuleComplete",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "modulosTreinamentoPendentes",
+          "local": "modulosTreinamentoPendentes",
+          "line": 5
+        },
+        {
+          "from": "../domain/training.js",
+          "imported": "resumoTreinamento",
+          "local": "resumoTreinamento",
+          "line": 5
+        }
+      ],
+      "exports": [
+        "renderTrainingSummary",
+        "TrainingReport"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 20,
+          "argument": "keydown"
+        },
+        {
+          "method": "disconnect",
+          "line": 73,
+          "argument": null
+        }
+      ],
+      "observers": [
+        {
+          "kind": "ResizeObserver",
+          "line": 74
+        }
+      ],
+      "asyncs": [
+        {
+          "name": "change",
+          "line": 82
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "src/ui/visit-view.js",
+      "bytes": 13452,
+      "lines": 200,
+      "imports": [
+        {
+          "from": "../domain/training.js",
+          "imported": "resumoTreinamento",
+          "local": "resumoTreinamento",
+          "line": 1
+        },
+        {
+          "from": "./training-report.js",
+          "imported": "renderTrainingSummary",
+          "local": "renderTrainingSummary",
+          "line": 2
+        },
+        {
+          "from": "../domain/products.js",
+          "imported": "nomeProduto",
+          "local": "nomeProduto",
+          "line": 3
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "formatarDataCheckout",
+          "local": "formatarDataCheckout",
+          "line": 4
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "formatarHoraCheckout",
+          "local": "formatarHoraCheckout",
+          "line": 4
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "formatarDuracaoVisita",
+          "local": "formatarDuracaoVisita",
+          "line": 4
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "formatarDataHoraPT",
+          "local": "formatarDataHoraPT",
+          "line": 4
+        },
+        {
+          "from": "../domain/formatters.js",
+          "imported": "escaparHtml",
+          "local": "escaparHtml",
+          "line": 4
+        },
+        {
+          "from": "../domain/history.js",
+          "imported": "obterResultadoHistorico",
+          "local": "obterResultadoHistorico",
+          "line": 5
+        },
+        {
+          "from": "../domain/history.js",
+          "imported": "obterClasseResultadoHistorico",
+          "local": "obterClasseResultadoHistorico",
+          "line": 5
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "normalizarTipoVisita",
+          "local": "normalizarTipoVisita",
+          "line": 6
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "dadosAssistenciaDoRelatorio",
+          "local": "dadosAssistenciaDoRelatorio",
+          "line": 6
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "ASSISTENCIA_TECNICA_TIPO",
+          "local": "ASSISTENCIA_TECNICA_TIPO",
+          "line": 6
+        },
+        {
+          "from": "../domain/reports.js",
+          "imported": "blocosPersistidosRelatorio",
+          "local": "blocosPersistidosRelatorio",
+          "line": 6
+        },
+        {
+          "from": "./assistance.js",
+          "imported": "renderFichaAssistencia",
+          "local": "renderFichaAssistencia",
+          "line": 7
+        },
+        {
+          "from": "../../technical-report-editor.js",
+          "imported": "reportMarkup",
+          "local": "reportMarkup",
+          "line": 8
+        },
+        {
+          "from": "../domain/cancellation.js",
+          "imported": "motivoCancelamentoTexto",
+          "local": "motivoCancelamentoTexto",
+          "line": 9
+        }
+      ],
+      "exports": [
+        "formatarProtocoloVisualizador",
+        "preencherCampoVisualizador",
+        "formatarGpsVisualizador",
+        "preencherCelulaPdf",
+        "resumoComercial",
+        "prepararImpressaoVisualizador",
+        "renderizarVisualizadorVisita",
+        "preencherConteudoRelatorio"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [],
+      "firestore": []
+    },
+    {
+      "file": "sw.js",
+      "bytes": 3322,
+      "lines": 87,
+      "imports": [],
+      "exports": [],
+      "unreferencedImports": [],
+      "mutableTop": [],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "addEventListener",
+          "line": 41,
+          "argument": "install"
+        },
+        {
+          "method": "addEventListener",
+          "line": 49,
+          "argument": "activate"
+        },
+        {
+          "method": "addEventListener",
+          "line": 77,
+          "argument": "fetch"
+        }
+      ],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "(callback)",
+          "line": 42
+        },
+        {
+          "name": "(callback)",
+          "line": 50
+        },
+        {
+          "name": "respond",
+          "line": 58
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "technical-report-editor.js",
+      "bytes": 34434,
+      "lines": 816,
+      "imports": [
+        {
+          "from": "./src/services/media-url-cache.js",
+          "imported": "createMediaUrlCache",
+          "local": "createMediaUrlCache",
+          "line": 1
+        },
+        {
+          "from": "./src/domain/operation-errors.js",
+          "imported": "describeOperationError",
+          "local": "describeOperationError",
+          "line": 2
+        }
+      ],
+      "exports": [
+        "configureMediaApi",
+        "readProfilePhotoUrl",
+        "clearMediaUrlCache",
+        "mediaStore",
+        "reportMarkup",
+        "compressImage",
+        "initializeMediaPreviews",
+        "TechnicalReportEditor"
+      ],
+      "unreferencedImports": [],
+      "mutableTop": [
+        {
+          "name": "mediaApi",
+          "kind": "let",
+          "line": 5
+        },
+        {
+          "name": "viewer",
+          "kind": "let",
+          "line": 336
+        }
+      ],
+      "windowWrites": [],
+      "events": [
+        {
+          "method": "revokeObjectURL",
+          "line": 195,
+          "argument": null
+        },
+        {
+          "method": "revokeObjectURL",
+          "line": 200,
+          "argument": null
+        },
+        {
+          "method": "createObjectURL",
+          "line": 240,
+          "argument": null
+        },
+        {
+          "method": "revokeObjectURL",
+          "line": 362,
+          "argument": null
+        },
+        {
+          "method": "createObjectURL",
+          "line": 380,
+          "argument": null
+        },
+        {
+          "method": "disconnect",
+          "line": 418,
+          "argument": null
+        },
+        {
+          "method": "addEventListener",
+          "line": 430,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 435,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 439,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 440,
+          "argument": "change"
+        },
+        {
+          "method": "addEventListener",
+          "line": 480,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 484,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 488,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 489,
+          "argument": "click"
+        },
+        {
+          "method": "addEventListener",
+          "line": 595,
+          "argument": "input"
+        },
+        {
+          "method": "addEventListener",
+          "line": 605,
+          "argument": null
+        }
+      ],
+      "observers": [
+        {
+          "kind": "MutationObserver",
+          "line": 403
+        }
+      ],
+      "asyncs": [
+        {
+          "name": "mediaApiRequest",
+          "line": 16
+        },
+        {
+          "name": "readProfilePhotoUrl",
+          "line": 41
+        },
+        {
+          "name": "uploadSigned",
+          "line": 47
+        },
+        {
+          "name": "upload",
+          "line": 81
+        },
+        {
+          "name": "delete",
+          "line": 97
+        },
+        {
+          "name": "imageElementSource",
+          "line": 168
+        },
+        {
+          "name": "decodeImage",
+          "line": 214
+        },
+        {
+          "name": "compressImage",
+          "line": 264
+        },
+        {
+          "name": "(callback)",
+          "line": 375
+        },
+        {
+          "name": "insertFiles",
+          "line": 647
+        },
+        {
+          "name": "prepareSave",
+          "line": 734
+        },
+        {
+          "name": "rollbackSave",
+          "line": 774
+        },
+        {
+          "name": "commitSave",
+          "line": 790
+        }
+      ],
+      "firestore": []
+    },
+    {
+      "file": "cloudflare/advance-media-api.js",
+      "bytes": 26251,
+      "lines": 1204,
+      "imports": [],
+      "exports": [],
+      "unreferencedImports": [],
+      "mutableTop": [
+        {
+          "name": "firestoreBlockedUntil",
+          "kind": "let",
+          "line": 215
+        }
+      ],
+      "windowWrites": [],
+      "events": [],
+      "observers": [],
+      "asyncs": [
+        {
+          "name": "sha256",
+          "line": 30
+        },
+        {
+          "name": "sha256Hex",
+          "line": 38
+        },
+        {
+          "name": "hmac",
+          "line": 41
+        },
+        {
+          "name": "createPresignedUrl",
+          "line": 65
+        },
+        {
+          "name": "applyRateLimit",
+          "line": 216
+        },
+        {
+          "name": "authenticate",
+          "line": 225
+        },
+        {
+          "name": "firestoreFetch",
+          "line": 301
+        },
+        {
+          "name": "read",
+          "line": 329
+        },
+        {
+          "name": "(callback)",
+          "line": 328
+        },
+        {
+          "name": "getAdvanceProfile",
+          "line": 326
+        },
+        {
+          "name": "requireManagement",
+          "line": 358
+        },
+        {
+          "name": "getActivity",
+          "line": 381
+        },
+        {
+          "name": "authorizeActivity",
+          "line": 413
+        },
+        {
+          "name": "calculateStorageStats",
+          "line": 517
+        },
+        {
+          "name": "storageStatsCached",
+          "line": 632
+        },
+        {
+          "name": "(callback)",
+          "line": 1026
+        },
+        {
+          "name": "fetch",
+          "line": 716
+        }
+      ],
+      "firestore": []
+    }
+  ],
+  "cycles": [],
+  "exactFunctionClones": [
+    [
+      {
+        "file": "src/ui/commercial-report.js",
+        "name": "(callback)",
+        "line": 142
+      },
+      {
+        "file": "src/ui/training-report.js",
+        "name": "(callback)",
+        "line": 78
+      }
+    ]
+  ],
+  "graph": {
+    "firebase-config.js": [],
+    "script.js": [
+      "src/data/auth-profile.js",
+      "src/ui/change-password.js",
+      "src/ui/change-password.js",
+      "src/services/cancellation.js",
+      "src/domain/cancellation.js",
+      "src/domain/reports.js",
+      "src/data/product-repository.js",
+      "src/services/commercial-save.js",
+      "src/ui/commercial-report.js",
+      "src/ui/training-report.js",
+      "src/domain/training.js",
+      "src/ui/agenda-cards.js",
+      "src/ui/agenda-cards.js",
+      "src/ui/agenda-cards.js",
+      "src/ui/profile.js",
+      "src/ui/home-map.js",
+      "src/ui/loading.js",
+      "src/ui/loading.js",
+      "src/ui/client-options.js",
+      "src/ui/client-options.js",
+      "src/ui/client-options.js",
+      "src/ui/client-options.js",
+      "src/ui/agenda-calendar.js",
+      "src/ui/agenda-calendar.js",
+      "src/domain/scheduling.js",
+      "src/domain/scheduling.js",
+      "src/data/cnpj-lookup.js",
+      "src/ui/pwa.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/identifiers.js",
+      "src/domain/identifiers.js",
+      "src/domain/identifiers.js",
+      "src/domain/identifiers.js",
+      "src/domain/identifiers.js",
+      "src/domain/identifiers.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/services/location.js",
+      "src/ui/assistance.js",
+      "src/ui/assistance.js",
+      "src/ui/assistance.js",
+      "src/ui/assistance.js",
+      "src/ui/visit-view.js",
+      "src/ui/visit-view.js",
+      "src/ui/visit-view.js",
+      "src/ui/visit-view.js",
+      "src/data/client-repository.js",
+      "src/domain/operation-errors.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "firebase-config.js"
+    ],
+    "src/data/auth-profile.js": [],
+    "src/data/client-repository.js": [],
+    "src/data/cnpj-lookup.js": [
+      "src/domain/identifiers.js"
+    ],
+    "src/data/product-import.js": [
+      "src/domain/products.js"
+    ],
+    "src/data/product-repository.js": [],
+    "src/domain/cancellation.js": [],
+    "src/domain/contact.js": [],
+    "src/domain/formatters.js": [],
+    "src/domain/history.js": [
+      "src/domain/formatters.js",
+      "src/domain/reports.js"
+    ],
+    "src/domain/identifiers.js": [
+      "src/domain/formatters.js"
+    ],
+    "src/domain/operation-errors.js": [],
+    "src/domain/products.js": [],
+    "src/domain/profile.js": [
+      "src/domain/formatters.js",
+      "src/domain/reports.js"
+    ],
+    "src/domain/reports.js": [
+      "src/domain/products.js"
+    ],
+    "src/domain/scheduling.js": [],
+    "src/domain/training.js": [
+      "src/domain/products.js"
+    ],
+    "src/services/cancellation.js": [
+      "src/domain/cancellation.js"
+    ],
+    "src/services/commercial-save.js": [],
+    "src/services/location.js": [],
+    "src/services/media-url-cache.js": [],
+    "src/ui/agenda-calendar.js": [
+      "src/domain/formatters.js",
+      "src/domain/formatters.js"
+    ],
+    "src/ui/agenda-cards.js": [
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/reports.js"
+    ],
+    "src/ui/assistance.js": [
+      "src/domain/formatters.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "technical-report-editor.js"
+    ],
+    "src/ui/change-password.js": [],
+    "src/ui/client-options.js": [
+      "src/domain/formatters.js",
+      "src/services/location.js"
+    ],
+    "src/ui/commercial-report.js": [
+      "src/domain/products.js",
+      "src/domain/products.js",
+      "src/domain/products.js",
+      "src/ui/loading.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js"
+    ],
+    "src/ui/contact-share.js": [
+      "src/vendor/qrcodegen.js",
+      "src/domain/contact.js",
+      "src/ui/loading.js"
+    ],
+    "src/ui/home-map.js": [
+      "src/services/location.js"
+    ],
+    "src/ui/loading.js": [],
+    "src/ui/product-import-page.js": [
+      "firebase-config.js",
+      "src/data/product-import.js",
+      "src/domain/products.js"
+    ],
+    "src/ui/profile.js": [
+      "src/ui/contact-share.js",
+      "src/domain/formatters.js",
+      "src/domain/profile.js",
+      "src/domain/profile.js",
+      "src/domain/profile.js",
+      "src/domain/profile.js",
+      "src/services/location.js",
+      "src/ui/home-map.js",
+      "src/ui/home-map.js",
+      "src/ui/loading.js"
+    ],
+    "src/ui/pwa.js": [],
+    "src/ui/training-report.js": [
+      "src/ui/commercial-report.js",
+      "src/domain/formatters.js",
+      "src/domain/products.js",
+      "src/domain/products.js",
+      "technical-report-editor.js",
+      "technical-report-editor.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js",
+      "src/domain/training.js"
+    ],
+    "src/ui/visit-view.js": [
+      "src/domain/training.js",
+      "src/ui/training-report.js",
+      "src/domain/products.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/formatters.js",
+      "src/domain/history.js",
+      "src/domain/history.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/domain/reports.js",
+      "src/ui/assistance.js",
+      "technical-report-editor.js",
+      "src/domain/cancellation.js"
+    ],
+    "sw.js": [],
+    "technical-report-editor.js": [
+      "src/services/media-url-cache.js",
+      "src/domain/operation-errors.js"
+    ],
+    "cloudflare/advance-media-api.js": []
+  },
+  "auditedCommit": "77a951c8c598fbd43d7ebddc8e79d52bbeb5cb52"
+}

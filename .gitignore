@@ -4,3 +4,7 @@ exports/
 .env
 service-account*.json
 *-service-account*.json
+
+node_modules
+*-debug.log
+.firebase/

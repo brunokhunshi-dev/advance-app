@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function link() { return get(/databases/$(database)/documents/vinculos_auth/$(request.auth.uid)).data; }
+    function profile() { return get(/databases/$(database)/documents/$(link().profileCollection)/$(link().profileId)).data; }
+    function active() {
+      let l = link();
+      let p = get(/databases/$(database)/documents/$(l.profileCollection)/$(l.profileId)).data;
+      return signedIn() && l.profileCollection in ['assistencia','promotores','administradores','gestores']
+        && p.get('ativo', true) == true && p.get('permissoes', {}).get('acessoApp', true) == true;
+    }
+    function fieldUser() { return active() && link().profileCollection in ['assistencia','promotores']; }
+    // Management profiles must be explicitly active; browser writes never grant this role.
+    function management() {
+      return active() && link().profileCollection in ['administradores','gestores'] && profile().get('ativo', false) == true;
+    }
+    function permitted(name) { return fieldUser() && profile().get('permissoes', {}).get(name, true) == true; }
+    function owner(data) { return fieldUser() && data.ptvId == link().profileId; }
+    function ownProfile(collectionName, id) {
+      return signedIn() && link().profileCollection == collectionName && link().profileId == id;
+    }
+    function reportCollection(name) {
+      return name in ['relatorios','relatorios_comerciais','relatorios_treinamentos','relatorios_assistencia_tecnica'];
+    }
+    function canReadActivity(data) { return owner(data) && (data.status in ['Pendente','Em andamento'] || permitted('verHistorico')); }
+    function normalizedType(type) {
+      let t = type.lower();
+      return t == 'treinamento' ? 'Treinamento' : (t in ['assistência técnica','assistencia tecnica','visita de assistência técnica','visita de assistencia tecnica'] ? 'Assistência técnica' : 'Visita comercial');
+    }
+    function activityType(data) { return data.get('objetivo','') == 'Treinamento' ? 'Treinamento' : normalizedType(data.get('tipoVisita','Visita comercial')); }
+    function validType(type) { return type in ['Visita comercial','Visita técnica','Treinamento','Assistência técnica']; }
+    function changedOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function sameActivityIdentity() {
+      return request.resource.data.ptvId == resource.data.ptvId
+        && request.resource.data.clienteId == resource.data.clienteId
+        && request.resource.data.criadoEm == resource.data.criadoEm;
+    }
+    function linkedReportAfter(activityId, data) {
+      return reportCollection(data.get('relatorioColecao','relatorios'))
+        && getAfter(/databases/$(database)/documents/$(data.get('relatorioColecao','relatorios'))/$(data.relatorioId)).data.atividadeId == activityId
+        && getAfter(/databases/$(database)/documents/$(data.get('relatorioColecao','relatorios'))/$(data.relatorioId)).data.ptvId == data.ptvId
+        && getAfter(/databases/$(database)/documents/$(data.get('relatorioColecao','relatorios'))/$(data.relatorioId)).data.clienteId == data.clienteId;
+    }
+    function editSchedule() {
+      return resource.data.status == 'Pendente' && request.resource.data.status == 'Pendente'
+        && permitted('agendarVisitas')
+        && changedOnly(['data','tipoVisita','nota','atualizadoEm'])
+        && request.resource.data.data is timestamp && request.resource.data.data >= request.time - duration.value(5,'m')
+        && request.resource.data.data <= request.time + duration.value(184,'d')
+        && validType(request.resource.data.tipoVisita) && request.resource.data.nota is string && request.resource.data.nota.size() <= 600;
+    }
+    function checkin() {
+      return resource.data.status == 'Pendente' && request.resource.data.status == 'Em andamento'
+        && changedOnly(['status','checkinDataHora','checkinGps','checkinGpsAccuracy','checkinEndereco','atualizadoEm'])
+        && request.resource.data.checkinDataHora is timestamp && request.resource.data.checkinGps is string
+        && request.resource.data.checkinGpsAccuracy is number && request.resource.data.checkinGpsAccuracy >= 0
+        && request.resource.data.checkinGpsAccuracy <= 150;
+    }
+    function cancel() {
+      return resource.data.status in ['Pendente','Em andamento'] && request.resource.data.status == 'Cancelada'
+        && (resource.data.status == 'Pendente' ? permitted('agendarVisitas') : permitted('finalizarVisitas'))
+        && changedOnly(['status','resultado','motivoCancelamento','detalheCancelamento','canceladoEm','canceladoPor','atualizadoEm'])
+        && request.resource.data.resultado == 'Cancelada' && request.resource.data.canceladoPor == link().profileId
+        && request.resource.data.canceladoEm is timestamp
+        && request.resource.data.motivoCancelamento in ['Loja fechada','Responsável indisponível','Solicitação do cliente','Outro']
+        && request.resource.data.detalheCancelamento is string && request.resource.data.detalheCancelamento.size() <= 600
+        && (request.resource.data.motivoCancelamento != 'Outro' || request.resource.data.detalheCancelamento.size() > 0);
+    }
+    function saveReportLink(id) {
+      return resource.data.status == 'Em andamento' && request.resource.data.status == 'Em andamento'
+        && changedOnly(['relatorioId','relatorioColecao','atualizadoEm'])
+        && linkedReportAfter(id, request.resource.data)
+        && (resource.data.get('relatorioId','') in ['',null] || (request.resource.data.relatorioId == resource.data.relatorioId
+          && request.resource.data.relatorioColecao == resource.data.get('relatorioColecao','relatorios')));
+    }
+    function checkout(id) {
+      return resource.data.status == 'Em andamento' && request.resource.data.status == 'Concluída'
+        && permitted('finalizarVisitas') && linkedReportAfter(id, request.resource.data)
+        && changedOnly(['status','tipoVisita','checkoutDataHora','checkoutGps','checkoutGpsAccuracy','checkoutEndereco','atualizadoEm',
+          'objetivo','quantidadeParticipantes','publicoAtendido','resultado','resultadoAssistencia','acoesDefinidas','conclusaoTecnica',
+          'proximoPasso','proximoPassoAssistencia','feedback','pendencia','oportunidadeIdentificada',
+          'fechamentoTipo','fechamentoAnaliseStatus','motivoFechamentoManual','fechamentoSolicitadoEm','fechamentoSolicitadoPor'])
+        && request.resource.data.checkoutDataHora is timestamp
+        && request.resource.data.tipoVisita == activityType(resource.data)
+        && (request.resource.data.get('fechamentoTipo','') == 'Manual'
+          ? (request.resource.data.resultado == 'Pendente de análise'
+            && request.resource.data.fechamentoAnaliseStatus == 'Pendente de análise'
+            && request.resource.data.fechamentoSolicitadoPor == link().profileId
+            && request.resource.data.motivoFechamentoManual is string && request.resource.data.motivoFechamentoManual.size() >= 5)
+          : (request.resource.data.checkoutGps is string && request.resource.data.checkoutGpsAccuracy is number
+            && request.resource.data.checkoutGpsAccuracy >= 0 && request.resource.data.checkoutGpsAccuracy <= 150
+            && !('fechamentoAnaliseStatus' in request.resource.data)));
+    }
+
+    match /vinculos_auth/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+    match /{collectionName}/{id} {
+      allow get: if collectionName in ['assistencia','promotores','administradores','gestores'] && ownProfile(collectionName,id);
+      // Transitional compatibility for already installed v72, which looks up its own email.
+      allow list: if collectionName in ['assistencia','promotores'] && fieldUser()
+        && resource.data.email == request.auth.token.email;
+      allow write: if false;
+    }
+    match /clientes/{id} {
+      allow read: if active();
+      allow create: if permitted('cadastrarClientes')
+        && request.resource.data.keys().hasOnly(['codigoCnpj','cnpj','nome','cidade','uf','enderecoCompleto','lat','lng',
+          'statusLocalizacao','origemCoordenadas','centroCidade','status','criadoEm','atualizadoEm','criadoPor'])
+        && request.resource.data.nome is string && request.resource.data.nome.size() > 0
+        && request.resource.data.status in ['Ativo','Provisorio']
+        && request.resource.data.get('criadoPor',link().profileId) == link().profileId;
+      // Existing App stores a city reference during check-in for uncertain addresses.
+      allow update: if fieldUser() && changedOnly(['centroCidade'])
+        && resource.data.get('statusLocalizacao','') == 'incerto'
+        && request.resource.data.centroCidade.cidade == resource.data.cidade
+        && request.resource.data.centroCidade.uf == resource.data.uf
+        && request.resource.data.centroCidade.lat is number && request.resource.data.centroCidade.lat >= -90 && request.resource.data.centroCidade.lat <= 90
+        && request.resource.data.centroCidade.lng is number && request.resource.data.centroCidade.lng >= -180 && request.resource.data.centroCidade.lng <= 180;
+      allow delete: if false;
+    }
+    match /atividades/{id} {
+      allow get: if management() || (fieldUser() && (resource == null || canReadActivity(resource.data)));
+      allow list: if management() || canReadActivity(resource.data);
+      allow create: if permitted('agendarVisitas') && owner(request.resource.data)
+        && request.resource.data.keys().hasOnly(['tipo','data','ptvId','clienteId','tipoVisita','nota','status','criadoEm','atualizadoEm'])
+        && request.resource.data.status == 'Pendente' && request.resource.data.tipo == 'Visita'
+        && validType(request.resource.data.tipoVisita) && request.resource.data.nota is string && request.resource.data.nota.size() <= 600
+        && request.resource.data.data is timestamp && request.resource.data.data >= request.time - duration.value(5,'m')
+        && request.resource.data.data <= request.time + duration.value(184,'d')
+        && get(/databases/$(database)/documents/clientes/$(request.resource.data.clienteId)).data.status in ['Ativo','Provisorio'];
+      allow update: if owner(resource.data) && sameActivityIdentity()
+        && (editSchedule() || checkin() || cancel() || saveReportLink(id) || checkout(id));
+      allow delete: if false;
+    }
+    function validReport(collectionName, id) {
+      let d = request.resource.data;
+      let before = get(/databases/$(database)/documents/atividades/$(d.atividadeId)).data;
+      let after = getAfter(/databases/$(database)/documents/atividades/$(d.atividadeId)).data;
+      return owner(d) && before.ptvId == link().profileId && before.status == 'Em andamento'
+        && d.clienteId == before.clienteId && d.id == id && d.tipoVisita == activityType(before)
+        && after.relatorioId == id && after.get('relatorioColecao','relatorios') == collectionName
+        && after.status in ['Em andamento','Concluída']
+        && (!('textoAtual' in d) || (d.textoAtual is string && d.textoAtual.size() <= 30000))
+        && (!('fechamentoAnaliseStatus' in d) || d.fechamentoAnaliseStatus == 'Pendente de análise')
+        && (resource == null || (d.atividadeId == resource.data.atividadeId && d.ptvId == resource.data.ptvId
+          && d.clienteId == resource.data.clienteId && d.criadoEm == resource.data.criadoEm));
+    }
+    function readableReport(data) {
+      return owner(data) && canReadActivity(get(/databases/$(database)/documents/atividades/$(data.atividadeId)).data);
+    }
+    match /{collectionName}/{id} {
+      allow get: if reportCollection(collectionName) && (management() || (fieldUser() && (resource == null || readableReport(resource.data))));
+      allow list: if reportCollection(collectionName) && management();
+      allow create, update: if reportCollection(collectionName) && validReport(collectionName,id);
+      allow delete: if false;
+    }
+    match /produtos/{id} { allow read: if active(); allow write: if false; }
+    match /catalogos_produtos/{id} { allow read: if active(); allow write: if false; }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

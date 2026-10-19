@@ -1,0 +1,13 @@
+{
+  "capturedAt": "2026-10-19",
+  "source": "Worker fornecido pelo responsável; regras e CORS transcritos da mensagem. Não é exportação autenticada dos painéis.",
+  "appCommit": "1d32689dd44ce3d3ffa6e602017fe0cf1918a55e",
+  "vercelDeploymentId": "dpl_8WPq6oNVxToLWDySozZ9x91gi89m",
+  "productionUrl": "https://advance-app-one.vercel.app",
+  "workerUrl": "https://advance-media-api.brunokhunshi.workers.dev",
+  "workerOriginalSha256": "baf0af067caa4d2057cad503e611c903ba1c793beb532d8399a61412455adb88",
+  "r2Bucket": "advance-app-media",
+  "workerDeploymentId": null,
+  "workerCompatibilityDate": null,
+  "status": "Candidata em desenvolvimento; nenhuma alteração de produção executada."
+}
