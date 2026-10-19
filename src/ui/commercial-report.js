@@ -54,17 +54,28 @@ export class CommercialReport {
     const key = this.key, generation = this.photoGeneration;
     this.root.querySelectorAll('button,input,select').forEach(control => control.disabled = true);
     this.status('Salvando relatório...');
+    let persisted = false;
     try {
       const report = await this.reviewCallbacks.persist(key, structuredClone(this.data), this.baseReports.get(key));
+      persisted = true;
       if (generation !== this.photoGeneration) return;
       for (const photo of [...(report[this.dataField]?.photos || []), ...(report.conteudoRelatorio?.blocos || [])]) {
         if (photo.storage === 'r2') this.staged.delete(photo.id);
       }
       this.hydrate(key, report, true);
       this.data = this.drafts.get(key);
-      this.onSave(key);
+      try {
+        this.onSave(key);
+      } catch (interfaceError) {
+        console.error('Relatório salvo, mas a navegação falhou.', interfaceError);
+        this.status('Relatório salvo no servidor. Reabra a visita para continuar.');
+      }
     } catch (error) {
-      if (generation === this.photoGeneration) this.status(error.message || 'Não foi possível salvar. Tente novamente.');
+      if (generation === this.photoGeneration) {
+        this.status(persisted
+          ? 'Relatório salvo no servidor, mas não foi possível atualizar a tela. Reabra a visita.'
+          : (error.message || 'Não foi possível salvar. Tente novamente.'));
+      }
     } finally {
       if (generation === this.photoGeneration) {
         this.saving = false;
