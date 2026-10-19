@@ -3062,6 +3062,8 @@ function configurarEventosGlobais() {
             } catch (error) {
                 window.mostrarAlerta('Relatório salvo', error.message || 'O relatório foi salvo, mas houve uma falha ao limpar arquivos removidos.');
             }
+            // Impede backup tardio de ressuscitar um rascunho já salvo.
+            technicalEditor.activityId = '';
             navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
