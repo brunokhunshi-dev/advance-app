@@ -2,6 +2,10 @@
 
 Estado: candidata; não publicada. Não mesclar na main antes de homologar Firebase e Worker em conjunto.
 
+## Bloqueios adicionais encontrados na auditoria
+
+A revisão de 19/10 reproduziu EST-01 a EST-08, incluindo perda de rascunho, erro após commit, consultas concorrentes e invariantes ausentes no servidor. Esses defeitos ainda não foram corrigidos nesta candidata. Resolver e homologar antes do lançamento; ver [auditoria estrutural](auditoria-estrutural-2026-10-19.md). Testes anteriores aprovados não eliminam esses bloqueios.
+
 ## Correções
 
 - Vínculo protegido por UID substitui as buscas sequenciais por UID/e-mail em quatro coleções.

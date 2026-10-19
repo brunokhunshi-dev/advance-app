@@ -1,0 +1,65 @@
+{
+  "purpose": "Observed structural audit defects; not release acceptance tests",
+  "observations": [
+    {
+      "id": "EST-01",
+      "observed": {
+        "moduleDonePersists": false,
+        "page": "overview"
+      }
+    },
+    {
+      "id": "EST-02",
+      "observed": {
+        "databaseStatus": "Concluída",
+        "uiError": "Erro ao concluir visita"
+      }
+    },
+    {
+      "id": "EST-03",
+      "observed": {
+        "concurrentNavigationRequests": 6,
+        "firestoreReadsStarted": 6
+      }
+    },
+    {
+      "id": "EST-04",
+      "observed": {
+        "activityObject": "a1",
+        "editorHydratedFor": "a2"
+      }
+    },
+    {
+      "id": "EST-05",
+      "observed": {
+        "newSessionWaitsForOldTransport": true,
+        "requestsWhileOldIsPending": 1
+      }
+    },
+    {
+      "id": "EST-06",
+      "observed": {
+        "firstReadFailed": true,
+        "returnedAsNotFound": true,
+        "queries": 3
+      }
+    },
+    {
+      "id": "EST-07",
+      "observed": {
+        "sameAccountActiveVisits": 2
+      }
+    },
+    {
+      "id": "EST-08",
+      "observed": {
+        "missingRequiredModules": [
+          "Contato na loja",
+          "Disponibilidade dos produtos",
+          "Exposição e materiais"
+        ],
+        "databaseAllowedCheckout": true
+      }
+    }
+  ]
+}
