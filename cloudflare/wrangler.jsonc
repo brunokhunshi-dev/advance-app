@@ -1,0 +1,12 @@
+{
+  // Copy existing secrets, account and compatibility settings before deploying.
+  // namespace IDs must be unique in this Cloudflare account; confirm before use.
+  "name": "advance-media-api",
+  "main": "advance-media-api.js",
+  "compatibility_date": "2026-10-19",
+  "vars": {"FIREBASE_PROJECT_ID":"banco-de-dados-monitor", "R2_BUCKET_NAME":"advance-app-media"},
+  "ratelimits": [
+    {"name":"AUTH_RATE_LIMITER","namespace_id":"101901","simple":{"limit":180,"period":60}},
+    {"name":"MEDIA_RATE_LIMITER","namespace_id":"101902","simple":{"limit":60,"period":60}}
+  ]
+}

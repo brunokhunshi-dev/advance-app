@@ -37,3 +37,10 @@ O app precisa ser servido por HTTP/HTTPS, não aberto como arquivo local. Para d
 Ao mudar HTML, CSS ou módulos do app, atualizar `CACHE_NAME` em `sw.js`. Novos módulos locais utilizados pelo app devem ser incluídos em `APP_SHELL`; os testes verificam os caminhos e a cobertura dos módulos. Firebase e bibliotecas externas continuam dependendo da rede/cache do navegador; não há garantia de login ou gravação offline.
 
 Antes do merge, homologar no celular/PWA: troca de conta, cadastro por CNPJ, visita completa dos três tipos, imagens, descarte de edição, impressão e atualização de uma instalação existente. Os testes locais não substituem essa validação com Firebase/R2 e dispositivos reais.
+# Estabilização v0.1.1 (candidata)
+
+As regras e o Worker desta branch exigem migração de vínculos por UID e configuração de limites no servidor antes de liberar o piloto. Não publicar isoladamente.
+
+- [Matriz de acesso](docs/stabilization/access-matrix.md)
+- [Homologação, sequência de publicação e rollback](docs/stabilization/release-v011.md)
+- [Snapshot fornecido de produção](docs/baseline-2026-10-19/manifest.json)

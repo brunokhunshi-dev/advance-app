@@ -1,8 +1,8 @@
+import { resolveFieldProfile } from './src/data/auth-profile.js';
 import { setupChangePassword, changeAccountPassword } from './src/ui/change-password.js';
 import { cancelarAgendamento } from './src/services/cancellation.js';
 import { atividadePodeSerCancelada } from './src/domain/cancellation.js';
 import { camposAssistenciaPendentes } from './src/domain/reports.js';
-import { garantirCatalogoAdvance } from './src/data/product-import.js';
 import { createProductRepository } from './src/data/product-repository.js';
 import { persistCommercialMedia } from './src/services/commercial-save.js';
 import { CommercialReport } from './src/ui/commercial-report.js';
@@ -30,21 +30,6 @@ import { describeOperationError } from './src/domain/operation-errors.js';
 import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
     const sessao = sessaoAtual();
-    await garantirCatalogoAdvance({
-        validateSession: () => exigirSessao(sessao),
-        read: async (colecao, id) => (await getDocFromServer(doc(db, colecao, id))).data(),
-        load: async () => {
-            const response = await fetch(new URL('./data/produtos-advance.json', import.meta.url));
-            if (!response.ok) throw new Error('Não foi possível abrir o catálogo Advance.');
-            return response.json();
-        },
-        commit: async writes => {
-            exigirSessao(sessao);
-            const batch = writeBatch(db);
-            for (const item of writes) batch.set(doc(db, item.collection, item.id), item.data);
-            await batch.commit();
-        }
-    });
     exigirSessao(sessao);
     const snapshot = await getDocs(collection(db, 'produtos'));
     return snapshot.docs.map(document => ({...document.data(), id:document.id}));
@@ -69,7 +54,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebas
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, writeBatch, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
 
@@ -485,32 +470,10 @@ function inicializarAplicativo() {
 
         try {
 
-            let perfil = null;
-
-            for (const [colecao, nome] of [['assistencia','Assistente'], ['promotores','Promotor']]) {
-
-                const snap = await getDocs(query(collection(db, colecao), where('email', '==', user.email)));
-
-                if (versao !== versaoSessao) return;
-
-                if (!snap.empty) {
-                    const dadosPerfil = snap.docs[0].data() || {};
-                    if (dadosPerfil.ativo === false || dadosPerfil.permissoes?.acessoApp === false) {
-                        throw new Error('Seu acesso ao Advance Check está desativado. Procure seu gestor.');
-                    }
-                    perfil = {
-                        ...dadosPerfil,
-                        id: snap.docs[0].id,
-                        nome: dadosPerfil.nome || 'Profissional',
-                        tipo: nome,
-                        permissoes: dadosPerfil.permissoes || {}
-                    };
-                    break;
-                }
-
-            }
-
-            if (!perfil) throw new Error("E-mail não encontrado nas coleções 'assistencia' ou 'promotores'.");
+            const perfil = await resolveFieldProfile(user.uid, async (collectionName, id) => {
+                const snap = await getDocFromServer(doc(db, collectionName, id));
+                return snap.exists() ? snap.data() : null;
+            }, () => { if (versao !== versaoSessao) throw new Error('Sua sessão mudou. Entre novamente.'); });
 
             if (versao !== versaoSessao) return;
 
@@ -1167,6 +1130,10 @@ function renderizarHistoricoVisitas(visitas) {
 
 async function carregarHistoricoVisitas() {
     if (!idUsuarioLogado) return;
+    if (dadosPerfilLogado?.permissoes?.verHistorico === false) {
+        document.getElementById('area-historico-visitas').textContent = 'Seu perfil não tem acesso ao histórico.';
+        return;
+    }
 
     const sessao = sessaoAtual(), pedido = ++sequenciaHistorico;
     const areaHistorico = document.getElementById('area-historico-visitas');
@@ -1929,7 +1896,7 @@ function configurarTelaCadastroCliente() {
                         }
                         const agora = new Date();
                         tx.set(ref, { codigoCnpj: cnpjReal, nome, cidade, uf, enderecoCompleto,
-                            ...coords, status: 'Ativo', criadoEm: agora, atualizadoEm: agora });
+                            ...coords, status: 'Ativo', criadoEm: agora, atualizadoEm: agora, criadoPor: sessao.id });
                         return { nome, localizado: false };
                     });
                     nomeFinal = resultado.nome; localizado = resultado.localizado;
@@ -2985,6 +2952,7 @@ const profileView = new ProfileView(document.getElementById('profile-content'), 
         return { ...profile, ...snapshot.data() };
     },
     load: async () => {
+        if (dadosPerfilLogado?.permissoes?.verHistorico === false) return [];
         const sessao = sessaoAtual();
         const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id)));
         if (!sessaoValida(sessao)) return [];

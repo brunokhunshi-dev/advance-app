@@ -13,3 +13,18 @@ jobs:
       # Regression checks use only Node built-ins; no production credentials.
       - run: npm run check
       - run: npm test
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci --ignore-scripts
+      # Only the demo project and local emulator; no service account or production data.
+      - run: npm run test:rules

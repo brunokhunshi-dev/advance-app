@@ -1,0 +1,2 @@
+# Preserve the original Worker export byte-for-byte, including Windows line endings.
+docs/baseline-2026-10-19/worker-producao.txt -text whitespace=cr-at-eol

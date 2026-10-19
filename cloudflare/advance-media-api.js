@@ -11,6 +11,7 @@ function json(data, status = 200) {
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json; charset=utf-8",
+      ...(status === 429 ? {"Retry-After":"60"} : {}),
     },
   });
 }
@@ -209,8 +210,18 @@ async function createPresignedUrl({
   );
 }
 /* ------------------------------
-   FIREBASE AUTH
--------------------------------- */
+*&#xA0;  FIREBASE AUTH*
+*-------------------------------- */
+let firestoreBlockedUntil = 0;
+async function applyRateLimit(binding, key) {
+  if (!binding || typeof binding.limit !== 'function') {
+    throw new Response('Proteção de requisições não configurada no servidor.', {status:503});
+  }
+  let result;
+  try { result = await binding.limit({key}); }
+  catch { throw new Response('Proteção de requisições indisponível.', {status:503}); }
+  if (!result.success) throw new Response('Limite de requisições atingido. Aguarde um minuto.', {status:429});
+}
 async function authenticate(
   request,
   env
@@ -231,6 +242,10 @@ async function authenticate(
   }
   const idToken =
     authorization.slice(7);
+  if (Date.now() < firestoreBlockedUntil) throw new Response('Consultas temporariamente suspensas após limite do banco. Aguarde um minuto.', {status:429});
+  // Coarse pre-auth protection only. The main budget uses the verified Firebase UID.
+  await applyRateLimit(env.AUTH_RATE_LIMITER, 'auth:' + (request.headers.get('CF-Connecting-IP') || 'unknown'));
+
   const response =
     await fetch(
       "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" +
@@ -248,6 +263,8 @@ async function authenticate(
         }),
       }
     );
+  if (response.status === 429) throw new Response('Limite de autenticação atingido. Aguarde um minuto.', {status:429});
+  if (response.status >= 500) throw new Response('Autenticação indisponível.', {status:503});
   if (!response.ok) {
     throw new Response(
       "Unauthorized",
@@ -267,28 +284,12 @@ async function authenticate(
       { status: 401 }
     );
   }
-  let claims = {};
-  try {
-    claims =
-      firebaseUser.customAttributes
-        ? JSON.parse(
-            firebaseUser.customAttributes
-          )
-        : {};
-  } catch {
-    claims = {};
-  }
-  return {
-    uid: firebaseUser.localId,
-    email:
-      firebaseUser.email || "",
-    idToken,
-    claims,
-  };
+  await applyRateLimit(env.MEDIA_RATE_LIMITER, 'media:' + firebaseUser.localId);
+  return {uid:firebaseUser.localId, email:firebaseUser.email || '', idToken};
 }
 /* ------------------------------
-   FIRESTORE
--------------------------------- */
+*&#xA0;  FIRESTORE*
+*-------------------------------- */
 function firestoreBase(env) {
   return (
     "https://firestore.googleapis.com/v1/" +
@@ -314,262 +315,45 @@ async function firestoreFetch(
   if (!response.ok && !quotaExceeded) {
     try { quotaExceeded = (await response.clone().json())?.error?.status === 'RESOURCE_EXHAUSTED'; } catch {}
   }
-  if (quotaExceeded) throw new Response('Quota exceeded. O limite de consultas do banco foi atingido.', {status:429});
+  if (quotaExceeded) {
+    firestoreBlockedUntil = Date.now() + 60000;
+    throw new Response('Quota exceeded. O limite de consultas do banco foi atingido.', {status:429});
+  }
   return response;
 }
-async function profileFromDocument(
-  document,
-  collectionId
-) {
-  if (!document) {
-    return null;
-  }
-  const fields =
-    document.fields || {};
-  if (
-    fields.ativo
-      ?.booleanValue === false
-  ) {
-    return null;
-  }
-  if (
-    fields.permissoes
-      ?.mapValue
-      ?.fields
-      ?.acessoApp
-      ?.booleanValue === false
-  ) {
-    return null;
-  }
-  const stringValue =
-    name =>
-      fields[name]
-        ?.stringValue || "";
-  return {
-    id:
-      document.name
-        .split("/")
-        .pop(),
-    collection:
-      collectionId,
-    role: [
-      stringValue("cargo"),
-      stringValue("funcao"),
-      stringValue("perfil"),
-      stringValue("tipo"),
-      stringValue("tipoAcesso"),
-      stringValue("role"),
-    ]
-      .filter(Boolean)
-      .join(" "),
-  };
-}
-async function findProfileInCollection(
-  env,
-  user,
-  collectionId
-) {
-  // Mesma ordem usada pelo dashboard:
-  // 1. documento cujo ID é o Firebase UID;
-  // 2. fallback por e-mail.
-  try {
-    const uidResponse =
-      await firestoreFetch(
-        firestoreBase(env) +
-          "/" +
-          encodeURIComponent(
-            collectionId
-          ) +
-          "/" +
-          encodeURIComponent(
-            user.uid
-          ),
-        user.idToken
+// A request has exactly one trusted UID link and one current profile read.
+// Never cache permissions between requests: disabling a profile applies on the next request.
+async function getAdvanceProfile(env, user) {
+  if (user.profilePromise) return user.profilePromise;
+  user.profilePromise = (async () => {
+    const read = async (collectionId, id) => {
+      const response = await firestoreFetch(
+        firestoreBase(env) + '/' + collectionId + '/' + encodeURIComponent(id), user.idToken
       );
-    if (uidResponse.ok) {
-      const uidDocument =
-        await uidResponse.json();
-      const uidProfile =
-        await profileFromDocument(
-          uidDocument,
-          collectionId
-        );
-      if (uidProfile) {
-        return uidProfile;
-      }
-    }
-  } catch (error) {
-    if (error instanceof Response && error.status === 429) throw error;
-  }
-  if (!user.email) {
-    return null;
-  }
-  const response =
-    await firestoreFetch(
-      firestoreBase(env) +
-        ":runQuery",
-      user.idToken,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          structuredQuery: {
-            from: [
-              {
-                collectionId,
-              },
-            ],
-            where: {
-              fieldFilter: {
-                field: {
-                  fieldPath:
-                    "email",
-                },
-                op: "EQUAL",
-                value: {
-                  stringValue:
-                    user.email,
-                },
-              },
-            },
-            limit: 1,
-          },
-        }),
-      }
-    );
-  if (!response.ok) {
-    return null;
-  }
-  const results =
-    await response.json();
-  const document =
-    results.find(
-      item => item.document
-    )?.document;
-  return profileFromDocument(
-    document,
-    collectionId
-  );
-}
-function normalizeAccessText(
-  value
-) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .toLowerCase();
-}
-function isManagementProfile(
-  profile,
-  user
-) {
-  if (!profile) {
-    return false;
-  }
-  const email =
-    normalizeAccessText(
-      user?.email
-    );
-  if (
-    email ===
-    "eric.lima@advancetintas.com.br"
-  ) {
-    return true;
-  }
-  if (
-    [
-      "administradores",
-      "gestores",
-    ].includes(
-      profile.collection
-    )
-  ) {
-    return true;
-  }
-  const claims =
-    user?.claims || {};
-  if (
-    claims.admin === true ||
-    claims.gestor === true ||
-    claims.manager === true
-  ) {
-    return true;
-  }
-  const role =
-    normalizeAccessText(
-      [
-        profile.role,
-        claims.role,
-        claims.perfil,
-        claims.cargo,
-        claims.tipoAcesso,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    );
-  return [
-    "admin",
-    "administrador",
-    "diretor",
-    "diretora",
-    "gerente",
-    "gestor",
-    "gestora",
-    "coordenador",
-    "coordenadora",
-    "supervisor",
-    "supervisora",
-  ].some(
-    term =>
-      role.includes(term)
-  );
-}
-async function getAdvanceProfile(
-  env,
-  user
-) {
-  if (!user.email) {
-    return null;
-  }
-  for (
-    const collectionId
-    of [
-      "administradores",
-      "gestores",
-      "assistencia",
-      "promotores",
-    ]
-  ) {
-    const profile =
-      await findProfileInCollection(
-        env,
-        user,
-        collectionId
-      );
-    if (profile) {
-      return profile;
-    }
-  }
-  if (
-    normalizeAccessText(
-      user.email
-    ) ===
-    "eric.lima@advancetintas.com.br"
-  ) {
-    return {
-      id: user.uid,
-      collection:
-        "gestores",
-      role: "Gestão",
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Response('Não foi possível validar o acesso ao aplicativo.', {status:response.status === 403 ? 403 : 503});
+      return response.json();
     };
-  }
-  return null;
+    const link = await read('vinculos_auth', user.uid);
+    const collectionId = link?.fields?.profileCollection?.stringValue;
+    const id = link?.fields?.profileId?.stringValue;
+    if (!['assistencia', 'promotores', 'administradores', 'gestores'].includes(collectionId) || !validId(id)) {
+      throw new Response('Acesso não vinculado. Procure o responsável pelo aplicativo.', {status:403});
+    }
+    const document = await read(collectionId, id);
+    if (!document) throw new Response('Perfil não encontrado.', {status:403});
+    const fields = document.fields || {};
+    const management = ['administradores', 'gestores'].includes(collectionId);
+    if (fields.ativo?.booleanValue === false || (management && fields.ativo?.booleanValue !== true) ||
+        fields.permissoes?.mapValue?.fields?.acessoApp?.booleanValue === false) {
+      throw new Response('Acesso desativado.', {status:403});
+    }
+    return {id, collection:collectionId};
+  })();
+  return user.profilePromise;
+}
+function isManagementProfile(profile) {
+  return ['administradores', 'gestores'].includes(profile?.collection);
 }
 async function requireManagement(
   env,
@@ -695,21 +479,15 @@ async function authorizeActivity(
   };
 }
 /* ------------------------------
-   R2 STATS
--------------------------------- */
+*&#xA0;  R2 STATS*
+*-------------------------------- */
 function xmlValue(
   xml,
   tag
 ) {
   const match =
     xml.match(
-      new RegExp(
-        "<" +
-        tag +
-        ">([\\s\\S]*?)<\\/" +
-        tag +
-        ">"
-      )
+      new RegExp("<" + tag + ">([\\s\\S]*?)<\\/" + tag + ">")
     );
   if (!match) {
     return "";
@@ -743,7 +521,6 @@ async function calculateStorageStats(
   let totalBytes = 0;
   let objectCount = 0;
   let imageCount = 0;
-  let thumbnailCount = 0;
   let pages = 0;
   do {
     const queryParams = [
@@ -818,13 +595,6 @@ async function calculateStorageStats(
       ) {
         imageCount += 1;
       }
-      if (
-        key.endsWith(
-          "/thumbnail.jpg"
-        )
-      ) {
-        thumbnailCount += 1;
-      }
     }
     const truncated =
       xmlValue(
@@ -853,7 +623,6 @@ async function calculateStorageStats(
     totalBytes,
     objectCount,
     imageCount,
-    thumbnailCount,
     pages,
     updatedAt:
       new Date()
@@ -871,7 +640,7 @@ async function storageStatsCached(
       request.url
     );
   cacheUrl.pathname =
-    "/__cache/media-storage-stats";
+    "/__cache/media-storage-stats-v011";
   cacheUrl.search = "";
   const cacheKey =
     new Request(
@@ -918,13 +687,13 @@ async function storageStatsCached(
   };
 }
 /* ------------------------------
-   VALIDATORS
--------------------------------- */
+*&#xA0;  VALIDATORS*
+*-------------------------------- */
 function validId(value) {
   return (
     typeof value ===
       "string" &&
-    /^[A-Za-z0-9._-]{1,180}$/.test(
+    /^[A-Za-z0-9.\_-]{1,180}$/.test(
       value
     )
   );
@@ -941,8 +710,8 @@ function validContentType(
   );
 }
 /* ------------------------------
-   WORKER
--------------------------------- */
+*&#xA0;  WORKER*
+*-------------------------------- */
 export default {
   async fetch(
     request,
@@ -970,6 +739,7 @@ export default {
       "/health"
     ) {
       return json({
+        version: "0.1.1-rc.1",
         ok: true,
         service:
           "advance-media-api",
@@ -978,14 +748,9 @@ export default {
     try {
       if (url.pathname === "/v1/profile/photo-url" && request.method === "POST") {
         const user = await authenticate(request, env);
-        let profile = null;
-        // Use o mesmo tipo de perfil e a mesma ordem do aplicativo.
-        for (const collectionId of ["assistencia", "promotores"]) {
-          profile = await findProfileInCollection(env, user, collectionId);
-          if (profile) break;
-        }
-        if (!profile || !validId(profile.id)) {
-          return json({ error: "Perfil de campo ativo não encontrado." }, 403);
+        const profile = await getAdvanceProfile(env, user);
+        if (!['assistencia', 'promotores'].includes(profile.collection)) {
+          return json({ error: 'Perfil de campo ativo não encontrado.' }, 403);
         }
         // O cliente não escolhe o caminho nem o ID: ambos vêm do perfil autenticado.
         const key = "v1/perfis/" + profile.collection + "/" + profile.id + ".png";
@@ -1092,24 +857,12 @@ export default {
         const originalKey =
           baseKey +
           "/original";
-        const thumbnailKey =
-          baseKey +
-          "/thumbnail.jpg";
         const originalUploadUrl =
           await createPresignedUrl({
             env,
             method: "PUT",
             key: originalKey,
             contentType,
-            expires: 300,
-          });
-        const thumbnailUploadUrl =
-          await createPresignedUrl({
-            env,
-            method: "PUT",
-            key: thumbnailKey,
-            contentType:
-              "image/jpeg",
             expires: 300,
           });
         return json({
@@ -1119,12 +872,6 @@ export default {
               originalKey,
             uploadUrl:
               originalUploadUrl,
-          },
-          thumbnail: {
-            key:
-              thumbnailKey,
-            uploadUrl:
-              thumbnailUploadUrl,
           },
           expiresIn: 300,
           maxBytes:
@@ -1166,14 +913,7 @@ export default {
             400
           );
         }
-        if (
-          ![
-            "original",
-            "thumbnail",
-          ].includes(
-            variant
-          )
-        ) {
+        if (variant !== "original") {
           return json(
             {
               error:
@@ -1192,13 +932,7 @@ export default {
           activityId +
           "/media/" +
           mediaId;
-        const objectKey =
-          variant ===
-            "thumbnail"
-            ? baseKey +
-              "/thumbnail.jpg"
-            : baseKey +
-              "/original";
+        const objectKey = baseKey + "/original";
         const readUrl =
           await createPresignedUrl({
             env,
@@ -1255,7 +989,7 @@ export default {
                 item?.mediaId,
               variant:
                 item?.variant ||
-                "thumbnail",
+                "original",
             })
           );
         if (
@@ -1267,12 +1001,7 @@ export default {
               !validId(
                 item.mediaId
               ) ||
-              ![
-                "original",
-                "thumbnail",
-              ].includes(
-                item.variant
-              )
+              item.variant !== "original"
           )
         ) {
           return json(
@@ -1283,6 +1012,7 @@ export default {
             400
           );
         }
+        if (new Set(normalized.map(item => item.activityId)).size > 5) return json({error:'Envie mídias de até cinco atividades por lote.'}, 400);
         // Resolve the authenticated profile once for the request, then authorize every activity.
         // No permission result is cached across requests; deactivation still applies immediately.
         const profile = await getAdvanceProfile(env, user);
@@ -1299,13 +1029,7 @@ export default {
                   item.activityId +
                   "/media/" +
                   item.mediaId;
-                const key =
-                  item.variant ===
-                    "thumbnail"
-                    ? baseKey +
-                      "/thumbnail.jpg"
-                    : baseKey +
-                      "/original";
+                const key = baseKey + "/original";
                 return {
                   mediaId:
                     item.mediaId,
@@ -1401,12 +1125,7 @@ export default {
           activityId +
           "/media/" +
           mediaId;
-        const keys = [
-          baseKey +
-            "/original",
-          baseKey +
-            "/thumbnail.jpg",
-        ];
+        const keys = [baseKey + "/original"];
         for (
           const key
           of keys
