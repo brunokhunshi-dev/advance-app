@@ -26,6 +26,8 @@ import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, bu
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
+import { createActivityRepository } from './src/data/activity-repository.js';
+import { createRequestScope } from './src/domain/request-scope.js';
 import { describeOperationError } from './src/domain/operation-errors.js';
 import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
@@ -116,6 +118,10 @@ const clientesRepository = createClientRepository(async clienteId => {
     return snap.exists() ? { ...snap.data(), id: snap.id } : null;
 });
 const obterCliente = clientesRepository.get;
+const activityRepository = createActivityRepository(async userId => {
+    const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', userId), where('status', 'in', ['Pendente', 'Em andamento'])));
+    return snap.docs.map(documento => ({ ...documento.data(), id: documento.id }));
+});
 let historicoCarregado = null;
 let clienteVisualizadorAtual = null;
 
@@ -142,6 +148,8 @@ let callbackExclusaoAtual = null; // Callback para o modal de exclusão
 // Operações assíncronas não devem reutilizar IDs de outra sessão/tela.
 
 let versaoSessao = 0;
+const visualizadorScope = createRequestScope();
+const relatorioScope = createRequestScope();
 
 let operacaoEmCurso = false;
 
@@ -327,6 +335,8 @@ function mostrarEditorRelatorioPorTipo(tipo) {
 class ErroCheckoutLocalizacao extends Error {}
 
 function limparEstadoVisita() {
+    visualizadorScope.invalidate();
+    relatorioScope.invalidate();
 
     atividadeSelecionadaId = null; clienteSelecionadoId = null; clienteSelecionadoNome = '';
 
@@ -437,6 +447,7 @@ function inicializarAplicativo() {
         passwordDialog.close();
         const versao = ++versaoSessao;
         productRepository.clear();
+        activityRepository.clear();
         commercialReport?.clear();
         trainingReport?.clear();
 
@@ -695,6 +706,8 @@ function desativarHistoricoNavegacao() {
 function navegarParaTela(idTela, opcoes = {}) {
     const { substituir = false, carregar = true, forcar = false } = opcoes;
     if (!HASH_POR_TELA[idTela]) return;
+    if (idTela !== 'tela-visualizador-visita') visualizadorScope.invalidate();
+    if (idTela !== 'tela-relatorio') relatorioScope.invalidate();
 
     if (!navegacaoHistoricoAtiva) {
         mostrarApenasTela(idTela);
@@ -856,9 +869,7 @@ async function carregarAtividadesPendentes() {
 
     try {
 
-        const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', 'in', ['Pendente','Em andamento'])));
-
-        const atividades = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        const atividades = await activityRepository.listActive(sessao.id);
 
         atividades.sort((a,b) => Number(b.status === 'Em andamento') - Number(a.status === 'Em andamento') || tempoData(a.data) - tempoData(b.data));
 
@@ -989,20 +1000,17 @@ async function carregarAgenda() {
 
     try {
 
-        // Inclui "Em andamento" na pesquisa
-
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "in", ["Pendente", "Em andamento"]));
-
-        const querySnapshot = await getDocs(q);
+        // Compartilha a leitura da agenda com a tela inicial.
+        const atividadesBase = await activityRepository.listActive(sessao.id);
 
         if (!sessaoValida(sessao) || pedido !== sequenciaAgenda) return;
 
         listaAtividadesAgenda = [];
 
 
-        const atividadesCarregadas = await Promise.all(querySnapshot.docs.map(async documento => {
+        const atividadesCarregadas = await Promise.all(atividadesBase.map(async atividade => {
 
-            const dados = documento.data(); dados.id = documento.id;
+            const dados = { ...atividade };
             dados.nomeCliente = "Cliente não encontrado"; dados.enderecoCompleto = ""; dados.localidadeAgenda = "";
 
             const cliente = dados.clienteId ? await obterCliente(dados.clienteId) : null;
@@ -1405,6 +1413,7 @@ function configurarTelaNovaVisita() {
                     status: 'Pendente', criadoEm: agora, atualizadoEm: agora
 
                 });
+                activityRepository.invalidate();
 
                 if (!sessaoValida(sessao)) return;
 
@@ -1436,6 +1445,8 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
     if (operacaoEmCurso || !atividadeId) return;
 
     const sessao = sessaoAtual();
+    const pedido = visualizadorScope.begin(atividadeId);
+    const visualizacaoAtual = () => visualizadorScope.isCurrent(pedido, atividadeId) && sessaoValida(sessao);
     const area = document.getElementById('tela-visualizador-visita');
     const clienteEl = document.getElementById('visu-cliente');
 
@@ -1447,7 +1458,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
 
     try {
         const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeId));
-        exigirSessao(sessao);
+        if (!visualizacaoAtual()) return;
 
         if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
         const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
@@ -1458,7 +1469,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
             atividade.relatorioId ? carregarRelatorioDaAtividade(atividade) : Promise.resolve(null)
         ]);
 
-        exigirSessao(sessao);
+        if (!visualizacaoAtual()) return;
 
         if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
             throw new Error('O relatório associado não corresponde a esta visita.');
@@ -1474,6 +1485,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         clienteVisualizadorAtual = cliente;
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
+        if (!visualizacaoAtual()) return;
         informarErro('Não foi possível abrir a visita', erro);
         navegarParaTela('tela-historico', { substituir: true });
     }
@@ -1596,6 +1608,7 @@ function configurarTelaDetalhesVisita() {
                 validateSession: () => exigirSessao(sessao), usuarioId: sessao.id,
                 motivo: motivo.value, detalhe: detalhe.value
             });
+            activityRepository.invalidate();
             if (!sessaoValida(sessao)) return;
             cancelDialog.close();
             if (atividadeSelecionadaId === id) limparEstadoVisita();
@@ -1652,6 +1665,7 @@ function configurarTelaDetalhesVisita() {
 
             });
 
+            activityRepository.invalidate();
             if (!sessaoValida(sessao)) return;
 
             window.mostrarAlerta('Sucesso', 'Visita atualizada.');
@@ -2153,6 +2167,7 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
         tx.update(ref, { status:'Em andamento', checkinDataHora:agora, checkinGps:`${lat}, ${lng}`, checkinGpsAccuracy:Number(accuracy), checkinEndereco:endereco, atualizadoEm:agora });
 
     });
+    activityRepository.invalidate();
 
     if (!sessaoValida(sessao)) return;
 
@@ -2310,36 +2325,32 @@ function atualizarInterfaceVisitaAtual() {
         commercialReport.deactivate();
         trainingReport.deactivate();
 
+        const sessao = sessaoAtual();
+        const atividadeId = atividadeSelecionadaId;
+        const pedido = relatorioScope.begin(atividadeId);
+        const pedidoAtual = () => relatorioScope.isCurrent(pedido, atividadeId)
+            && sessaoValida(sessao) && atividadeSelecionadaId === atividadeId;
         try {
-            const sessao = sessaoAtual();
-            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeSelecionadaId));
-            exigirSessao(sessao);
+            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeId));
+            if (!pedidoAtual()) return;
             if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
 
-            objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
-            validarResponsavel(objetoAtividadeGlobal, sessao);
-
-            // O estado da tela inicial pode ter sido carregado minutos antes ou em
-            // outro dispositivo. Recarrega o relatório do servidor imediatamente
-            // antes de editar para evitar conflito falso com uma cópia antiga.
-            objetoRelatorioGlobal = objetoAtividadeGlobal.relatorioId
-                ? await carregarRelatorioDaAtividade(objetoAtividadeGlobal, true)
+            const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            validarResponsavel(atividade, sessao);
+            const relatorio = atividade.relatorioId
+                ? await carregarRelatorioDaAtividade(atividade, true)
                 : null;
-            exigirSessao(sessao);
-
-            if (objetoRelatorioGlobal &&
-                (objetoRelatorioGlobal.atividadeId !== atividadeSelecionadaId ||
-                 objetoRelatorioGlobal.ptvId !== sessao.id)) {
+            if (!pedidoAtual()) return;
+            if (relatorio && (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id)) {
                 throw new Error('O relatório associado não corresponde a esta visita.');
             }
+            const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
+            if (!pedidoAtual()) return;
 
-            if (objetoAtividadeGlobal.clienteId) {
-                const cliente = await obterCliente(objetoAtividadeGlobal.clienteId);
-                if (cliente?.nome) {
-                    clienteSelecionadoId = objetoAtividadeGlobal.clienteId;
-                    clienteSelecionadoNome = cliente.nome;
-                }
-            }
+            objetoAtividadeGlobal = atividade;
+            objetoRelatorioGlobal = relatorio;
+            clienteSelecionadoId = atividade.clienteId || null;
+            clienteSelecionadoNome = cliente?.nome || '';
 
             const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
             const formatoData = formatarDataHoraPT(chegada);
@@ -2393,6 +2404,7 @@ function atualizarInterfaceVisitaAtual() {
             document.getElementById('rel-texto')?.blur();
             window.scrollTo(0, 0);
         } catch (erro) {
+            if (!pedidoAtual()) return;
             informarErro('Não foi possível abrir o relatório', erro);
         }
     };
@@ -2470,9 +2482,9 @@ async function enviarFechamentoManual() {
             tx.update(relRef, { ...manual });
         });
 
+        // A transação resolvida já confirma o commit: reler poderia falhar após salvar.
+        activityRepository.invalidate();
         if (!sessaoValida(sessao)) return;
-        const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
-        if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') throw new Error('O fechamento não foi confirmado no banco. Tente novamente.');
         fecharModalFechamentoManual();
         limparEstadoVisita();
         navegarParaTela('tela-historico', { substituir: true, carregar: false });
@@ -2746,12 +2758,9 @@ function configurarEventosGlobais() {
                 tx.update(relRef, atualizacaoRelatorio);
             });
 
+            // runTransaction só resolve após o commit: não realizar leitura extra.
+            activityRepository.invalidate();
             if (!sessaoValida(sessao)) return;
-
-            const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
-            if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') {
-                throw new Error('A visita não foi confirmada como concluída no banco. Tente novamente.');
-            }
 
             limparEstadoVisita();
             navegarParaTela('tela-historico', { substituir: true, carregar: false });
