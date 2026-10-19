@@ -2539,6 +2539,14 @@ async function enviarFechamentoManual() {
 
             const pendentes = modulosComerciaisPendentes(relatorio);
             if (pendentes.length) throw new Error('Conclua os módulos obrigatórios antes do fechamento: ' + pendentes.join(', ') + '.');
+            if (normalizarTipoVisita(atividade) === 'Treinamento') {
+                const treinoPendente = modulosTreinamentoPendentes(relatorio);
+                if (treinoPendente.length) throw new Error('Conclua os módulos de treinamento antes do fechamento: ' + treinoPendente.join(', ') + '.');
+            }
+            if (normalizarTipoVisita(atividade) === ASSISTENCIA_TECNICA_TIPO) {
+                const camposPendentes = camposAssistenciaPendentes(relatorio);
+                if (camposPendentes.length) throw new Error('Conclua o relatório de assistência técnica: ' + camposPendentes.join(', ') + '.');
+            }
 
             const agora = new Date();
             const manual = {
