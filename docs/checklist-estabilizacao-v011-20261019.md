@@ -3,7 +3,7 @@
 **Atualizado em:** 19/10/2026  
 **Branch de trabalho:** `fix/stability-state-queries-20261019` — PR #26 (draft)  
 **Produção:** nenhuma correção desta PR foi mesclada/publicada.  
-**Etapa atual:** auditoria estrutural **estática concluída**; INF-01 **parcial** (Vercel identificado; regras Firestore fornecidas e mantidas por decisão do responsável; Worker recebido/comparado, metadados Cloudflare/R2 pendentes). Concluir INF-01 antes do INF-02.
+**Etapa atual:** INF-01 **encerrado como baseline operacional com ressalvas documentadas**; **INF-02 concluído como inventário estático** (App, Worker fornecido, telas e ferramentas auxiliares). **Próximo: INF-03 — métricas, limites e consumo por operação**. O inventário estático não comprova custos reais nem deployments não inspecionados diretamente.
 
 **Legenda:** [x] feito/registrado; [ ] não concluído; `PARCIAL` = houve trabalho, mas não existe evidência suficiente para encerrar o item.  
 **Importante:** implementação na branch não significa teste aprovado, homologação nem deploy. **Decisão de 19/10/2026:** não publicar novas regras Firestore nem Worker na Cloudflare enquanto a auditoria e homologação não forem concluídas; exceção somente para hotfix crítico comprovado, isolado e com rollback.
@@ -35,9 +35,9 @@
 
 ## 3. Auditoria de integridade e infraestrutura — PRÓXIMA ETAPA
 
-- [ ] **INF-01 — Baseline real (PARCIAL):** Vercel produção, commit e aliases conferidos; Preview compartilha o mesmo Firebase/endpoint Worker. Regras Firestore atuais **informadas pelo usuário e registradas**; decisão: **mantê-las nesta fase**, com risco de autorização documentado. Arquivo Worker **recebido e comparado** com GitHub (diferença de tratamento de miniaturas); faltam versão/data efetivas do deployment Cloudflare, bucket e CORS R2. **Admin descontinuado, fora do escopo ativo.** Evidências: `docs/infra-inf01-baseline-20261019.md`. **Não executar testes destrutivos no Preview atual.**
-- [ ] **INF-02 — Matriz Firestore:** inventariar as consultas/escritas de componentes **em uso** (App, Worker e Functions ainda publicadas, se existirem); **excluir o painel Admin descontinuado** dos fluxos operacionais. Distinguir leituras SDK, REST do Worker e avaliações de regras.
-- [ ] **INF-03 — Custo/limites:** definir leitura esperada por login, abrir Início, Agenda, Histórico, relatório, fotos, check-in/out e telas Admin; revisar frequência, `getDocs` não limitado, deduplicação, retries e quota.
+- [x] **INF-01 — Baseline operacional (com ressalvas):** Vercel produção confirmado; regras fornecidas e mantidas por decisão do responsável; Worker anexado e comparado; ID Cloudflare `72ad09f0-08c5-43da-a6bd-e67180fb9599` (17/10/2026) e CORS R2 informados; erro `Failed to fetch` informado resolvido (`|` → `/`). Nome do bucket e vínculo do código com deployment não verificados de modo independente; registrados para futura validação. **Admin descontinuado.** Evidências em `docs/infra-inf01-baseline-20261019.md`. Preview continua conectado ao backend produtivo.
+- [x] **INF-02 — Matriz Firestore ESTÁTICA CONCLUÍDA:** matriz por tela, ação, perfil, coleções e operações SDK/TX/REST do Worker recebido; caminhos de R2, caches, importação/CLI e comparação `main` × branch. **Functions externas não comprovadas como ativas**; custo real, regras avaliadas e índices publicados ficam para INF-03/INF-04. Evidências: `docs/infra-inf02-matriz-firestore-20261019.md`.
+- [ ] **INF-03 — Custo/limites (PRÓXIMA):** quantificar leituras e avaliações de regras por login, Início, Agenda, Histórico, Perfil, relatórios, fotos, check-in/out e fluxos auxiliares ativos; revisar frequência, `getDocs` sem limite, duplicação, retries e quota. Separar Firestore SDK, REST Worker, Auth e R2. Admin descontinuado fora do tráfego normal.
 - [ ] **INF-04 — Permissões reais:** regras **informadas pelo usuário** permitem `read, write` em qualquer documento para qualquer conta autenticada no projeto Firebase, sem restrição por perfil/propriedade. **Decisão do responsável: não alterar agora**. Registrar como risco conhecido/aceito, sem considerá-lo segurança validada. Auditoria pode confirmar comportamentos sem deploy; qualquer regra futura terá de preservar os fluxos de campo. **Nunca publicar `advance-admin/firestore.rules` isoladamente.**
 - [ ] **INF-05 — Worker/Auth:** arquivo fornecido pelo responsável já foi comparado à cópia do GitHub; **não são iguais** (Worker fornecido usa só `original`, GitHub mantém miniaturas). Falta confirmar ID/data do deployment ativo no painel Cloudflare; examinar perfil, autorização, quota, lote e exceção de gestão. **Não substituir o Worker ainda.**
 - [ ] **INF-06 — CORS e upload:** confirmar origem/métodos/headers e o caminho `POST upload-url → PUT R2 → commit Firestore`; reproduzir `Failed to fetch`.
@@ -54,7 +54,7 @@
 - [x] Registrar 14 achados estruturais com causa, arquivo, gravidade e recomendação.
 - [x] Distinguir dívida estrutural de bugs específicos e de riscos ainda não comprovados no deploy.
 - [x] Propor arquitetura-alvo incremental para App, Admin, Worker e schemas.
-- [ ] Anexar à auditoria estrutural os resultados comprovados da infraestrutura e a matriz completa Firestore.
+- [x] Registrar e vincular no checklist o baseline INF-01 e a matriz estática INF-02 com evidências e pendências separadas. O relatório de auditoria estrutural original permanece preservado.
 - [ ] Definir lista **final** de bloqueadores v0.1.1 com critério objetivo de aceite e regressão.
 - [ ] Priorizar correções sem ampliar desnecessariamente o escopo do release.
 
@@ -117,8 +117,9 @@
 ## Referências
 
 - [Auditoria estrutural — evidências e decisões](auditoria-estrutural-v011-20261019.md)
-- [INF-01 — baseline Vercel, configuração Firebase e pendências de Worker/R2](infra-inf01-baseline-20261019.md)
+- [INF-01 — baseline operacional: Vercel, Firebase, Worker e R2](infra-inf01-baseline-20261019.md)
+- [INF-02 — matriz Firestore por tela/ação, transações e Worker REST](infra-inf02-matriz-firestore-20261019.md)
 - [Estabilização — código implementado, riscos e roteiro de teste](stabilizacao-v01-20261019.md)
 - PR de trabalho: https://github.com/brunokhunshi-dev/advance-app/pull/26
 
-**Ponto de retomada:** concluir **INF-01** com os metadados do deployment ativo Cloudflare (versão/data) e bucket/CORS R2; regras fornecidas foram registradas e mantidas por decisão do responsável; Admin está descontinuado. **Depois INF-02**, sem pular a ordem. Não publicar Rules/Worker nesta fase, salvo hotfix crítico isolado.
+**Ponto de retomada:** **INF-03** — medir/estimar o custo real das operações inventariadas no INF-02 e comparar a produção com a branch. O nome/binding R2 e a confirmação Cloudflare independente permanecem como ressalvas do INF-01. Avançar depois em ordem INF-04…INF-11. Não publicar Rules/Worker nesta fase, salvo hotfix crítico isolado.
