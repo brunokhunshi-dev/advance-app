@@ -1,0 +1,1 @@
+[{"AllowedOrigins":["*"],"AllowedMethods":["GET","HEAD","PUT","DELETE"],"AllowedHeaders":["Content-Type"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3600}]
