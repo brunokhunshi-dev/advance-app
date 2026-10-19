@@ -3,7 +3,7 @@
 **Atualizado em:** 19/10/2026  
 **Branch de trabalho:** `fix/stability-state-queries-20261019` — PR #26 (draft)  
 **Produção:** nenhuma correção desta PR foi mesclada/publicada.  
-**Etapa atual:** triagem acelerada de release: INF-07 **analisado, não homologado** e arquivado; INF-08 auditoria estática **concluída, mas garantia server-side ausente e risco aceito temporariamente**; INF-09 **ADIADO** para versão futura; INF-10 **revisão rápida concluída sem homologação**; INF-11 **backlog/evidências consolidados**. Próximo trabalho: **correções da v0.1.1 e validação pré-deploy**, sem alterar Firebase Rules nem Worker.
+**Etapa atual:** **v0.1.1 em Release Candidate, sem deploy**. Auditoria INF-01…INF-11 documentada com INF-07 não homologado, INF-08 sem garantia server-side (risco aceito), INF-09 adiado e INF-10 somente revisão rápida. **GitHub Actions verde no commit funcional `2181d6e`: 161/161 testes e `npm run check` aprovados; Preview Vercel correspondente `READY`.** Responsável adiou publicação para amanhã. Último gate: validação manual, checagem de HEAD/CI do commit final e aprovação. Plano em `docs/release-candidate-v011-20261019.md`.
 
 **Legenda:** [x] feito/registrado ou **encerrado por aceite** quando explicitamente indicado; [ ] não concluído; `PARCIAL` = houve trabalho sem evidência suficiente para encerramento técnico. **Aceite de risco para piloto não equivale a teste ou correção comprovada.**  
 **Importante:** implementação na branch e aceite administrativo das etapas não significam teste aprovado, homologação nem deploy. **Decisão de 19/10/2026:** não publicar novas regras Firestore nem Worker na Cloudflare enquanto a auditoria e homologação não forem concluídas; exceção somente para hotfix crítico comprovado, isolado e com rollback.
@@ -78,17 +78,18 @@
 
 - [x] Adicionar testes para cache/consultas, escopos assíncronos, IndexedDB e sucesso de persistência com falha de interface.
 - [x] Atualizar testes existentes de transações para novos módulos.
-- [ ] Confirmar `npm run check` aprovado no commit candidato.
-- [ ] Confirmar `npm test` aprovado no commit candidato.
-- [ ] Confirmar GitHub Actions verde no commit candidato (**sem aprovação confirmada até aqui**).
-- [ ] Ampliar checks do Admin (hoje `npm run check` não cobre todos os arquivos centrais).
+- [x] **19/10:** `npm run check` aprovado no commit funcional `2181d6eb25a93b436a40fd84ca469fdf5ecc1448`.
+- [x] **19/10:** `npm test` aprovado no commit funcional `2181d6eb`: **161/161 testes, zero falhas**.
+- [x] **19/10:** GitHub Actions [run 39302253709](https://github.com/brunokhunshi-dev/advance-app/actions/runs/39302253709) com CI verde; teste de assistência corrigido no mock (timers/backup) sem alteração na lógica do app.
+- [ ] **Pré-merge:** reverificar que `npm run check` e `npm test` permanecem verdes na HEAD **final** da PR, inclusive commits documentais posteriores.
+- [x] **Advance Admin descontinuado:** checks adicionais do repositório Admin não são requisito de deploy desta release do App.
 - [ ] Preparar Firebase e R2 de homologação separados, incluindo configuração/rota de Worker de teste e contas fictícias; **não** testar cenários destrutivos no Preview conectado à produção.
 - [ ] Homologar no celular login, agenda, check-in/out, três relatórios, fotos e recuperação de rascunhos.
 - [ ] Simular rede instável, perda de sessão, fechamento forçado, falha de upload e escrita parcial.
 - [ ] Testar autorizações, escrita direta inválida, revogação de acesso e casos de quota.
 - [ ] Comparar consumo real de leituras e chamadas ao Worker antes/depois.
 - [ ] Homologar coerência dos relatórios entre App, Firestore e Worker; painel Advance Admin descontinuado fica fora do escopo operacional.
-- [ ] Homologar atualização de PWA instalado, Service Worker e rollback.
+- [ ] Confirmar atualização do PWA instalado e estratégia de rollback no momento do release. **Auditoria aprofundada INF-09 do Service Worker adiada para release futura por decisão do responsável; não confundir com teste de instalação básico.**
 
 ## Política aprovada para Firebase Rules e Cloudflare Worker
 
@@ -101,18 +102,20 @@
 
 **Não há publicação autorizada no momento. Auditoria e leitura de configurações podem continuar normalmente.**
 
-## 7. Publicação v0.1.1
+## 7. Publicação v0.1.1 — aguardando amanhã
 
-- [ ] Aprovar os bloqueadores com evidência e testes.
-- [ ] Aprovar CI em App e Admin.
-- [ ] **Se houver proposta futura de alteração** de Firestore Rules, validá-la no Emulator/ambiente isolado para os fluxos de campo; **não está autorizada nem programada alteração de regras nesta fase**. Nunca substituir a regra ativa pelo arquivo do Admin descontinuado.
-- [ ] Validar versão proposta do Cloudflare Worker em ambiente de testes, com bucket R2 separado, permissões e fluxo de upload/leitura/exclusão.
-- [ ] Comparar as versões ativas dos dois serviços com os patches revisados e planejar implantação compatível com o aplicativo já instalado.
-- [ ] Preservar cópias/versionamento das regras Firestore e do Worker **efetivamente em produção** e confirmar o procedimento de rollback para ambos.
-- [ ] Confirmar plano de rollback e observabilidade.
-- [ ] **Somente após auditoria, testes de regras, Worker e fluxos críticos**, autorizar e publicar as mudanças de infraestrutura na ordem compatível com a v0.1 e a v0.1.1.
-- [ ] Publicar/mesclar o frontend v0.1.1 somente após homologação e verificação de compatibilidade com o backend publicado.
-- [ ] Monitorar erros, consumo do Firestore, uploads e integridade após lançamento.
+- [x] Congelar escopo funcional e registrar versão candidata, GitHub Actions e Preview em `docs/release-candidate-v011-20261019.md`.
+- [x] Registrar riscos aceitos e adiados no backlog, com INF-07 não homologado e INF-08 server-side não atendido.
+- [x] Confirmar baseline de rollback da produção: deployment `dpl_8WPq6oNVxToLWDySozZ9x91gi89m`, SHA `1d32689dd44ce3d3ffa6e602017fe0cf1918a55e` (**rollback não testado**).
+- [ ] Conferir CI verde na HEAD **final** da PR e Preview `READY` no **mesmo SHA**; após documentar, não publicar nenhuma mudança não verificada.
+- [ ] Executar smoke manual mínimo sem gravar dados reais pelo Preview (compartilha backend PROD), e registrar testes que não puderem ser realizados sem staging.
+- [ ] Conferir atualização do PWA instalado; INF-09 continua adiado, sem alegar homologação.
+- [ ] Reconfirmar aceitação explícita dos riscos técnicos preexistentes e liberar por decisão do responsável.
+- [ ] Somente com aprovação, mesclar PR #26 em `main` para deploy automático Vercel; **não atualizar Firestore Rules, Worker nem CORS nesta release**.
+- [ ] Verificar SHA e domínio da produção e monitorar login, relatório/fotos, reads, quotas e Worker após publicação.
+- [ ] Se necessário, usar rollback do frontend para último deploy PROD estável e confirmar aliases; **não reverter dados Firestore automaticamente**.
+
+**Regra de mudança:** nada será publicado automaticamente. Se qualquer teste/CI falhar ou houver indicação de perda de dados, manter a v0.1 em produção até diagnóstico.
 
 ## Referências
 
@@ -124,8 +127,9 @@
 - [INF-08 — ausência de validação no servidor, risco aceito temporariamente](infra-inf08-relatorios-validacao-servidor-20261019.md)
 - [INF-10 — revisão rápida de rascunhos, fotos e IndexedDB](infra-inf10-revisao-rapida-rascunhos-fotos-20261019.md)
 - [Backlog pós-v0.1.1 — riscos conhecidos arquivados (inclui INF-09 adiado)](backlog-riscos-aceitos-pos-v011-20261019.md)
+- [Release Candidate v0.1.1 — versão candidata, CI, Preview e passos de deploy/rollback](release-candidate-v011-20261019.md)
 - [INF-04 a INF-06 — registro de aceite e riscos conhecidos](infra-inf04-inf06-aceite-piloto-20261019.md)
 - [Estabilização — código implementado, riscos e roteiro de teste](stabilizacao-v01-20261019.md)
 - PR de trabalho: https://github.com/brunokhunshi-dev/advance-app/pull/26
 
-**Ponto de retomada:** **entrar nas correções e validações da PR #26 para a v0.1.1**. A auditoria INF-07 segue não homologada; INF-08 documentou ausência de garantia server-side e manteve aceite do responsável; INF-09 adiado; INF-10 concluído apenas como revisão rápida; INF-11 backlog pronto. Fazer `npm run check`, `npm test` e smoke test de funcionalidades sem alterar dados reais antes de considerar o deploy; manter rollback preparado. **Nenhum merge/deploy de Rules/Worker está autorizado e o Preview usa backend de PROD.**
+**Ponto de retomada (amanhã):** abrir `docs/release-candidate-v011-20261019.md` e PR #26; confirmar **CI verde e Preview READY no commit final da PR**, realizar smoke não destrutivo e discutir testes não homologados. Somente então solicitar autorização para merge/publicação. **Produção v0.1 intacta; Firebase Rules, Worker e R2 inalterados**. INF-09 será revisitado em versão futura.
