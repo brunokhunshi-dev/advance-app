@@ -3,10 +3,10 @@
 **Atualizado em:** 19/10/2026  
 **Branch de trabalho:** `fix/stability-state-queries-20261019` — PR #26 (draft)  
 **Produção:** nenhuma correção desta PR foi mesclada/publicada.  
-**Etapa atual:** auditoria estrutural **estática concluída**; INF-01 da auditoria de infraestrutura **iniciado e parcialmente verificado** (Vercel confirmado, Worker/regras reais pendentes).
+**Etapa atual:** auditoria estrutural **estática concluída**; INF-01 **parcial** (Vercel confirmado, Worker/regras reais pendentes). Próxima execução técnica: completar análise de infraestrutura e matriz Firestore **INF-02**, sem publicar alterações de backend.
 
 **Legenda:** [x] feito/registrado; [ ] não concluído; `PARCIAL` = houve trabalho, mas não existe evidência suficiente para encerrar o item.  
-**Importante:** implementação na branch não significa teste aprovado, homologação nem deploy.
+**Importante:** implementação na branch não significa teste aprovado, homologação nem deploy. **Decisão de 19/10/2026:** não publicar novas regras Firestore nem Worker na Cloudflare enquanto a auditoria e homologação não forem concluídas; exceção somente para hotfix crítico comprovado, isolado e com rollback.
 
 ## 1. Preparação e preservação
 
@@ -38,8 +38,8 @@
 - [ ] **INF-01 — Baseline real (PARCIAL):** Vercel produção, commit e aliases conferidos; Preview identificado, com **mesmo Firebase e Worker da produção** no código. Pendem confirmação autenticada do script Worker ativo, regras Firestore publicadas, deploy do Admin e bindings R2. Evidências em `docs/infra-inf01-baseline-20261019.md`. **Não executar testes destrutivos no Preview atual.**
 - [ ] **INF-02 — Matriz Firestore:** inventariar TODAS as consultas/escritas por tela, ação, usuário e componente (App, Admin, Worker, Functions); distinguir leituras de SDK, chamadas REST do Worker e avaliações das regras.
 - [ ] **INF-03 — Custo/limites:** definir leitura esperada por login, abrir Início, Agenda, Histórico, relatório, fotos, check-in/out e telas Admin; revisar frequência, `getDocs` não limitado, deduplicação, retries e quota.
-- [ ] **INF-04 — Permissões reais:** inspecionar regras **efetivamente publicadas** e testar leitura/escrita por promotor, assistente, gestor e conta desativada. `advance-admin/firestore.rules` não substitui prova das regras de produção.
-- [ ] **INF-05 — Worker/Auth:** conferir código publicado, perfis ativos, autorização por atividade, tratamento de quotas, lote de mídias e a exceção de gestão associada a e-mail fixo vista no código versionado.
+- [ ] **INF-04 — Permissões reais:** inspecionar regras **efetivamente publicadas** e testar leitura/escrita por promotor, assistente, gestor e conta desativada. **Não publicar `advance-admin/firestore.rules` isoladamente:** o arquivo versionado proíbe gravações de `atividades` e pode bloquear a operação do PWA; preparar regra consolidada e testada para todas as funções necessárias.
+- [ ] **INF-05 — Worker/Auth:** consultar o código **atualmente publicado** (somente leitura), comparar com o repositório e auditar perfis ativos, autorização por atividade, quota, lote de mídias e exceção associada a e-mail fixo. **Não substituir o Worker ainda.**
 - [ ] **INF-06 — CORS e upload:** confirmar origem/métodos/headers e o caminho `POST upload-url → PUT R2 → commit Firestore`; reproduzir `Failed to fetch`.
 - [ ] **INF-07 — Consistência e rollback:** inspecionar todas as transações, estados intermediários, arquivos órfãos, exclusões, concorrência, falha antes/depois do commit e tratamento de erro após sucesso.
 - [ ] **INF-08 — Relatórios obrigatórios:** testar se escrita direta autenticada pode concluir atividade sem relatório válido ou vínculo correto; bloquear via regras/serviço caso possível.
@@ -70,6 +70,7 @@
 - [ ] Revisar criticamente o diff completo da PR #26 e corrigir eventuais regressões.
 - [ ] Garantir interface recuperável para backup local cujo relatório remoto mudou.
 - [ ] Validar no servidor as condições para marcar atividade concluída.
+- [ ] Preparar patches de Firestore Rules e Worker **na branch**, quando justificados por evidências; executar testes e revisão antes de qualquer publicação.
 - [ ] Corrigir achados de infraestrutura que se comprovem bloqueadores.
 - [ ] **Não** fazer refatoração arquitetural ampla na v0.1.1 sem teste/regressão que a sustente.
 
@@ -81,7 +82,7 @@
 - [ ] Confirmar `npm test` aprovado no commit candidato.
 - [ ] Confirmar GitHub Actions verde no commit candidato (**sem aprovação confirmada até aqui**).
 - [ ] Ampliar checks do Admin (hoje `npm run check` não cobre todos os arquivos centrais).
-- [ ] Preparar Firebase e R2 de homologação separados e contas fictícias; **não** testar cenários destrutivos em produção.
+- [ ] Preparar Firebase e R2 de homologação separados, incluindo configuração/rota de Worker de teste e contas fictícias; **não** testar cenários destrutivos no Preview conectado à produção.
 - [ ] Homologar no celular login, agenda, check-in/out, três relatórios, fotos e recuperação de rascunhos.
 - [ ] Simular rede instável, perda de sessão, fechamento forçado, falha de upload e escrita parcial.
 - [ ] Testar autorizações, escrita direta inválida, revogação de acesso e casos de quota.
@@ -89,13 +90,28 @@
 - [ ] Homologar Admin e coerência dos relatórios com App/Worker.
 - [ ] Homologar atualização de PWA instalado, Service Worker e rollback.
 
+## Política aprovada para Firebase Rules e Cloudflare Worker
+
+- [x] **Decisão de publicação registrada:** adiar mudanças em produção até concluir auditoria, preparar patches e homologar num ambiente isolado.
+- [x] **Exceção registrada:** apenas correção urgente para falha crítica comprovada, com escopo mínimo, testes direcionados e rollback validado, poderá seguir em hotfix separado.
+- [ ] Exportar/copiar de modo seguro a versão **ativa** das regras Firestore e do Worker antes de propor qualquer substituição (sem compartilhar segredos).
+- [ ] Fazer comparação **diff** entre versões publicadas e versionadas; registrar mudanças operacionais, permissões e dependências.
+- [ ] Obter aprovação da sequência de implantação e da janela de mudanças antes de publicar.
+- [ ] Confirmar, após futura publicação, os hashes/versões implantados, o funcionamento do PWA existente e as métricas de erros/requisições.
+
+**Não há publicação autorizada no momento. Auditoria e leitura de configurações podem continuar normalmente.**
+
 ## 7. Publicação v0.1.1
 
 - [ ] Aprovar os bloqueadores com evidência e testes.
 - [ ] Aprovar CI em App e Admin.
-- [ ] Validar releases e regras reais em ambiente de homologação.
+- [ ] Validar uma proposta consolidada de Firestore Rules no Emulator/ambiente isolado, incluindo permissões de campo, Admin e relatórios; nunca substituir a regra ativa apenas pelo arquivo do Admin.
+- [ ] Validar versão proposta do Cloudflare Worker em ambiente de testes, com bucket R2 separado, permissões e fluxo de upload/leitura/exclusão.
+- [ ] Comparar as versões ativas dos dois serviços com os patches revisados e planejar implantação compatível com o aplicativo já instalado.
+- [ ] Preservar cópias/versionamento das regras Firestore e do Worker **efetivamente em produção** e confirmar o procedimento de rollback para ambos.
 - [ ] Confirmar plano de rollback e observabilidade.
-- [ ] Publicar/mesclar somente após homologação.
+- [ ] **Somente após auditoria, testes de regras, Worker e fluxos críticos**, autorizar e publicar as mudanças de infraestrutura na ordem compatível com a v0.1 e a v0.1.1.
+- [ ] Publicar/mesclar o frontend v0.1.1 somente após homologação e verificação de compatibilidade com o backend publicado.
 - [ ] Monitorar erros, consumo do Firestore, uploads e integridade após lançamento.
 
 ## Referências
@@ -105,4 +121,4 @@
 - [Estabilização — código implementado, riscos e roteiro de teste](stabilizacao-v01-20261019.md)
 - PR de trabalho: https://github.com/brunokhunshi-dev/advance-app/pull/26
 
-**Ponto de retomada:** confirmar Cloudflare/Firestore/Admin para fechar **INF-01**; a matriz estática **INF-02** pode começar em paralelo com as pendências de acesso. Depois executar **INF-04** e **INF-06** em ambiente de homologação separado. Registrar achados antes de alterar código.
+**Ponto de retomada:** concluir a inspeção **somente leitura** de Cloudflare/Firestore/Admin (INF-01) e iniciar **INF-02 — matriz completa de leituras/gravações**. Depois, INF-04 e INF-06 com evidências; só planejar deploy de Rules/Worker **após** testar e homologar, salvo hotfix crítico isolado.
