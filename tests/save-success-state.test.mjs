@@ -9,7 +9,6 @@ test('erro na navegação depois do commit não informa que salvar falhou', asyn
     const controller = Object.assign(Object.create(CommercialReport.prototype), {
         key: 'visita-1',
         data: {name:'Contato',text:'Observação',photos:[],blocks:[]},
-        dataField: 'dadosComerciais',
         saving: false,
         photoGeneration: 0,
         drafts: new Map(),
