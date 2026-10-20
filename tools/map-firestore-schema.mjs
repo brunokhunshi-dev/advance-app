@@ -150,7 +150,7 @@ async function auth(apiKey) {
       const payload = await response.json();
       // Apenas o código padronizado: jamais imprimir payload, e-mail, senha ou token.
       const message = String(payload?.error?.message || '');
-      const match = message.match(/^([A-Z][A-Z0-9_]{2,80})(?=\\s|:|$)/);
+      const match = message.match(/^([A-Z][A-Z0-9_]{2,80})(?=\s|:|$)/);
       if (match) firebaseError = match[1];
     } catch {}
     throw new Error('Firebase Auth HTTP ' + response.status + ' — ' + firebaseError +
