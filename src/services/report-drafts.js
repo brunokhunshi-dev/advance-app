@@ -38,7 +38,7 @@ export function createReportDraftStore(factory = globalThis.indexedDB) {
             tx.oncomplete = () => resolve(result);
             tx.onabort = () => reject(tx.error || new Error('Não foi possível gravar o rascunho neste dispositivo.'));
             tx.onerror = () => reject(tx.error || new Error('Erro no armazenamento local.'));
-            const request = command(store);
+            const request = command(store, value => { result = value; });
             if (request) request.onsuccess = () => { result = request.result; };
         });
     }
@@ -49,19 +49,54 @@ export function createReportDraftStore(factory = globalThis.indexedDB) {
         void current.finally(() => { if (queues.get(key) === current) queues.delete(key); }).catch(() => {});
         return current;
     };
+    // Keep conflicts in the same object store: no database upgrade, and archive +
+    // replacement/deletion commit atomically. A failed archive leaves the draft intact.
+    const conflictKey = key => JSON.stringify(['conflicts', key]);
+    function archive(store, record, done) {
+        const key = conflictKey(record.key);
+        const request = store.get(key);
+        request.onsuccess = () => {
+            const entries = [...(request.result?.entries || []), record];
+            store.put({ key, entries });
+            done();
+        };
+    }
     function save(uid, activityId, type, data, files, baseSignature) {
         const key = keyFor(uid, activityId, type);
         const record = { key, data: structuredClone(data), files: [...files].map(([id, file]) => ({ id, file })), baseSignature, updatedAt: Date.now() };
-        return serial(key, () => transact('readwrite', store => store.put(record)));
+        return serial(key, () => transact('readwrite', store => {
+            const request = store.get(key);
+            request.onsuccess = () => {
+                const previous = request.result;
+                if (previous && previous.baseSignature !== baseSignature) {
+                    archive(store, previous, () => store.put(record));
+                } else store.put(record);
+            };
+        }));
     }
-    function load(uid, activityId, type) {
+    function load(uid, activityId, type, currentSignature) {
         const key = keyFor(uid, activityId, type);
-        const previous = queues.get(key) || Promise.resolve();
-        return previous.catch(() => {}).then(() => transact('readonly', store => store.get(key)));
+        return serial(key, () => transact('readwrite', (store, result) => {
+            const request = store.get(key);
+            request.onsuccess = () => {
+                const record = request.result;
+                result(record);
+                if (record && currentSignature !== undefined && record.baseSignature !== currentSignature) {
+                    // Return the original so the caller can show the conflict, but
+                    // detach it from the active slot before any post-save cleanup.
+                    archive(store, record, () => store.delete(key));
+                }
+            };
+        }));
+    }
+    function loadConflicts(uid, activityId, type) {
+        const key = keyFor(uid, activityId, type);
+        return serial(key, () => transact('readonly', store => store.get(conflictKey(key))))
+            .then(record => record?.entries || []);
     }
     function remove(uid, activityId, type) {
         const key = keyFor(uid, activityId, type);
         return serial(key, () => transact('readwrite', store => store.delete(key)));
     }
-    return { save, load, remove };
+    return { save, load, loadConflicts, remove };
 }

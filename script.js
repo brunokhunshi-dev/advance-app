@@ -2409,9 +2409,9 @@ function atualizarInterfaceVisitaAtual() {
             if (tipo === 'Visita comercial') {
                 const existing = commercialReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeSelecionadaId) || commercialReport.initial.get(atividadeSelecionadaId));
-                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo).catch(error => {
+                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo, reportSignature(objetoRelatorioGlobal)).catch(error => {
                     console.warn('Rascunho local indisponível.', error);
-                    return null;
+                    throw error;
                 });
                 if (!pedidoAtual()) return;
                 commercialReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
@@ -2426,9 +2426,9 @@ function atualizarInterfaceVisitaAtual() {
             if (tipo === 'Treinamento') {
                 const existing = trainingReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (trainingReport.saved.get(atividadeSelecionadaId) || trainingReport.initial.get(atividadeSelecionadaId));
-                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo).catch(error => {
+                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo, reportSignature(objetoRelatorioGlobal)).catch(error => {
                     console.warn('Rascunho local indisponível.', error);
-                    return null;
+                    throw error;
                 });
                 if (!pedidoAtual()) return;
                 trainingReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
@@ -2445,9 +2445,9 @@ function atualizarInterfaceVisitaAtual() {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
             technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
-            const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo).catch(error => {
+            const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo, reportSignature(objetoRelatorioGlobal)).catch(error => {
                 console.warn('Rascunho técnico indisponível.', error);
-                return null;
+                throw error;
             });
             if (!pedidoAtual()) return;
             const compatibilidade = backup?.baseSignature === reportSignature(objetoRelatorioGlobal);
