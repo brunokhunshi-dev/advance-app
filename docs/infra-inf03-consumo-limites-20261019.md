@@ -214,3 +214,8 @@ O responsável optou por **manter a operação atual no piloto com 3 promotores*
 
 **Status registrado:** `INF-03 — CONCLUÍDO POR ACEITE PARA PILOTO; HOMOLOGAÇÃO/MEDIÇÃO COMPLETA PENDENTES`. Próxima etapa autorizada conforme checklist: INF-07 após registro de aceite de INF-04/05/06.
 
+
+
+## Revalidação de 20/10/2026
+
+Cache/single-flight de atividades confirmado por revisão e testes locais. Escopo limitado a Início/Agenda: não é limite global/servidor nem diagnóstico confirmado da quota original. Não há novas métricas produtivas nesta revisão. Ver [parecer atual](revisao-rc-v011-20261020.md).

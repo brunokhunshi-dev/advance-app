@@ -157,3 +157,8 @@ Usar **Firestore/Auth/Worker/R2 de homologação isolados** com contas e ativida
 - [ ] Encerrar apenas após homologação dos casos de integridade essenciais ou aceite explícito dos riscos remanescentes pelo responsável.
 
 **Status final deste documento:** INF-07 **INICIADO / PARCIAL (auditoria estática documentada)**; nenhuma correção proposta foi aplicada. **INF-08 permanece pendente.**
+
+
+## Revalidação de 20/10/2026
+
+Permanece NÃO HOMOLOGADO. Check e 161 testes passaram localmente; não houve upload/DELETE R2 ou escrita Firestore. REV-01 confirma risco de perda do backup local em conflito, descrito no parecer; não equivale a reprodução de perda no R2. Ver [parecer atual](revisao-rc-v011-20261020.md).

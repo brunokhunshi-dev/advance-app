@@ -1,5 +1,8 @@
 # Estabilização v0.1 — 19/10/2026
 
+> **Atualização de 20/10/2026 — DEPLOY BLOQUEADO (REV-01).** Revisão reproduziu sobrescrita do backup conflitante no próximo backup automático. A afirmação anterior de preservação permanente está corrigida por este registro. INF-10 reaberto; aceites de infraestrutura permanecem. Check e 161 testes passaram, CI e Preview READY confirmados em `6ad0b1e`, mas não cobriam este defeito. Ver [parecer e critérios de liberação](revisao-rc-v011-20261020.md). Registros de 19/10 abaixo são históricos e não constituem liberação atual.
+
+
 **Estado:** alterações experimentais na branch `fix/stability-state-queries-20261019`; **não publicar sem homologação**.
 
 ## Entregas incluídas

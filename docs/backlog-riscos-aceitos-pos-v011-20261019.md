@@ -1,5 +1,8 @@
 # Backlog pós-v0.1.1 — riscos conhecidos aceitos e melhorias adiadas
 
+> **Atualização de 20/10/2026 — DEPLOY BLOQUEADO (REV-01).** Revisão reproduziu sobrescrita do backup conflitante no próximo backup automático. A afirmação anterior de preservação permanente está corrigida por este registro. INF-10 reaberto; aceites de infraestrutura permanecem. Check e 161 testes passaram, CI e Preview READY confirmados em `6ad0b1e`, mas não cobriam este defeito. Ver [parecer e critérios de liberação](revisao-rc-v011-20261020.md). Registros de 19/10 abaixo são históricos e não constituem liberação atual.
+
+
 **Registro:** 19/10/2026 | **Responsável pelo aceite operacional:** proprietário do Advance Check | **Status:** ARQUIVADO PARA FUTURA REVISÃO, NÃO CORRIGIDO  
 **Vínculo:** [Checklist v0.1.1](checklist-estabilizacao-v011-20261019.md), [INF-01](infra-inf01-baseline-20261019.md), [INF-02](infra-inf02-matriz-firestore-20261019.md), [INF-03](infra-inf03-consumo-limites-20261019.md), [INF-04–06](infra-inf04-inf06-aceite-piloto-20261019.md), [INF-07](infra-inf07-integridade-transacoes-r2-20261019.md), [INF-08](infra-inf08-relatorios-validacao-servidor-20261019.md), [INF-10](infra-inf10-revisao-rapida-rascunhos-fotos-20261019.md), [auditoria estrutural](auditoria-estrutural-v011-20261019.md).
 
@@ -26,7 +29,7 @@
 | FUT-DATA05 | Cadastro CNPJ é idempotente por ID determinístico, mas a base legada pode conter IDs independentes; cadastro sem CNPJ admite duplicidade | INF-07 F07-06 | P2; testar migração/unicidade legada |
 | FUT-DATA06 | Comportamento de `pagehide`/backup assíncrono e último trecho ainda não persistido | INF-10 FUT-DR01, EST-09 | **P1 se houver perda relatada**, testar Android/iOS PWA |
 | FUT-DATA07 | IndexedDB sujeito à quota, evicção e limpeza/desinstalação | INF-10 FUT-DR02 | P2; aviso de retenção e testes em dispositivos |
-| FUT-DATA08 | Backup incompatível preservado mas sem UI para visualizar/mesclar | INF-10 FUT-DR03, `stabilizacao-v01-20261019.md` | P2; tela de resolução sem sobrescrever servidor |
+| FUT-DATA08 / REV-01 | **P1 REABERTO:** backup incompatível pode ser substituído no próximo flush; não é só falta de UI | INF-10 FUT-DR03, `stabilizacao-v01-20261019.md` | P2; tela de resolução sem sobrescrever servidor |
 | FUT-DATA09 | Duas abas podem sobrescrever backups locais da mesma visita; não há exclusividade cross-tab | INF-10 FUT-DR04 | P2; coordenação por versão/aba e teste |
 | FUT-DATA10 | Troca de conta durante foto/upload/backup e limpeza de cache/URLs exigem homologação real | INF-10 FUT-DR06 | P2; testes de isolamento e sessão |
 

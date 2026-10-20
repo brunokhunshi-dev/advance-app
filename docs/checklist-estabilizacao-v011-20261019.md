@@ -1,6 +1,9 @@
 # Checklist oficial de estabilização — Advance Check v0.1.1
 
-**Atualizado em:** 19/10/2026  
+> **Atualização de 20/10/2026 — DEPLOY BLOQUEADO (REV-01).** Revisão reproduziu sobrescrita do backup conflitante no próximo backup automático. A afirmação anterior de preservação permanente está corrigida por este registro. INF-10 reaberto; aceites de infraestrutura permanecem. Check e 161 testes passaram, CI e Preview READY confirmados em `6ad0b1e`, mas não cobriam este defeito. Ver [parecer e critérios de liberação](revisao-rc-v011-20261020.md). Registros de 19/10 abaixo são históricos e não constituem liberação atual.
+
+
+**Atualizado em:** 20/10/2026  
 **Branch de trabalho:** `fix/stability-state-queries-20261019` — PR #26 (draft)  
 **Produção:** nenhuma correção desta PR foi mesclada/publicada.  
 **Etapa atual:** **v0.1.1 em Release Candidate, sem deploy**. Auditoria INF-01…INF-11 documentada com INF-07 não homologado, INF-08 sem garantia server-side (risco aceito), INF-09 adiado e INF-10 somente revisão rápida. **GitHub Actions verde no commit funcional `2181d6e`: 161/161 testes e `npm run check` aprovados; Preview Vercel correspondente `READY`.** Responsável adiou publicação para amanhã. Último gate: validação manual, checagem de HEAD/CI do commit final e aprovação. Plano em `docs/release-candidate-v011-20261019.md`.
@@ -44,7 +47,7 @@
 - [ ] **INF-07 — NÃO HOMOLOGADO; REVISÃO ESTÁTICA CONCLUÍDA, RISCOS ARQUIVADOS:** transações Firestore atômicas verificadas por código; R2 PUT/DELETE é externo e best-effort. Aguardar ambiente isolado para testes T07-01…T07-10; **não apresentar testes como aprovados**. Alterações pós-commit existem apenas na PR. Referências: `docs/infra-inf07-integridade-transacoes-r2-20261019.md` e `docs/backlog-riscos-aceitos-pos-v011-20261019.md`.
 - [x] **INF-08 — ANÁLISE ESTÁTICA CONCLUÍDA, SERVIDOR NÃO CONFORME (RISCO P1 PREEXISTENTE ACEITO PARA PILOTO):** checkout comercial, treinamento, assistência e fechamento manual validam campos e documentos dentro do JS cliente; regras atuais `request.auth != null` **não impedem escrita direta para `Concluída` sem relatório**. Não homologado server-side nem corrigido; **não publicar regras novas nesta janela**. Evidências: `docs/infra-inf08-relatorios-validacao-servidor-20261019.md` e backlog.
 - [ ] **INF-09 — ADIADO PARA VERSÃO FUTURA POR DECISÃO DO RESPONSÁVEL:** revisão do Service Worker, cache, atualização da instalação/offline e alternância de conta não homologadas nesta janela. Não classificar como concluído; registrar em `docs/backlog-riscos-aceitos-pos-v011-20261019.md` (FUT-PWA01).
-- [x] **INF-10 — REVISÃO RÁPIDA CONCLUÍDA, NÃO HOMOLOGADA:** verificados por código: rascunhos separados por UID/visita/tipo, Blobs no IndexedDB, assinatura-base anti-conflito, restauração de fotos, mensagens quando arquivo falta, leitura sob demanda. **Não testados** fechamento abrupto, falta de espaço, evicção, conflito interabas, device PWA real; riscos FUT-DR01…06 arquivados para versão futura. Evidência: `docs/infra-inf10-revisao-rapida-rascunhos-fotos-20261019.md`.
+- [ ] **INF-10 — REABERTO EM 20/10, REV-01 P1 REPRODUZIDO:** verificados por código: rascunhos separados por UID/visita/tipo, Blobs no IndexedDB, assinatura-base anti-conflito, restauração de fotos, mensagens quando arquivo falta, leitura sob demanda. **Não testados** fechamento abrupto, falta de espaço, evicção, conflito interabas, device PWA real; riscos FUT-DR01…06 arquivados para versão futura. Evidência: `docs/infra-inf10-revisao-rapida-rascunhos-fotos-20261019.md`.
 - [x] **INF-11 — CONSOLIDAÇÃO DOCUMENTAL CONCLUÍDA:** evidências e ressalvas INF-01…INF-10 registradas nos relatórios, com índice central de riscos técnicos e decisões de aceite em `docs/backlog-riscos-aceitos-pos-v011-20261019.md`. **Não são cenários de homologação executados; registros de CI/QA/deploy da v0.1.1 continuam pendentes.**
 
 **Fora do escopo bloqueador:** trava transacional de dois check-ins simultâneos do mesmo promotor. Mantém-se validação atual no fluxo normal; reavaliar somente se surgir requisito/evidência operacional.
@@ -55,8 +58,8 @@
 - [x] Distinguir dívida estrutural de bugs específicos e de riscos ainda não comprovados no deploy.
 - [x] Propor arquitetura-alvo incremental para App, Admin, Worker e schemas.
 - [x] Registrar e vincular no checklist o baseline INF-01 e a matriz estática INF-02 com evidências e pendências separadas. O relatório de auditoria estrutural original permanece preservado.
-- [ ] Definir lista **final** de bloqueadores v0.1.1 com critério objetivo de aceite e regressão.
-- [ ] Priorizar correções sem ampliar desnecessariamente o escopo do release.
+- [x] Definir bloqueador confirmado REV-01 e critérios objetivos de liberação no parecer de 20/10.
+- [x] Priorizar correção mínima de REV-01 antes do smoke e nova avaliação de deploy.
 
 ## 5. Correções prioritárias — implementadas na branch, NÃO homologadas
 
@@ -67,7 +70,8 @@
 - [x] Ajustar estado de sucesso quando relatório é persistido, mas callback da interface falha.
 - [x] Implementar backups locais de relatórios comerciais, treinamento e editor técnico, incluindo arquivos comprimidos via IndexedDB.
 - [x] Acrescentar validação de módulos obrigatórios no fechamento manual do treinamento.
-- [ ] Revisar criticamente o diff completo da PR #26 e corrigir eventuais regressões.
+- [x] Revisar o diff funcional da PR #26 contra main; parecer de 20/10 registrado.
+- [ ] Corrigir REV-01: backup conflitante pode ser sobrescrito; acrescentar regressão e revalidar candidata.
 - [ ] Garantir interface recuperável para backup local cujo relatório remoto mudou.
 - [ ] Validar no servidor as condições para marcar atividade concluída.
 - [ ] Preparar patches de Firestore Rules e Worker **na branch**, quando justificados por evidências; executar testes e revisão antes de qualquer publicação.
@@ -102,7 +106,7 @@
 
 **Não há publicação autorizada no momento. Auditoria e leitura de configurações podem continuar normalmente.**
 
-## 7. Publicação v0.1.1 — aguardando amanhã
+## 7. Publicação v0.1.1 — bloqueada por REV-01
 
 - [x] Congelar escopo funcional e registrar versão candidata, GitHub Actions e Preview em `docs/release-candidate-v011-20261019.md`.
 - [x] Registrar riscos aceitos e adiados no backlog, com INF-07 não homologado e INF-08 server-side não atendido.

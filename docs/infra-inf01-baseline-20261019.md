@@ -147,3 +147,8 @@ O usuário informou em 19/10/2026 que **Advance Admin está descontinuado**. Rem
 **Próxima etapa liberada pelo responsável em 19/10/2026:** INF-02, matriz de operações Firestore dos componentes ativos. Não há necessidade de novo deploy para iniciar. A verificação adicional de Cloudflare/R2 permanece aberta como ressalva de evidência, sem interromper a sequência.
 
 **Nenhum arquivo de aplicação, deploy, bucket, regra ou dado foi alterado nesta inspeção.**
+
+
+## Revalidação de 20/10/2026
+
+Produção reconfirmada no domínio Vercel em 20/10: SHA `1d32689dd44ce3d3ffa6e602017fe0cf1918a55e`, deployment `dpl_8WPq6oNVxToLWDySozZ9x91gi89m`, READY. Preview PR #26 `6ad0b1e` READY. Nenhuma nova verificação independente de Cloudflare/R2/Rules. Ver [parecer atual](revisao-rc-v011-20261020.md).
