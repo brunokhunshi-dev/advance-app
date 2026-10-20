@@ -144,7 +144,18 @@ async function auth(apiKey) {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({...credentials, returnSecureToken:true})
   });
-  if (!response.ok) throw new Error('Falha na autenticação Firebase (HTTP ' + response.status + ').');
+  if (!response.ok) {
+    let firebaseError = 'UNKNOWN';
+    try {
+      const payload = await response.json();
+      // Apenas o código padronizado: jamais imprimir payload, e-mail, senha ou token.
+      const message = String(payload?.error?.message || '');
+      const match = message.match(/^([A-Z][A-Z0-9_]{2,80})(?=\\s|:|$)/);
+      if (match) firebaseError = match[1];
+    } catch {}
+    throw new Error('Firebase Auth HTTP ' + response.status + ' — ' + firebaseError +
+      '. Confira se o e-mail pertence ao projeto e se a conta possui login por e-mail/senha.');
+  }
   const result = await response.json();
   if (!result.idToken) throw new Error('Autenticação sem token.');
   return result.idToken;
