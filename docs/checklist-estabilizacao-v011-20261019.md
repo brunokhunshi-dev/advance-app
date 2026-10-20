@@ -1,6 +1,6 @@
 # Checklist oficial de estabilização — Advance Check v0.1.1
 
-> **Correção de REV-01 — 20/10/2026:** implementado arquivamento atômico de texto e Blobs em conflito, separado do backup ativo no mesmo IndexedDB, para comercial, treinamento e assistência. Novos backups e limpeza após salvar não apagam os arquivos de conflito. Falha ao ler/arquivar interrompe abertura do editor, preservando o original. Regressões adicionadas; CI desta correção ainda pendente neste registro. INF-10 permanece sem homologação em navegador/celular real; publicação não autorizada. Os registros anteriores de bloqueio abaixo descrevem o diagnóstico antes deste patch.
+> **Correção de REV-01 — 20/10/2026:** implementado arquivamento atômico de texto e Blobs em conflito, separado do backup ativo no mesmo IndexedDB, para comercial, treinamento e assistência. Novos backups e limpeza após salvar não apagam os arquivos de conflito. Falha ao ler/arquivar interrompe abertura do editor, preservando o original. Regressões aprovadas: 170/170 testes no CI do commit funcional `acd97ee`. REV-01 corrigido no código; validação real em celular pendente. INF-10 permanece sem homologação em navegador/celular real; publicação não autorizada. Os registros anteriores de bloqueio abaixo descrevem o diagnóstico antes deste patch.
 
 
 > **Atualização de 20/10/2026 — DEPLOY BLOQUEADO (REV-01).** Revisão reproduziu sobrescrita do backup conflitante no próximo backup automático. A afirmação anterior de preservação permanente está corrigida por este registro. INF-10 reaberto; aceites de infraestrutura permanecem. Check e 161 testes passaram, CI e Preview READY confirmados em `6ad0b1e`, mas não cobriam este defeito. Ver [parecer e critérios de liberação](revisao-rc-v011-20261020.md). Registros de 19/10 abaixo são históricos e não constituem liberação atual.
@@ -74,7 +74,8 @@
 - [x] Implementar backups locais de relatórios comerciais, treinamento e editor técnico, incluindo arquivos comprimidos via IndexedDB.
 - [x] Acrescentar validação de módulos obrigatórios no fechamento manual do treinamento.
 - [x] Revisar o diff funcional da PR #26 contra main; parecer de 20/10 registrado.
-- [ ] Corrigir REV-01: backup conflitante pode ser sobrescrito; acrescentar regressão e revalidar candidata.
+- [x] Corrigir REV-01: conflitos arquivados atomicamente; 9 regressões novas e 170/170 testes aprovados no CI `39427047733` (`acd97ee`).
+- [ ] Validar preservação real em IndexedDB/PWA no celular e completar smoke antes de liberar deploy.
 - [ ] Garantir interface recuperável para backup local cujo relatório remoto mudou.
 - [ ] Validar no servidor as condições para marcar atividade concluída.
 - [ ] Preparar patches de Firestore Rules e Worker **na branch**, quando justificados por evidências; executar testes e revisão antes de qualquer publicação.
@@ -109,7 +110,7 @@
 
 **Não há publicação autorizada no momento. Auditoria e leitura de configurações podem continuar normalmente.**
 
-## 7. Publicação v0.1.1 — bloqueada por REV-01
+## 7. Publicação v0.1.1 — correção automática aprovada; homologação manual pendente
 
 - [x] Congelar escopo funcional e registrar versão candidata, GitHub Actions e Preview em `docs/release-candidate-v011-20261019.md`.
 - [x] Registrar riscos aceitos e adiados no backlog, com INF-07 não homologado e INF-08 server-side não atendido.
@@ -140,3 +141,10 @@
 - PR de trabalho: https://github.com/brunokhunshi-dev/advance-app/pull/26
 
 **Ponto de retomada (amanhã):** abrir `docs/release-candidate-v011-20261019.md` e PR #26; confirmar **CI verde e Preview READY no commit final da PR**, realizar smoke não destrutivo e discutir testes não homologados. Somente então solicitar autorização para merge/publicação. **Produção v0.1 intacta; Firebase Rules, Worker e R2 inalterados**. INF-09 será revisitado em versão futura.
+
+
+## Evidências da correção REV-01 — 20/10/2026
+
+**CI confirmado:** [run 39427047733](https://github.com/brunokhunshi-dev/advance-app/actions/runs/39427047733), `npm run check` aprovado e **170/170 testes** (9 regressões novas), no commit funcional `acd97eeaf0cfc7f74fb39371c5d2f662937d9eee`. Preview do mesmo SHA READY: `dpl_8mK9A3Lfc52fdnTRkKq2hCN3DUWM`, https://advance-mi0w5omzq-khunshiiiis-projects.vercel.app. Commits documentais posteriores exigem conferência de CI/Preview na HEAD antes de merge.
+
+**Estado atual:** correção implementada e regressões automáticas aprovadas. INF-10 continua sem homologação em navegador/celular real. Nenhum merge/deploy de produção realizado. Permanecem os gates manuais e riscos de infraestrutura anteriormente aceitos.

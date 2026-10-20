@@ -1,6 +1,6 @@
 # Backlog pós-v0.1.1 — riscos conhecidos aceitos e melhorias adiadas
 
-> **Correção de REV-01 — 20/10/2026:** implementado arquivamento atômico de texto e Blobs em conflito, separado do backup ativo no mesmo IndexedDB, para comercial, treinamento e assistência. Novos backups e limpeza após salvar não apagam os arquivos de conflito. Falha ao ler/arquivar interrompe abertura do editor, preservando o original. Regressões adicionadas; CI desta correção ainda pendente neste registro. INF-10 permanece sem homologação em navegador/celular real; publicação não autorizada. Os registros anteriores de bloqueio abaixo descrevem o diagnóstico antes deste patch.
+> **Correção de REV-01 — 20/10/2026:** implementado arquivamento atômico de texto e Blobs em conflito, separado do backup ativo no mesmo IndexedDB, para comercial, treinamento e assistência. Novos backups e limpeza após salvar não apagam os arquivos de conflito. Falha ao ler/arquivar interrompe abertura do editor, preservando o original. Regressões aprovadas: 170/170 testes no CI do commit funcional `acd97ee`. REV-01 corrigido no código; validação real em celular pendente. INF-10 permanece sem homologação em navegador/celular real; publicação não autorizada. Os registros anteriores de bloqueio abaixo descrevem o diagnóstico antes deste patch.
 
 
 > **Atualização de 20/10/2026 — DEPLOY BLOQUEADO (REV-01).** Revisão reproduziu sobrescrita do backup conflitante no próximo backup automático. A afirmação anterior de preservação permanente está corrigida por este registro. INF-10 reaberto; aceites de infraestrutura permanecem. Check e 161 testes passaram, CI e Preview READY confirmados em `6ad0b1e`, mas não cobriam este defeito. Ver [parecer e critérios de liberação](revisao-rc-v011-20261020.md). Registros de 19/10 abaixo são históricos e não constituem liberação atual.
@@ -72,3 +72,10 @@ Reclassificar um item como **correção urgente** se for detectado vazamento/ace
 - **v0.1.1 desta janela:** homologar patches já existentes na PR #26, executar validação de sintaxe/testes e smoke tests não destrutivos; corrigir apenas regressões confirmadas relevantes, com reversão preparada. Não substituir Firebase Rules nem Worker. 
 - **Versão futura:** itens A–D acima, após priorização e aprovação, com Firebase/Worker/R2 de homologação separados. A severidade técnica P1 de segurança permanece no backlog mesmo sem bloqueio administrativo escolhido para o piloto.
 - **INF-11:** evidências históricas preservadas nos relatórios individuais; este arquivo é o **índice central de débitos/riscos conhecidos**, não um certificado de correção ou substituto de logs de deploy.
+
+
+## Evidências da correção REV-01 — 20/10/2026
+
+**CI confirmado:** [run 39427047733](https://github.com/brunokhunshi-dev/advance-app/actions/runs/39427047733), `npm run check` aprovado e **170/170 testes** (9 regressões novas), no commit funcional `acd97eeaf0cfc7f74fb39371c5d2f662937d9eee`. Preview do mesmo SHA READY: `dpl_8mK9A3Lfc52fdnTRkKq2hCN3DUWM`, https://advance-mi0w5omzq-khunshiiiis-projects.vercel.app. Commits documentais posteriores exigem conferência de CI/Preview na HEAD antes de merge.
+
+**Estado atual:** correção implementada e regressões automáticas aprovadas. INF-10 continua sem homologação em navegador/celular real. Nenhum merge/deploy de produção realizado. Permanecem os gates manuais e riscos de infraestrutura anteriormente aceitos.
