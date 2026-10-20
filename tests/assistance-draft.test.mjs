@@ -11,6 +11,9 @@ test('real assistance save handler persists an empty draft and links it to the a
     let handler;
     const fields=new Map();
     const context=vm.createContext({...reports, serializarEstavel, TextEncoder, Date,
+        // The browser exposes timers and the local draft store used after a successful commit.
+        clearTimeout:()=>{}, technicalBackupTimer:null,
+        reportDraftStore:{remove:async()=>{}},
         db:{},atividadeSelecionadaId:'visit',objetoAtividadeGlobal:records.get('atividades/visit'),objetoRelatorioGlobal:null,operacaoEmCurso:false,nomeUsuarioLogado:'Ana',
         document:{getElementById(id){
             if(!fields.has(id))fields.set(id,{value:'',textContent:'#DRAFT',addEventListener:(_,fn)=>handler=fn});

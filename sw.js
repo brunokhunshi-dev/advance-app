@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-profile-v72';
+const CACHE_NAME = 'advance-pwa-stability-v74';
 const APP_SHELL = [
   './', './index.html', './styles.css', './motion.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -6,6 +6,9 @@ const APP_SHELL = [
   './midia/logo-advancecheck.svg', './midia/iconspwa/favicon.svg',
   './midia/iconspwa/advancecheck192.png', './midia/iconspwa/advancecheck512.png',
   './src/data/client-repository.js',
+  './src/data/activity-repository.js',
+  './src/domain/request-scope.js',
+  './src/services/report-drafts.js',
   './src/data/product-repository.js',
   './src/data/product-import.js',
   './data/produtos-advance.json',

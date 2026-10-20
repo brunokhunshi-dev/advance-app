@@ -26,6 +26,9 @@ import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, bu
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
+import { createActivityRepository } from './src/data/activity-repository.js';
+import { createRequestScope } from './src/domain/request-scope.js';
+import { createReportDraftStore, reportSignature } from './src/services/report-drafts.js';
 import { describeOperationError } from './src/domain/operation-errors.js';
 import { clearMediaUrlCache, readProfilePhotoUrl, TechnicalReportEditor, initializeMediaPreviews, configureMediaApi, mediaStore } from './technical-report-editor.js';
 const productRepository = createProductRepository(async () => {
@@ -50,8 +53,43 @@ const productRepository = createProductRepository(async () => {
     return snapshot.docs.map(document => ({...document.data(), id:document.id}));
 });
 let technicalEditor;
+let technicalBackupTimer = null;
 let commercialReport;
 let trainingReport;
+
+// Recuperação do editor técnico e dos relatórios legados sem acessar o Firestore.
+function agendarBackupTecnico() {
+    if (!technicalEditor?.activityId || !objetoAtividadeGlobal || operacaoEmCurso) return;
+    const tipo = normalizarTipoVisita(objetoAtividadeGlobal);
+    if (tipo === 'Visita comercial' || tipo === 'Treinamento') return;
+    clearTimeout(technicalBackupTimer);
+    technicalBackupTimer = setTimeout(() => { void gravarBackupTecnico(); }, 350);
+}
+async function gravarBackupTecnico() {
+    clearTimeout(technicalBackupTimer);
+    technicalBackupTimer = null;
+    if (!technicalEditor?.activityId || !objetoAtividadeGlobal || operacaoEmCurso) return;
+    const tipo = normalizarTipoVisita(objetoAtividadeGlobal), id = atividadeSelecionadaId;
+    if (tipo === 'Visita comercial' || tipo === 'Treinamento' || technicalEditor.activityId !== id) return;
+    try {
+        const sessao = sessaoAtual();
+        const blocks = structuredClone(technicalEditor.blocks);
+        const files = blocks.filter(block => block.kind === 'media' && block.storage !== 'r2')
+            .map(block => [block.id, mediaStore.local(block.id)?.file])
+            .filter(([, file]) => !!file);
+        const data = {
+            text: technicalEditor.input.value,
+            blocks,
+            assistencia: tipo === ASSISTENCIA_TECNICA_TIPO ? lerFormularioAssistencia(objetoRelatorioGlobal) : null
+        };
+        await reportDraftStore.save(sessao.uid, id, tipo, data, files, reportSignature(objetoRelatorioGlobal));
+    } catch (error) {
+        console.warn('Não foi possível proteger o relatório técnico no dispositivo.', error);
+        const status = document.getElementById('at-media-status');
+        if (status && !operacaoEmCurso) status.textContent = 'Atenção: o rascunho não foi protegido neste dispositivo. Salve o relatório.';
+    }
+}
+
 function abrirPrototipoComercial(page = 'overview', reviewCheckout = false, navegar = true) {
     const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
     const formato = formatarDataHoraPT(chegada);
@@ -78,6 +116,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 const db = getFirestore(app);
+const reportDraftStore = createReportDraftStore();
 
 configureMediaApi({
     getIdToken: async () => {
@@ -116,6 +155,10 @@ const clientesRepository = createClientRepository(async clienteId => {
     return snap.exists() ? { ...snap.data(), id: snap.id } : null;
 });
 const obterCliente = clientesRepository.get;
+const activityRepository = createActivityRepository(async userId => {
+    const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', userId), where('status', 'in', ['Pendente', 'Em andamento'])));
+    return snap.docs.map(documento => ({ ...documento.data(), id: documento.id }));
+});
 let historicoCarregado = null;
 let clienteVisualizadorAtual = null;
 
@@ -142,6 +185,8 @@ let callbackExclusaoAtual = null; // Callback para o modal de exclusão
 // Operações assíncronas não devem reutilizar IDs de outra sessão/tela.
 
 let versaoSessao = 0;
+const visualizadorScope = createRequestScope();
+const relatorioScope = createRequestScope();
 
 let operacaoEmCurso = false;
 
@@ -327,6 +372,9 @@ function mostrarEditorRelatorioPorTipo(tipo) {
 class ErroCheckoutLocalizacao extends Error {}
 
 function limparEstadoVisita() {
+    visualizadorScope.invalidate();
+    relatorioScope.invalidate();
+    clearTimeout(technicalBackupTimer); technicalBackupTimer = null;
 
     atividadeSelecionadaId = null; clienteSelecionadoId = null; clienteSelecionadoNome = '';
 
@@ -437,6 +485,7 @@ function inicializarAplicativo() {
         passwordDialog.close();
         const versao = ++versaoSessao;
         productRepository.clear();
+        activityRepository.clear();
         commercialReport?.clear();
         trainingReport?.clear();
 
@@ -613,6 +662,9 @@ const buscarClientePorCnpj = createCnpjLookup((campoCnpj, valor) =>
 );
 
 function mostrarApenasTela(idTelaAlvo) {
+    // Também protege navegações pelo botão voltar do navegador (popstate).
+    if (idTelaAlvo !== 'tela-visualizador-visita') visualizadorScope.invalidate();
+    if (idTelaAlvo !== 'tela-relatorio') relatorioScope.invalidate();
     if (idTelaAlvo === 'tela-nova-visita') atualizarLimitesAgendamento();
 
     const telas = ['tela-inicio', 'tela-agenda', 'tela-historico', 'tela-nova-visita', 'tela-cadastro-cliente', 'tela-visita-atual', 'tela-relatorio', 'tela-perfil', 'tela-detalhes-visita', 'tela-checkout', 'tela-visualizador-visita'];
@@ -856,9 +908,7 @@ async function carregarAtividadesPendentes() {
 
     try {
 
-        const snap = await getDocs(query(collection(db, 'atividades'), where('ptvId', '==', sessao.id), where('status', 'in', ['Pendente','Em andamento'])));
-
-        const atividades = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        const atividades = await activityRepository.listActive(sessao.id);
 
         atividades.sort((a,b) => Number(b.status === 'Em andamento') - Number(a.status === 'Em andamento') || tempoData(a.data) - tempoData(b.data));
 
@@ -989,20 +1039,17 @@ async function carregarAgenda() {
 
     try {
 
-        // Inclui "Em andamento" na pesquisa
-
-        const q = query(collection(db, "atividades"), where("ptvId", "==", idUsuarioLogado), where("status", "in", ["Pendente", "Em andamento"]));
-
-        const querySnapshot = await getDocs(q);
+        // Compartilha a leitura da agenda com a tela inicial.
+        const atividadesBase = await activityRepository.listActive(sessao.id);
 
         if (!sessaoValida(sessao) || pedido !== sequenciaAgenda) return;
 
         listaAtividadesAgenda = [];
 
 
-        const atividadesCarregadas = await Promise.all(querySnapshot.docs.map(async documento => {
+        const atividadesCarregadas = await Promise.all(atividadesBase.map(async atividade => {
 
-            const dados = documento.data(); dados.id = documento.id;
+            const dados = { ...atividade };
             dados.nomeCliente = "Cliente não encontrado"; dados.enderecoCompleto = ""; dados.localidadeAgenda = "";
 
             const cliente = dados.clienteId ? await obterCliente(dados.clienteId) : null;
@@ -1405,6 +1452,7 @@ function configurarTelaNovaVisita() {
                     status: 'Pendente', criadoEm: agora, atualizadoEm: agora
 
                 });
+                activityRepository.invalidate();
 
                 if (!sessaoValida(sessao)) return;
 
@@ -1436,6 +1484,8 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
     if (operacaoEmCurso || !atividadeId) return;
 
     const sessao = sessaoAtual();
+    const pedido = visualizadorScope.begin(atividadeId);
+    const visualizacaoAtual = () => visualizadorScope.isCurrent(pedido, atividadeId) && sessaoValida(sessao);
     const area = document.getElementById('tela-visualizador-visita');
     const clienteEl = document.getElementById('visu-cliente');
 
@@ -1447,7 +1497,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
 
     try {
         const atividadeSnap = await getDoc(doc(db, 'atividades', atividadeId));
-        exigirSessao(sessao);
+        if (!visualizacaoAtual()) return;
 
         if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
         const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
@@ -1458,7 +1508,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
             atividade.relatorioId ? carregarRelatorioDaAtividade(atividade) : Promise.resolve(null)
         ]);
 
-        exigirSessao(sessao);
+        if (!visualizacaoAtual()) return;
 
         if (relatorio && (relatorio.atividadeId !== atividade.id || relatorio.ptvId !== sessao.id)) {
             throw new Error('O relatório associado não corresponde a esta visita.');
@@ -1474,6 +1524,7 @@ window.abrirVisualizadorVisita = async function(atividadeId) {
         clienteVisualizadorAtual = cliente;
         renderizarVisualizadorVisita(atividade, cliente, relatorio);
     } catch (erro) {
+        if (!visualizacaoAtual()) return;
         informarErro('Não foi possível abrir a visita', erro);
         navegarParaTela('tela-historico', { substituir: true });
     }
@@ -1596,6 +1647,7 @@ function configurarTelaDetalhesVisita() {
                 validateSession: () => exigirSessao(sessao), usuarioId: sessao.id,
                 motivo: motivo.value, detalhe: detalhe.value
             });
+            activityRepository.invalidate();
             if (!sessaoValida(sessao)) return;
             cancelDialog.close();
             if (atividadeSelecionadaId === id) limparEstadoVisita();
@@ -1652,6 +1704,7 @@ function configurarTelaDetalhesVisita() {
 
             });
 
+            activityRepository.invalidate();
             if (!sessaoValida(sessao)) return;
 
             window.mostrarAlerta('Sucesso', 'Visita atualizada.');
@@ -2153,6 +2206,7 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
         tx.update(ref, { status:'Em andamento', checkinDataHora:agora, checkinGps:`${lat}, ${lng}`, checkinGpsAccuracy:Number(accuracy), checkinEndereco:endereco, atualizadoEm:agora });
 
     });
+    activityRepository.invalidate();
 
     if (!sessaoValida(sessao)) return;
 
@@ -2310,36 +2364,32 @@ function atualizarInterfaceVisitaAtual() {
         commercialReport.deactivate();
         trainingReport.deactivate();
 
+        const sessao = sessaoAtual();
+        const atividadeId = atividadeSelecionadaId;
+        const pedido = relatorioScope.begin(atividadeId);
+        const pedidoAtual = () => relatorioScope.isCurrent(pedido, atividadeId)
+            && sessaoValida(sessao) && atividadeSelecionadaId === atividadeId;
         try {
-            const sessao = sessaoAtual();
-            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeSelecionadaId));
-            exigirSessao(sessao);
+            const atividadeSnap = await getDocFromServer(doc(db, 'atividades', atividadeId));
+            if (!pedidoAtual()) return;
             if (!atividadeSnap.exists()) throw new Error('Visita não encontrada.');
 
-            objetoAtividadeGlobal = { ...atividadeSnap.data(), id: atividadeSnap.id };
-            validarResponsavel(objetoAtividadeGlobal, sessao);
-
-            // O estado da tela inicial pode ter sido carregado minutos antes ou em
-            // outro dispositivo. Recarrega o relatório do servidor imediatamente
-            // antes de editar para evitar conflito falso com uma cópia antiga.
-            objetoRelatorioGlobal = objetoAtividadeGlobal.relatorioId
-                ? await carregarRelatorioDaAtividade(objetoAtividadeGlobal, true)
+            const atividade = { ...atividadeSnap.data(), id: atividadeSnap.id };
+            validarResponsavel(atividade, sessao);
+            const relatorio = atividade.relatorioId
+                ? await carregarRelatorioDaAtividade(atividade, true)
                 : null;
-            exigirSessao(sessao);
-
-            if (objetoRelatorioGlobal &&
-                (objetoRelatorioGlobal.atividadeId !== atividadeSelecionadaId ||
-                 objetoRelatorioGlobal.ptvId !== sessao.id)) {
+            if (!pedidoAtual()) return;
+            if (relatorio && (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id)) {
                 throw new Error('O relatório associado não corresponde a esta visita.');
             }
+            const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
+            if (!pedidoAtual()) return;
 
-            if (objetoAtividadeGlobal.clienteId) {
-                const cliente = await obterCliente(objetoAtividadeGlobal.clienteId);
-                if (cliente?.nome) {
-                    clienteSelecionadoId = objetoAtividadeGlobal.clienteId;
-                    clienteSelecionadoNome = cliente.nome;
-                }
-            }
+            objetoAtividadeGlobal = atividade;
+            objetoRelatorioGlobal = relatorio;
+            clienteSelecionadoId = atividade.clienteId || null;
+            clienteSelecionadoNome = cliente?.nome || '';
 
             const chegada = objetoAtividadeGlobal.checkinDataHora || objetoAtividadeGlobal.data;
             const formatoData = formatarDataHoraPT(chegada);
@@ -2359,16 +2409,34 @@ function atualizarInterfaceVisitaAtual() {
             if (tipo === 'Visita comercial') {
                 const existing = commercialReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (commercialReport.saved.get(atividadeSelecionadaId) || commercialReport.initial.get(atividadeSelecionadaId));
-                commercialReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo, reportSignature(objetoRelatorioGlobal)).catch(error => {
+                    console.warn('Rascunho local indisponível.', error);
+                    throw error;
+                });
+                if (!pedidoAtual()) return;
+                commercialReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
+                const recovered = unsaved ? 'memory' : commercialReport.restoreBackup(atividadeId, backup);
                 abrirPrototipoComercial();
+                if (recovered === 'restored') commercialReport.status('Rascunho e fotos recuperados deste dispositivo. Salve o relatório para enviar ao servidor.');
+                if (recovered === 'missing-files') commercialReport.status('Rascunho recuperado, mas algumas fotos locais estão ausentes. Adicione-as novamente antes de salvar.');
+                if (recovered === 'conflict') commercialReport.status('Existe um rascunho local, mas a versão do servidor mudou. O backup foi preservado sem sobrescrever o relatório.');
                 return;
             }
 
             if (tipo === 'Treinamento') {
                 const existing = trainingReport.drafts.get(atividadeSelecionadaId);
                 const unsaved = existing && JSON.stringify(existing) !== (trainingReport.saved.get(atividadeSelecionadaId) || trainingReport.initial.get(atividadeSelecionadaId));
-                trainingReport.hydrate(atividadeSelecionadaId, objetoRelatorioGlobal, !unsaved);
+                const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo, reportSignature(objetoRelatorioGlobal)).catch(error => {
+                    console.warn('Rascunho local indisponível.', error);
+                    throw error;
+                });
+                if (!pedidoAtual()) return;
+                trainingReport.hydrate(atividadeId, objetoRelatorioGlobal, !unsaved);
+                const recovered = unsaved ? 'memory' : trainingReport.restoreBackup(atividadeId, backup);
                 abrirPrototipoComercial();
+                if (recovered === 'restored') trainingReport.status('Rascunho e fotos recuperados deste dispositivo. Salve o relatório para enviar ao servidor.');
+                if (recovered === 'missing-files') trainingReport.status('Rascunho recuperado, mas algumas fotos locais estão ausentes. Adicione-as novamente antes de salvar.');
+                if (recovered === 'conflict') trainingReport.status('Existe um rascunho local, mas a versão do servidor mudou. O backup foi preservado sem sobrescrever o relatório.');
                 return;
             }
 
@@ -2377,11 +2445,28 @@ function atualizarInterfaceVisitaAtual() {
                 preencherFormularioAssistencia(dadosAssistenciaDoRelatorio(objetoRelatorioGlobal));
             }
             technicalEditor.input = document.getElementById(tipo === ASSISTENCIA_TECNICA_TIPO ? 'at-constatacoes' : 'rel-texto');
-            technicalEditor.reset({
-                activityId: atividadeSelecionadaId,
-                text: technicalEditor.input.value,
-                blocks: blocosPersistidosRelatorio(objetoRelatorioGlobal)
+            const backup = await reportDraftStore.load(sessao.uid, atividadeId, tipo, reportSignature(objetoRelatorioGlobal)).catch(error => {
+                console.warn('Rascunho técnico indisponível.', error);
+                throw error;
             });
+            if (!pedidoAtual()) return;
+            const compatibilidade = backup?.baseSignature === reportSignature(objetoRelatorioGlobal);
+            if (compatibilidade && tipo === ASSISTENCIA_TECNICA_TIPO && backup.data?.assistencia) {
+                preencherFormularioAssistencia(backup.data.assistencia);
+            }
+            technicalEditor.reset({
+                activityId,
+                text: compatibilidade ? backup.data.text : technicalEditor.input.value,
+                blocks: compatibilidade ? backup.data.blocks : blocosPersistidosRelatorio(objetoRelatorioGlobal),
+                preserveLocal: !!compatibilidade
+            });
+            if (compatibilidade) {
+                for (const { id, file } of backup.files || []) if (file) mediaStore.stage(id, file);
+                technicalEditor.render();
+                document.getElementById('at-media-status').textContent = 'Rascunho e imagens recuperados deste dispositivo. Salve para enviar ao servidor.';
+            } else if (backup?.data) {
+                document.getElementById('at-media-status').textContent = 'Há um rascunho local preservado, mas o relatório mudou no servidor. Ele não foi aplicado automaticamente.';
+            }
 
             document.getElementById('rel-titulo-cliente').textContent = (tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica - ' : 'Relatório - ') + nomeCliente;
             document.getElementById('rel-opcao-cliente').textContent = nomeCliente;
@@ -2393,6 +2478,7 @@ function atualizarInterfaceVisitaAtual() {
             document.getElementById('rel-texto')?.blur();
             window.scrollTo(0, 0);
         } catch (erro) {
+            if (!pedidoAtual()) return;
             informarErro('Não foi possível abrir o relatório', erro);
         }
     };
@@ -2454,6 +2540,14 @@ async function enviarFechamentoManual() {
 
             const pendentes = modulosComerciaisPendentes(relatorio);
             if (pendentes.length) throw new Error('Conclua os módulos obrigatórios antes do fechamento: ' + pendentes.join(', ') + '.');
+            if (normalizarTipoVisita(atividade) === 'Treinamento') {
+                const treinoPendente = modulosTreinamentoPendentes(relatorio);
+                if (treinoPendente.length) throw new Error('Conclua os módulos de treinamento antes do fechamento: ' + treinoPendente.join(', ') + '.');
+            }
+            if (normalizarTipoVisita(atividade) === ASSISTENCIA_TECNICA_TIPO) {
+                const camposPendentes = camposAssistenciaPendentes(relatorio);
+                if (camposPendentes.length) throw new Error('Conclua o relatório de assistência técnica: ' + camposPendentes.join(', ') + '.');
+            }
 
             const agora = new Date();
             const manual = {
@@ -2470,9 +2564,9 @@ async function enviarFechamentoManual() {
             tx.update(relRef, { ...manual });
         });
 
+        // A transação resolvida já confirma o commit: reler poderia falhar após salvar.
+        activityRepository.invalidate();
         if (!sessaoValida(sessao)) return;
-        const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
-        if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') throw new Error('O fechamento não foi confirmado no banco. Tente novamente.');
         fecharModalFechamentoManual();
         limparEstadoVisita();
         navegarParaTela('tela-historico', { substituir: true, carregar: false });
@@ -2554,6 +2648,8 @@ function configurarEventosGlobais() {
         atualizarInterfaceVisitaAtual();
     }, {
         persist: salvarRelatorioComercial,
+        backupDraft: (id, data, files, signature) => reportDraftStore.save(sessaoAtual().uid, id, 'Visita comercial', data, files, signature),
+        removeBackup: id => reportDraftStore.remove(sessaoAtual().uid, id, 'Visita comercial'),
         loadProducts: options => productRepository.list(options),
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
@@ -2568,6 +2664,8 @@ function configurarEventosGlobais() {
         atualizarInterfaceVisitaAtual();
     }, {
         persist: (id, data, base) => salvarRelatorioComercial(id, data, base, 'Treinamento'),
+        backupDraft: (id, data, files, signature) => reportDraftStore.save(sessaoAtual().uid, id, 'Treinamento', data, files, signature),
+        removeBackup: id => reportDraftStore.remove(sessaoAtual().uid, id, 'Treinamento'),
         loadProducts: options => productRepository.list(options),
         reviewModule: page => abrirPrototipoComercial(page, true),
         returnCheckout: () => {
@@ -2746,12 +2844,9 @@ function configurarEventosGlobais() {
                 tx.update(relRef, atualizacaoRelatorio);
             });
 
+            // runTransaction só resolve após o commit: não realizar leitura extra.
+            activityRepository.invalidate();
             if (!sessaoValida(sessao)) return;
-
-            const confirmacao = await getDoc(doc(db, 'atividades', atividadeId));
-            if (!confirmacao.exists() || confirmacao.data().status !== 'Concluída') {
-                throw new Error('A visita não foi confirmada como concluída no banco. Tente novamente.');
-            }
 
             limparEstadoVisita();
             navegarParaTela('tela-historico', { substituir: true, carregar: false });
@@ -2789,6 +2884,14 @@ function configurarEventosGlobais() {
         document.getElementById('at-media-status'),
         document.getElementById('at-camera-picker')
     );
+    const telaRelatorio = document.getElementById('tela-relatorio');
+    for (const eventName of ['input', 'change']) telaRelatorio.addEventListener(eventName, event => {
+        if (!event.target.closest('.commercial-report')) agendarBackupTecnico();
+    });
+    window.addEventListener('pagehide', () => { void gravarBackupTecnico(); });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') void gravarBackupTecnico();
+    });
 
     document.getElementById('btn-voltar-relatorio')?.addEventListener('click', () => voltarNavegacao('tela-inicio'));
 
@@ -2947,6 +3050,9 @@ function configurarEventosGlobais() {
             });
 
             firestoreSaved = true;
+            clearTimeout(technicalBackupTimer); technicalBackupTimer = null;
+            try { await reportDraftStore.remove(sessao.uid, atividadeId, tipo); }
+            catch (error) { console.warn('Relatório salvo, mas backup local não pôde ser removido.', error); }
             if (!sessaoValida(sessao)) return;
 
             objetoRelatorioGlobal = salvo;
@@ -2957,6 +3063,8 @@ function configurarEventosGlobais() {
             } catch (error) {
                 window.mostrarAlerta('Relatório salvo', error.message || 'O relatório foi salvo, mas houve uma falha ao limpar arquivos removidos.');
             }
+            // Impede backup tardio de ressuscitar um rascunho já salvo.
+            technicalEditor.activityId = '';
             navegarParaTela('tela-inicio', { substituir: true, carregar: false });
             atualizarInterfaceVisitaAtual();
         } catch (erro) {
