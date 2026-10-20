@@ -38,17 +38,18 @@ onAuthStateChanged(auth,async user=>{
  authorized=false;$('run').disabled=true;
  if(!user){$('session').textContent='Sem sessão Firebase. Faça login no Advance Check neste navegador e retorne.';return;}
  try{
-  const snap=await getDocs(query(collection(db,'assistencia'),limit(100)));
-  const profile=snap.docs.find(d=>d.data().email===user.email);
-  if(!profile){$('session').textContent='Acesso negado: conta não cadastrada em assistencia.';return;}
+  // Exceção de uso temporário para o operador do piloto, sem mudar perfil no Firestore.
+  // Controle apenas de interface: as regras Firestore precisam ser endurecidas separadamente.
+  const email=String(user.email||'').trim().toLowerCase();
+  if(email!=='brunokhunshi@gmail.com'){
+   $('session').textContent='Diagnóstico restrito à conta autorizada para o piloto.';return;
+  }
+  const snap=await getDocs(query(collection(db,'promotores'),limit(100)));
+  const profile=snap.docs.find(d=>String(d.data().email||'').trim().toLowerCase()===email);
+  if(!profile){$('session').textContent='Conta não encontrada em promotores.';return;}
   const p=profile.data();
   if(p.ativo===false||p.permissoes?.acessoApp===false){$('session').textContent='Acesso desativado.';return;}
-  // A role deve ser explicitamente verificada; contas comuns não podem mapear o banco.
-  const role=String(p.perfil||p.cargo||p.funcao||p.tipo||'').toLowerCase();
-  if(!['admin','administrador','gestor'].includes(role)&&p.permissoes?.admin!==true&&p.permissoes?.gerenciarUsuarios!==true){
-   $('session').textContent='Conta autenticada, mas sem permissão administrativa explícita.';return;
-  }
-  authorized=true;$('session').textContent='Administrador autenticado: '+user.email;$('run').disabled=false;
+  authorized=true;$('session').textContent='Operador do piloto autenticado.';$('run').disabled=false;
  }catch(e){$('session').textContent='Não foi possível validar perfil administrativo: '+e.code;}
 });
 $('run').addEventListener('click',async()=>{
