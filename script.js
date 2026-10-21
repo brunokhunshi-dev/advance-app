@@ -2255,9 +2255,10 @@ async function encerrarVisita(id, btn) {
         const referencia = referenciaLocalizacao(cliente, centroConsultado);
         if (!referencia) throw new ErroCheckoutLocalizacao('Não foi possível localizar o centro da cidade. Tente novamente ou solicite a correção das coordenadas no painel admin.');
         const distancia = calcularDistancia(Number(lat), Number(lng), referencia.lat, referencia.lng);
-        if (!Number.isFinite(distancia) || distancia > referencia.raio) throw new ErroCheckoutLocalizacao(referencia.incerto
+        const raioCheckout = referencia.incerto ? referencia.raio : 1500;
+        if (!Number.isFinite(distancia) || distancia > raioCheckout) throw new ErroCheckoutLocalizacao(referencia.incerto
             ? `Você está a ${(distancia / 1000).toFixed(1)} km do centro de ${cliente.cidade}. O limite para localização incerta é 50 km.`
-            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima para o check-out é 500 m.`);
+            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima para o check-out é 1,5 km.`);
 
         const endereco = await obterEnderecoPorCoords(lat, lng);
         exigirSessao(sessao);
