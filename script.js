@@ -2196,9 +2196,10 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
         const referencia = referenciaLocalizacao(dados, centroConsultado);
         if (!referencia) throw new Error('Não foi possível localizar o centro da cidade. Tente novamente ou solicite a correção das coordenadas no painel admin.');
         const distancia = calcularDistancia(Number(lat), Number(lng), referencia.lat, referencia.lng);
-        if (!Number.isFinite(distancia) || distancia > referencia.raio) throw new Error(referencia.incerto
+        const raioCheckin = referencia.incerto ? referencia.raio : 1500;
+        if (!Number.isFinite(distancia) || distancia > raioCheckin) throw new Error(referencia.incerto
             ? `Você está a ${(distancia / 1000).toFixed(1)} km do centro de ${dados.cidade}. O limite para localização incerta é 50 km.`
-            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima é 500 m.`);
+            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima para o check-in é 1,5 km.`);
 
         const agora = new Date();
 
