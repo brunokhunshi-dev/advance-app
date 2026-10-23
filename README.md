@@ -32,6 +32,10 @@ O app precisa ser servido por HTTP/HTTPS, não aberto como arquivo local. Para d
 - O modelo persistido de revisões e as regras do Firestore não são alterados por esta refatoração.
 - `firestore.indexes.json` define os índices do histórico. Incorporar essas definições à configuração existente do projeto, preservando outros índices.
 
+## Hotfix de localização (23/10/2026)
+
+A validação por distância de check-in/check-out foi temporariamente desativada. Toda operação concluída grava um documento correspondente em `auditoria_localizacao`, na mesma transação Firestore, incluindo coordenadas disponíveis, dados da loja, distância ao cadastro, erro de GPS e horários do dispositivo e servidor. Consulte [documentação e reversão](docs/hotfix-localizacao-auditoria-20261023.md). Não usar essa coleção como fonte pública: os dados incluem GPS pessoal e as Rules efetivas precisam de revisão.
+
 ## Cache e publicação
 
 Ao mudar HTML, CSS ou módulos do app, atualizar `CACHE_NAME` em `sw.js`. Novos módulos locais utilizados pelo app devem ser incluídos em `APP_SHELL`; os testes verificam os caminhos e a cobertura dos módulos. Firebase e bibliotecas externas continuam dependendo da rede/cache do navegador; não há garantia de login ou gravação offline.
