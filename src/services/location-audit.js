@@ -32,17 +32,26 @@ export function montarAuditoriaLocalizacao({evento, atividadeId, atividade, clie
     const temReferencia = referencia && coordenadasValidas(referencia.lat,referencia.lng);
     const distanciaMetros = temGps && temReferencia ? Math.round(calcularDistancia(Number(lat),Number(lng),referencia.lat,referencia.lng)) : null;
     const limiteComparacao = temReferencia ? (referencia.incerto ? 50000 : 1500) : null;
+    // Snapshot das coordenadas originais mesmo quando a referência operacional é o centro da cidade.
+    const cadastroValido = cliente && coordenadasValidas(cliente.lat, cliente.lng);
+    const distanciaCadastroMetros = temGps && cadastroValido
+        ? Math.round(calcularDistancia(Number(lat),Number(lng),Number(cliente.lat),Number(cliente.lng))) : null;
+    const dataLocal = [agora.getFullYear(),String(agora.getMonth()+1).padStart(2,'0'),String(agora.getDate()).padStart(2,'0')].join('-');
+    const horaLocal = [agora.getHours(),agora.getMinutes(),agora.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
     return {
         esquema:1, politica:'distancia_nao_bloqueante_temporaria', evento, modo, atividadeId,
         clienteId:atividade?.clienteId || null, ptvId:atividade?.ptvId || sessao?.id || null,
         uid:sessao?.uid || null, promotorNome:sessao?.nome || null,
         tipoVisita:atividade?.tipoVisita || null, agendadoPara:atividade?.data || null,
-        registradoEm:agora, diaLocal:agora.toLocaleDateString('en-CA'),
+        registradoEm:agora, diaLocal:dataLocal, horaLocal,
         fusoHorario:Intl.DateTimeFormat().resolvedOptions().timeZone || null,
         clienteNome:cliente?.nome || null, clienteEndereco:cliente?.enderecoCompleto || null,
         clienteCidade:cliente?.cidade || null, clienteUf:cliente?.uf || null,
         statusCadastroLocalizacao:cliente?.statusLocalizacao || null,
         precisaoCadastro:cliente?.precisaoCoordenadas || null,
+        coordenadasCadastro:{lat:cadastroValido ? Number(cliente.lat) : null,
+            lng:cadastroValido ? Number(cliente.lng) : null,
+            origem:cliente?.origemCoordenadas || null, distanciaMetros:distanciaCadastroMetros},
         gps:{lat:temGps ? Number(lat) : null, lng:temGps ? Number(lng) : null,
             precisaoMetros:localizacao?.accuracy ?? null, endereco:localizacao?.endereco || null,
             status:localizacao?.gpsStatus || 'indisponivel', erro:localizacao?.gpsErro || null,
