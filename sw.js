@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-stability-v78';
+const CACHE_NAME = 'advance-pwa-stability-v79';
 const APP_SHELL = [
   './', './index.html', './styles.css', './motion.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
