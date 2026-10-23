@@ -38,6 +38,8 @@ A validação por distância de check-in/check-out foi temporariamente desativad
 
 ## Cache e publicação
 
-Ao mudar HTML, CSS ou módulos do app, atualizar `CACHE_NAME` em `sw.js`. Novos módulos locais utilizados pelo app devem ser incluídos em `APP_SHELL`; os testes verificam os caminhos e a cobertura dos módulos. Firebase e bibliotecas externas continuam dependendo da rede/cache do navegador; não há garantia de login ou gravação offline.
+Ao mudar HTML, CSS ou módulos do app, atualizar `CACHE_NAME` em `sw.js`. Novos módulos locais utilizados pelo app devem ser incluídos em `APP_SHELL`; os testes verificam os caminhos e a cobertura dos módulos.
+
+**Hotfix PWA anti-versão antiga (23/10/2026):** na mudança de controle do service worker, o app recarrega automaticamente apenas em telas sem edição (login, início sem confirmação aberta, agenda, histórico, perfil, visualizador). Em relatório, cadastro, check-out, visita atual e modais de confirmação a atualização aguarda o retorno a uma tela segura, preservando edição em andamento. **Instalações que ainda executam um HTML antigo não recebem retroativamente esse listener:** para sair da versão obsoleta, abrir o domínio permanente de produção `https://advance-app-one.vercel.app/` no Chrome, aguardar a atualização e recarregar a página duas vezes; depois fechar e reabrir o PWA. Não limpar os dados de armazenamento do site se houver rascunhos locais. Nunca instalar a partir da URL imutável de um deploy de preview. Firebase e bibliotecas externas continuam dependendo da rede/cache do navegador; não há garantia de login ou gravação offline.
 
 Antes do merge, homologar no celular/PWA: troca de conta, cadastro por CNPJ, visita completa dos três tipos, imagens, descarte de edição, impressão e atualização de uma instalação existente. Os testes locais não substituem essa validação com Firebase/R2 e dispositivos reais.
