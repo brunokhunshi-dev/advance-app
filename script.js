@@ -22,7 +22,8 @@ import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, 
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
-import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia, validarPrecisaoGps } from './src/services/location.js';
+import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia } from './src/services/location.js';
+import { capturarLocalizacaoOpcional, montarAuditoriaLocalizacao } from './src/services/location-audit.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
 import { createClientRepository } from './src/data/client-repository.js';
@@ -2133,12 +2134,11 @@ function configurarBotoesModal() {
 
         try {
 
-            const sessao = sessaoAtual(), pos = await obterPosicao();
-            const accuracy = validarPrecisaoGps(pos);
-
+            const sessao = sessaoAtual();
+            const localizacao = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
             exigirSessao(sessao);
 
-            await processarCheckin(pos.coords.latitude, pos.coords.longitude, id, clienteId, sessao, accuracy);
+            await processarCheckin(localizacao, id, clienteId, sessao);
 
         } catch (erro) { informarErro('Erro no check-in', erro); }
 
@@ -2155,9 +2155,9 @@ async function centroParaCliente(cliente) {
     catch (error) { console.warn('Não foi possível consultar o centro da cidade.', error); return null; }
 }
 
-async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null) {
+async function processarCheckin(localizacao, id, clienteId, sessao) {
 
-    if (!coordenadasValidas(lat,lng)) throw new Error('O GPS retornou coordenadas inválidas.');
+    const { lat, lng, accuracy, endereco } = localizacao;
 
     const btn = document.getElementById('btn-iniciar'); btn.textContent = 'Validando visita...';
 
@@ -2171,11 +2171,13 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
 
     if (abertas.docs.some(d => d.id !== id)) throw new Error('Encerre a visita em andamento antes de iniciar outra.');
 
-    const endereco = await obterEnderecoPorCoords(lat,lng);
-
+    // Endereço e coordenadas são opcionais durante o hotfix.
     exigirSessao(sessao);
 
-    const clienteLocalizacao = await obterCliente(clienteId, { refresh: true });
+    const clienteLocalizacao = await obterCliente(clienteId, { refresh: true }).catch(error => {
+        console.warn('Referência da loja indisponível antes do check-in.', error);
+        return null;
+    });
     const centroConsultado = await centroParaCliente(clienteLocalizacao);
     exigirSessao(sessao);
 
@@ -2194,17 +2196,17 @@ async function processarCheckin(lat, lng, id, clienteId, sessao, accuracy = null
         if (atividade.status !== 'Pendente') throw new Error('Esta visita já foi iniciada ou encerrada. Atualize a tela.');
 
         const referencia = referenciaLocalizacao(dados, centroConsultado);
-        if (!referencia) throw new Error('Não foi possível localizar o centro da cidade. Tente novamente ou solicite a correção das coordenadas no painel admin.');
-        const distancia = calcularDistancia(Number(lat), Number(lng), referencia.lat, referencia.lng);
-        const raioCheckin = referencia.incerto ? referencia.raio : 1500;
-        if (!Number.isFinite(distancia) || distancia > raioCheckin) throw new Error(referencia.incerto
-            ? `Você está a ${(distancia / 1000).toFixed(1)} km do centro de ${dados.cidade}. O limite para localização incerta é 50 km.`
-            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima para o check-in é 1,5 km.`);
-
         const agora = new Date();
-
-        if (referencia.incerto && centroConsultado) tx.update(doc(db,'clientes',clienteId), { centroCidade: centroConsultado });
-        tx.update(ref, { status:'Em andamento', checkinDataHora:agora, checkinGps:`${lat}, ${lng}`, checkinGpsAccuracy:Number(accuracy), checkinEndereco:endereco, atualizadoEm:agora });
+        const auditoria = montarAuditoriaLocalizacao({
+            evento:'checkin', atividadeId:id, atividade:{...atividade, tipoVisita:normalizarTipoVisita(atividade)},
+            cliente:dados, sessao:{...sessao, nome:nomeUsuarioLogado}, localizacao, referencia, agora
+        });
+        // Mesma transação: nunca atualizar visita sem arquivar a auditoria correspondente.
+        tx.set(doc(db,'auditoria_localizacao',`${id}_checkin`), auditoria);
+        if (referencia?.incerto && centroConsultado) tx.update(doc(db,'clientes',clienteId), { centroCidade: centroConsultado });
+        tx.update(ref, { status:'Em andamento', checkinDataHora:agora,
+            checkinGps:coordenadasValidas(lat,lng) ? `${lat}, ${lng}` : null,
+            checkinGpsAccuracy:accuracy, checkinEndereco:endereco, atualizadoEm:agora });
 
     });
     activityRepository.invalidate();
@@ -2229,17 +2231,9 @@ async function encerrarVisita(id, btn) {
 
     try {
         const sessao = sessaoAtual();
-        let pos;
-        try { pos = await obterPosicao(); }
-        catch (erro) { throw new ErroCheckoutLocalizacao(erro.message); }
+        const localizacao = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
         exigirSessao(sessao);
-
-        let accuracy;
-        try { accuracy = validarPrecisaoGps(pos); }
-        catch (erro) { throw new ErroCheckoutLocalizacao(erro.message); }
-
-        const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        if (!coordenadasValidas(lat, lng)) throw new ErroCheckoutLocalizacao('O GPS retornou coordenadas inválidas.');
+        const {lat,lng,accuracy,endereco} = localizacao;
 
         const ref = doc(db, 'atividades', id);
         const snap = await getDoc(ref);
@@ -2249,25 +2243,19 @@ async function encerrarVisita(id, btn) {
         if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
         if (!atividade.relatorioId) throw new Error('Salve o relatório antes de iniciar o check-out.');
 
-        const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId) : null;
+        const cliente = atividade.clienteId ? await obterCliente(atividade.clienteId).catch(error => {
+            console.warn('Referência da loja indisponível antes do check-out.', error);
+            return null;
+        }) : null;
         const centroConsultado = await centroParaCliente(cliente);
         exigirSessao(sessao);
-        const referencia = referenciaLocalizacao(cliente, centroConsultado);
-        if (!referencia) throw new ErroCheckoutLocalizacao('Não foi possível localizar o centro da cidade. Tente novamente ou solicite a correção das coordenadas no painel admin.');
-        const distancia = calcularDistancia(Number(lat), Number(lng), referencia.lat, referencia.lng);
-        const raioCheckout = referencia.incerto ? referencia.raio : 1500;
-        if (!Number.isFinite(distancia) || distancia > raioCheckout) throw new ErroCheckoutLocalizacao(referencia.incerto
-            ? `Você está a ${(distancia / 1000).toFixed(1)} km do centro de ${cliente.cidade}. O limite para localização incerta é 50 km.`
-            : `Você está a ${Math.round(distancia)} m da loja. A distância máxima para o check-out é 1,5 km.`);
-
-        const endereco = await obterEnderecoPorCoords(lat, lng);
         exigirSessao(sessao);
         const relatorio = await carregarRelatorioDaAtividade(atividade);
         const tipo = normalizarTipoVisita(atividade);
         if (!relatorio || relatorio.atividadeId !== id || relatorio.ptvId !== sessao.id || (tipo !== ASSISTENCIA_TECNICA_TIPO && !relatorioValidoParaCheckout(relatorio, tipo))) {
             throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
         }
-        const saida = { dataHora: new Date(), lat, lng, accuracy, endereco };
+        const saida = { ...localizacao, dataHora: new Date(), cliente, centroConsultado };
         objetoAtividadeGlobal = atividade;
         objetoRelatorioGlobal = relatorio;
         if (tipo === 'Visita comercial' && relatorio.dadosComerciais?.versao === 1) {
@@ -2537,6 +2525,8 @@ async function enviarFechamentoManual() {
             const relRef = referenciaRelatorio(atividade);
             const relSnap = await tx.get(relRef);
             if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
+            const clienteSnap = atividade.clienteId ? await tx.get(doc(db,'clientes',atividade.clienteId)) : null;
+            const clienteAtual = clienteSnap?.exists() ? clienteSnap.data() : null;
             const relatorio = relSnap.data();
             if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, normalizarTipoVisita(atividade))) throw new Error('O relatório não está válido.');
 
@@ -2562,6 +2552,14 @@ async function enviarFechamentoManual() {
                 checkoutDataHora: agora,
                 atualizadoEm: agora
             };
+            const auditoria = montarAuditoriaLocalizacao({
+                evento:'checkout', modo:'manual', atividadeId,
+                atividade:{...atividade, tipoVisita:normalizarTipoVisita(atividade)},
+                cliente:clienteAtual, sessao:{...sessao,nome:nomeUsuarioLogado},
+                localizacao:{gpsStatus:'indisponivel',gpsErro:'Fechamento manual sem GPS coletado'},
+                referencia:referenciaLocalizacao(clienteAtual), agora, motivo
+            });
+            tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), auditoria);
             tx.update(atvRef, { ...manual, status: 'Concluída' });
             tx.update(relRef, { ...manual });
         });
@@ -2753,7 +2751,7 @@ function configurarEventosGlobais() {
         try {
             const sessao = sessaoAtual();
             const saida = checkoutPendenteGlobal.posicao;
-            if (!saida || !coordenadasValidas(saida.lat, saida.lng)) throw new Error('A localização de saída não está mais disponível.');
+            if (!saida) throw new Error('Os dados do check-out não estão mais disponíveis.');
 
             await runTransaction(db, async tx => {
                 const atvRef = doc(db, 'atividades', atividadeId);
@@ -2769,6 +2767,9 @@ function configurarEventosGlobais() {
                 const relRef = referenciaRelatorio(atividade);
                 const relSnap = await tx.get(relRef);
                 if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
+                // Releitura no commit garante coordenadas cadastradas atuais na auditoria.
+                const clienteSnap = atividade.clienteId ? await tx.get(doc(db,'clientes',atividade.clienteId)) : null;
+                const clienteAtual = clienteSnap?.exists() ? clienteSnap.data() : saida.cliente;
 
                 const relatorioAtual = relSnap.data();
                 if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorioAtual, tipo)) {
@@ -2789,8 +2790,8 @@ function configurarEventosGlobais() {
                 const dadosCheckout = {
                     tipoVisita: tipo,
                     checkoutDataHora: agora,
-                    checkoutGps: String(saida.lat) + ', ' + String(saida.lng),
-                    checkoutGpsAccuracy: Number(saida.accuracy),
+                    checkoutGps: coordenadasValidas(saida.lat,saida.lng) ? String(saida.lat) + ', ' + String(saida.lng) : null,
+                    checkoutGpsAccuracy: saida.accuracy,
                     checkoutEndereco: saida.endereco
                 };
 
@@ -2842,6 +2843,12 @@ function configurarEventosGlobais() {
                     atualizacaoRelatorio = { ...dadosCheckout, atualizadoEm: agora };
                 }
 
+                const auditoria = montarAuditoriaLocalizacao({
+                    evento:'checkout', atividadeId, atividade:{...atividade, tipoVisita:tipo},
+                    cliente:clienteAtual, sessao:{...sessao, nome:nomeUsuarioLogado},
+                    localizacao:saida, referencia:referenciaLocalizacao(clienteAtual, saida.centroConsultado), agora
+                });
+                tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), auditoria);
                 tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora });
                 tx.update(relRef, atualizacaoRelatorio);
             });
