@@ -8,13 +8,15 @@ import {blankTraining, modulosTreinamentoPendentes} from '../src/domain/training
 import {TrainingReport} from '../src/ui/training-report.js';
 import {CommercialReport} from '../src/ui/commercial-report.js';
 import {serializarEstavel} from '../src/domain/formatters.js';
+import {montarAuditoriaLocalizacao} from '../src/services/location-audit.js';
+import {referenciaLocalizacao} from '../src/services/location.js';
 const source=readFileSync(new URL('../script.js',import.meta.url),'utf8');
 const draft=()=>({name:'Ana',role:'Gerente',goal:'Orientação aos vendedores',low:'Não',missing:'Não',slow:'Não',products:{low:[],missing:[],slow:[]},organization:'Organizada e visível',materials:[],other:'',text:'',blocks:[],photos:[],feedback:[],pending:''});
 function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',tipoVisita:'Visita comercial'},report=null) {
     const records=new Map([['atividades/visit',activity]]);
     if(report) records.set((activity.relatorioColecao || 'relatorios')+'/'+activity.relatorioId,report);
     const writes=[];
-    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,
+    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,referenciaLocalizacao,
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         validarResponsavel:atv=>{if(atv.ptvId!=='user')throw new Error('responsável');},
@@ -78,6 +80,8 @@ test('checkout transaction revalidates server modules and persists feedback, pen
     const saved=app.records.get('relatorios_comerciais/report');
     assert.equal(saved.dadosComerciais.pending,'Sem pendências');assert.equal(saved.dadosComerciais.feedback[0],'Argumentos de venda');
     assert.equal(saved.checkoutGps,'1, 2');
+    assert.equal(app.records.get('auditoria_localizacao/visit_checkout').evento,'checkout');
+    assert.equal(app.records.get('auditoria_localizacao/visit_checkout').gps.lat,1);
 });
 
 test('second and third saves can edit selected products without a false session conflict',async()=>{
@@ -135,4 +139,5 @@ test('training checkout revalidates modules from server and persists completion 
     assert.equal(app.records.get('atividades/visit').status,'Concluída');
     assert.equal(app.records.get('atividades/visit').quantidadeParticipantes,8);
     assert.equal(app.records.get('relatorios_treinamentos/report').dadosTreinamento.satisfaction,'Não respondeu');
+    assert.equal(app.records.get('auditoria_localizacao/visit_checkout').evento,'checkout');
 });
