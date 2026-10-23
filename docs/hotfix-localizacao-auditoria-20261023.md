@@ -18,8 +18,9 @@ IDs determinísticos: `{atividadeId}_checkin` e `{atividadeId}_checkout`. O form
 
 ### Campos arquivados (esquema 1)
 - `atividadeId`, `clienteId`, `ptvId`, `uid`, `promotorNome`, `evento`, `modo`, `tipoVisita`, `agendadoPara`;
-- `registradoEm` (timestamp Firestore a partir de `Date`), `diaLocal`, `fusoHorario`;
+- `registradoEm` (timestamp Firestore a partir de `Date`), `diaLocal`, `horaLocal`, `fusoHorario`;
 - `clienteNome`, `clienteEndereco`, `clienteCidade`, `clienteUf`, `statusCadastroLocalizacao`, `precisaoCadastro` (fotografia da referência do cliente na operação);
+- `coordenadasCadastro.lat`, `coordenadasCadastro.lng`, `coordenadasCadastro.origem`, `coordenadasCadastro.distanciaMetros` (proximidade da coordenada realmente salva no cliente, inclusive quando a referência de localização incerta é o centro da cidade);
 - `gps.lat`, `gps.lng`, `gps.precisaoMetros`, `gps.endereco`, `gps.status`, `gps.erro`, `gps.capturadoEm`;
 - `referencia.lat`, `referencia.lng`, `referencia.tipo`, `referencia.raioComparacaoMetros`;
 - `distanciaMetros`, `foraRaioDeReferencia` (null se não houver dados para o cálculo), `politica`, `localizacaoNaoBloqueante`, `motivoFechamentoManual` quando aplicável.
