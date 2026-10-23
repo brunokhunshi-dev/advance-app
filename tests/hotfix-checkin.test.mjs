@@ -18,6 +18,7 @@ function create({localizacao,status='Pendente',client={lat:-23.1,lng:-47.2,nome:
         document:{getElementById:()=>({textContent:'',style:{display:'flex'}})},
         estadoNavegacaoAtual:null, nomeUsuarioLogado:'Colaborador', db:{}, atividadeSelecionadaId:'visita',
         coordenadasValidas,referenciaLocalizacao,montarAuditoriaLocalizacao,normalizarTipoVisita,
+        serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),
         doc:(_,collection,id)=>({collection,id}),collection:()=>{},query:()=>{},where:()=>{},
         getDocs:async()=>({docs:[]}),sessaoValida:()=>true,exigirSessao(){},
         obterCliente:async()=>client,centroParaCliente:async()=>null,
