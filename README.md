@@ -34,7 +34,7 @@ O app precisa ser servido por HTTP/HTTPS, não aberto como arquivo local. Para d
 
 ## Hotfix de localização (23/10/2026)
 
-A validação por distância de check-in/check-out foi temporariamente desativada. Toda operação concluída grava um documento correspondente em `auditoria_localizacao`, na mesma transação Firestore, incluindo coordenadas disponíveis, dados da loja, distância ao cadastro, erro de GPS e horários do dispositivo e servidor. Consulte [documentação e reversão](docs/hotfix-localizacao-auditoria-20261023.md). Não usar essa coleção como fonte pública: os dados incluem GPS pessoal e as Rules efetivas precisam de revisão.
+A validação por distância de check-in/check-out foi temporariamente desativada. Toda operação concluída grava a auditoria na própria `atividades/{id}`, na mesma transação Firestore, incluindo coordenadas disponíveis, dados da loja, distância ao cadastro, erro de GPS e horários do dispositivo e servidor. Uma cópia em `auditoria_localizacao` é tentada separadamente e não pode bloquear o check-in/check-out. Consulte [documentação e reversão](docs/hotfix-localizacao-auditoria-20261023.md). Não usar essa coleção como fonte pública: os dados incluem GPS pessoal e as Rules efetivas precisam de revisão.
 
 ## Cache e publicação
 
