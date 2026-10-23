@@ -16,7 +16,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
     const records=new Map([['atividades/visit',activity]]);
     if(report) records.set((activity.relatorioColecao || 'relatorios')+'/'+activity.relatorioId,report);
     const writes=[];
-    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,referenciaLocalizacao,
+    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,referenciaLocalizacao,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         validarResponsavel:atv=>{if(atv.ptvId!=='user')throw new Error('responsável');},
