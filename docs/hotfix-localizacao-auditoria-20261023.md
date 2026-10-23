@@ -18,7 +18,7 @@ IDs determinísticos: `{atividadeId}_checkin` e `{atividadeId}_checkout`. O form
 
 ### Campos arquivados (esquema 1)
 - `atividadeId`, `clienteId`, `ptvId`, `uid`, `promotorNome`, `evento`, `modo`, `tipoVisita`, `agendadoPara`;
-- `registradoEm` (timestamp Firestore a partir de `Date`), `diaLocal`, `horaLocal`, `fusoHorario`;
+- `registradoEm` (horário do aparelho como timestamp Firestore), `registradoServidorEm` (`serverTimestamp()` confirmado pelo Firestore), `diaLocal`, `horaLocal`, `fusoHorario`;
 - `clienteNome`, `clienteEndereco`, `clienteCidade`, `clienteUf`, `statusCadastroLocalizacao`, `precisaoCadastro` (fotografia da referência do cliente na operação);
 - `coordenadasCadastro.lat`, `coordenadasCadastro.lng`, `coordenadasCadastro.origem`, `coordenadasCadastro.distanciaMetros` (proximidade da coordenada realmente salva no cliente, inclusive quando a referência de localização incerta é o centro da cidade);
 - `gps.lat`, `gps.lng`, `gps.precisaoMetros`, `gps.endereco`, `gps.status`, `gps.erro`, `gps.capturadoEm`;
@@ -28,7 +28,7 @@ IDs determinísticos: `{atividadeId}_checkin` e `{atividadeId}_checkout`. O form
 O fechamento manual legado grava evento `checkout` em `modo: 'manual'`, sem fabricar GPS. Os campos de GPS legados em `atividades`/`relatorios` são preservados quando a posição é válida e podem ficar `null` quando não for.
 
 ## Validação e acompanhamento
-1. `npm run check` e `npm test`, incluindo teste de captura opcional, distância e registro sem GPS.
+1. `npm run check` e `npm test`, incluindo teste de captura opcional, distância, gravação transacional do check-in e checkout, e registro sem GPS.
 2. Publicar o `sw.js` com cache incrementado e conferir instalação existente; a atualização do PWA ocorre quando o dispositivo volta a consultar o service worker (não garante atualização instantânea em todas as abas).
 3. Em ambiente autorizado, realizar **uma atividade real de teste** com GPS válido longe da coordenada; conferir `atividades/{id}` e `auditoria_localizacao/{id}_checkin` com horário, GPS, distância e `foraRaioDeReferencia:true`. Fechar e verificar o `_checkout`.
 4. Repetir com permissão GPS negada: deve prosseguir, e `gps.status='indisponivel'`, coordenadas/distância nulas.
