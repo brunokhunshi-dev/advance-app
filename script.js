@@ -2181,7 +2181,7 @@ async function processarCheckin(localizacao, id, clienteId, sessao) {
     const centroConsultado = await centroParaCliente(clienteLocalizacao);
     exigirSessao(sessao);
 
-    await runTransaction(db, async tx => {
+    const auditoriaConfirmada = await runTransaction(db, async tx => {
 
         const ref = doc(db,'atividades',id), snap = await tx.get(ref);
 
@@ -2201,14 +2201,18 @@ async function processarCheckin(localizacao, id, clienteId, sessao) {
             evento:'checkin', atividadeId:id, atividade:{...atividade, tipoVisita:normalizarTipoVisita(atividade)},
             cliente:dados, sessao:{...sessao, nome:nomeUsuarioLogado}, localizacao, referencia, agora
         });
-        // Mesma transação: nunca atualizar visita sem arquivar a auditoria correspondente.
-        tx.set(doc(db,'auditoria_localizacao',`${id}_checkin`), {...auditoria, registradoServidorEm:serverTimestamp()});
+        // Arquivo primário no documento que já era gravado: não depende da Rule de coleção nova.
         if (referencia?.incerto && centroConsultado) tx.update(doc(db,'clientes',clienteId), { centroCidade: centroConsultado });
         tx.update(ref, { status:'Em andamento', checkinDataHora:agora,
             checkinGps:coordenadasValidas(lat,lng) ? `${lat}, ${lng}` : null,
-            checkinGpsAccuracy:accuracy, checkinEndereco:endereco, atualizadoEm:agora });
-
+            checkinGpsAccuracy:accuracy, checkinEndereco:endereco, atualizadoEm:agora,
+            'auditoriaLocalizacao.checkin':{...auditoria, registradoServidorEm:serverTimestamp()} });
+        return auditoria;
     });
+    // Cópia indexável opcional; a falha de permissão não cancela a operação já auditada.
+    void setDoc(doc(db,'auditoria_localizacao',`${id}_checkin`),
+        {...auditoriaConfirmada, registradoServidorEm:serverTimestamp()})
+        .catch(erro => console.warn('Cópia de auditoria separada indisponível (check-in).', erro));
     activityRepository.invalidate();
 
     if (!sessaoValida(sessao)) return;
@@ -2513,7 +2517,7 @@ async function enviarFechamentoManual() {
     btn.textContent = 'ENVIANDO...';
     try {
         const sessao = sessaoAtual();
-        await runTransaction(db, async tx => {
+        const auditoriaConfirmada = await runTransaction(db, async tx => {
             const atvRef = doc(db, 'atividades', atividadeId);
             const atvSnap = await tx.get(atvRef);
             if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
@@ -2559,10 +2563,14 @@ async function enviarFechamentoManual() {
                 localizacao:{gpsStatus:'indisponivel',gpsErro:'Fechamento manual sem GPS coletado'},
                 referencia:referenciaLocalizacao(clienteAtual), agora, motivo
             });
-            tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), {...auditoria, registradoServidorEm:serverTimestamp()});
-            tx.update(atvRef, { ...manual, status: 'Concluída' });
+            tx.update(atvRef, { ...manual, status: 'Concluída',
+                'auditoriaLocalizacao.checkout':{...auditoria, registradoServidorEm:serverTimestamp()} });
             tx.update(relRef, { ...manual });
+            return auditoria;
         });
+        void setDoc(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`),
+            {...auditoriaConfirmada, registradoServidorEm:serverTimestamp()})
+            .catch(erro => console.warn('Cópia de auditoria separada indisponível (fechamento manual).', erro));
 
         // A transação resolvida já confirma o commit: reler poderia falhar após salvar.
         activityRepository.invalidate();
@@ -2753,7 +2761,7 @@ function configurarEventosGlobais() {
             const saida = checkoutPendenteGlobal.posicao;
             if (!saida) throw new Error('Os dados do check-out não estão mais disponíveis.');
 
-            await runTransaction(db, async tx => {
+            const auditoriaConfirmada = await runTransaction(db, async tx => {
                 const atvRef = doc(db, 'atividades', atividadeId);
                 const atvSnap = await tx.get(atvRef);
                 if (!atvSnap.exists()) throw new Error('Visita não encontrada.');
@@ -2848,10 +2856,14 @@ function configurarEventosGlobais() {
                     cliente:clienteAtual, sessao:{...sessao, nome:nomeUsuarioLogado},
                     localizacao:saida, referencia:referenciaLocalizacao(clienteAtual, saida.centroConsultado), agora
                 });
-                tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), {...auditoria, registradoServidorEm:serverTimestamp()});
-                tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora });
+                tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora,
+                    'auditoriaLocalizacao.checkout':{...auditoria, registradoServidorEm:serverTimestamp()} });
                 tx.update(relRef, atualizacaoRelatorio);
+                return auditoria;
             });
+            void setDoc(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`),
+                {...auditoriaConfirmada, registradoServidorEm:serverTimestamp()})
+                .catch(erro => console.warn('Cópia de auditoria separada indisponível (check-out).', erro));
 
             // runTransaction só resolve após o commit: não realizar leitura extra.
             activityRepository.invalidate();
