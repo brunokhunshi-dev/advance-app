@@ -108,7 +108,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebas
 
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, writeBatch, runTransaction, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, setDoc, writeBatch, runTransaction, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { firebaseConfig } from './firebase-config.js';
 
@@ -2202,7 +2202,7 @@ async function processarCheckin(localizacao, id, clienteId, sessao) {
             cliente:dados, sessao:{...sessao, nome:nomeUsuarioLogado}, localizacao, referencia, agora
         });
         // Mesma transação: nunca atualizar visita sem arquivar a auditoria correspondente.
-        tx.set(doc(db,'auditoria_localizacao',`${id}_checkin`), auditoria);
+        tx.set(doc(db,'auditoria_localizacao',`${id}_checkin`), {...auditoria, registradoServidorEm:serverTimestamp()});
         if (referencia?.incerto && centroConsultado) tx.update(doc(db,'clientes',clienteId), { centroCidade: centroConsultado });
         tx.update(ref, { status:'Em andamento', checkinDataHora:agora,
             checkinGps:coordenadasValidas(lat,lng) ? `${lat}, ${lng}` : null,
@@ -2559,7 +2559,7 @@ async function enviarFechamentoManual() {
                 localizacao:{gpsStatus:'indisponivel',gpsErro:'Fechamento manual sem GPS coletado'},
                 referencia:referenciaLocalizacao(clienteAtual), agora, motivo
             });
-            tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), auditoria);
+            tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), {...auditoria, registradoServidorEm:serverTimestamp()});
             tx.update(atvRef, { ...manual, status: 'Concluída' });
             tx.update(relRef, { ...manual });
         });
@@ -2848,7 +2848,7 @@ function configurarEventosGlobais() {
                     cliente:clienteAtual, sessao:{...sessao, nome:nomeUsuarioLogado},
                     localizacao:saida, referencia:referenciaLocalizacao(clienteAtual, saida.centroConsultado), agora
                 });
-                tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), auditoria);
+                tx.set(doc(db,'auditoria_localizacao',`${atividadeId}_checkout`), {...auditoria, registradoServidorEm:serverTimestamp()});
                 tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora });
                 tx.update(relRef, atualizacaoRelatorio);
             });
