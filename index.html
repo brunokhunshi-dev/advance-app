@@ -26,15 +26,29 @@
         if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
             const jaControlado = Boolean(navigator.serviceWorker.controller);
             let atualizando = false;
+            let atualizacaoPendente = false;
+            const telaSeguraParaAtualizar = () => {
+                // Preservar rascunhos, formulários, check-out e confirmação de check-in.
+                if (document.querySelector('dialog[open]') ||
+                    document.getElementById('tela-confirmacao')?.style.display === 'flex' ||
+                    document.getElementById('modal-fechamento-manual')?.style.display === 'flex') return false;
+                return ['tela-login','tela-inicio','tela-agenda','tela-historico','tela-perfil','tela-visualizador-visita']
+                    .some(id => document.getElementById(id)?.getClientRects().length);
+            };
+            const aplicarAtualizacaoSegura = () => {
+                if (!atualizacaoPendente || atualizando || !telaSeguraParaAtualizar()) return;
+                atualizando = true;
+                location.reload();
+            };
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                // O perfil não tem formulário: atualizar aqui recupera também
-                // sessões que abriram HTML novo usando o script do cache antigo.
-                // Outras telas continuam abertas para preservar o que foi digitado.
-                if (!jaControlado || atualizando || document.querySelector('dialog[open]')) return;
-                if (document.getElementById('tela-perfil')?.getClientRects().length) {
-                    atualizando = true;
-                    location.reload();
-                }
+                if (!jaControlado || atualizando) return;
+                atualizacaoPendente = true;
+                aplicarAtualizacaoSegura();
+            });
+            // Se a nova versão chegou durante um modal, aplicar após o retorno à tela segura.
+            window.addEventListener('popstate', () => setTimeout(aplicarAtualizacaoSegura, 0));
+            document.addEventListener('click', () => {
+                if (atualizacaoPendente) setTimeout(aplicarAtualizacaoSegura, 0);
             });
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js', { scope: './' })
