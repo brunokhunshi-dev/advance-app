@@ -16,7 +16,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
     const records=new Map([['atividades/visit',activity]]);
     if(report) records.set((activity.relatorioColecao || 'relatorios')+'/'+activity.relatorioId,report);
     const writes=[];
-    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,referenciaLocalizacao,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),
+    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,referenciaLocalizacao,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),setDoc:async()=>{throw Error('permission-denied');},console:{warn(){}},
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         validarResponsavel:atv=>{if(atv.ptvId!=='user')throw new Error('responsável');},
@@ -80,8 +80,8 @@ test('checkout transaction revalidates server modules and persists feedback, pen
     const saved=app.records.get('relatorios_comerciais/report');
     assert.equal(saved.dadosComerciais.pending,'Sem pendências');assert.equal(saved.dadosComerciais.feedback[0],'Argumentos de venda');
     assert.equal(saved.checkoutGps,'1, 2');
-    assert.equal(app.records.get('auditoria_localizacao/visit_checkout').evento,'checkout');
-    assert.equal(app.records.get('auditoria_localizacao/visit_checkout').gps.lat,1);
+    assert.equal(app.records.get('atividades/visit')['auditoriaLocalizacao.checkout'].evento,'checkout');
+    assert.equal(app.records.get('atividades/visit')['auditoriaLocalizacao.checkout'].gps.lat,1);
 });
 
 test('second and third saves can edit selected products without a false session conflict',async()=>{
@@ -139,5 +139,5 @@ test('training checkout revalidates modules from server and persists completion 
     assert.equal(app.records.get('atividades/visit').status,'Concluída');
     assert.equal(app.records.get('atividades/visit').quantidadeParticipantes,8);
     assert.equal(app.records.get('relatorios_treinamentos/report').dadosTreinamento.satisfaction,'Não respondeu');
-    assert.equal(app.records.get('auditoria_localizacao/visit_checkout').evento,'checkout');
+    assert.equal(app.records.get('atividades/visit')['auditoriaLocalizacao.checkout'].evento,'checkout');
 });
