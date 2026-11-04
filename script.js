@@ -2449,7 +2449,7 @@ function atualizarInterfaceVisitaAtual() {
                 preencherFormularioAssistencia(backup.data.assistencia);
             }
             technicalEditor.reset({
-                activityId,
+                activityId: atividadeId,
                 text: compatibilidade ? backup.data.text : technicalEditor.input.value,
                 blocks: compatibilidade ? backup.data.blocks : blocosPersistidosRelatorio(objetoRelatorioGlobal),
                 preserveLocal: !!compatibilidade
