@@ -22,7 +22,7 @@ import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, 
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
-import { buscarCentroCidade, referenciaLocalizacao, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia } from './src/services/location.js';
+import { buscarCentroCidade, buscarEnderecoPorCep, referenciaLocalizacao, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia } from './src/services/location.js';
 import { capturarLocalizacaoOpcional, montarAuditoriaLocalizacao } from './src/services/location-audit.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
@@ -1770,7 +1770,6 @@ function configurarTelaCadastroCliente() {
         exigirSessao(sessao);
         if (!coords) {
             try {
-                await new Promise(resolve => setTimeout(resolve, 1100));
                 centro = await buscarCentroCidade(endereco.cidade, endereco.uf);
             } catch (error) { console.warn('Centro da cidade indisponível; poderá ser consultado no check-in.', error); }
             exigirSessao(sessao);
@@ -1889,17 +1888,21 @@ function configurarTelaCadastroCliente() {
 
         try {
 
-            const dados = await buscarJson(`https://brasilapi.com.br/api/cep/v2/${puro}`);
+            const dados = await buscarEnderecoPorCep(puro);
 
             if (!sessaoValida(sessao) || pedido !== versaoConsultaEndereco) return;
 
-            campo('cc-endereco').value = dados.street || ''; campo('cc-bairro').value = dados.neighborhood || '';
+            if (!dados) {
+                campo('cc-status-cep').textContent = ' (Preencha o endereço manualmente)';
+                return;
+            }
 
-            campo('cc-cidade').value = dados.city || ''; campo('cc-uf').value = dados.state || '';
+            campo('cc-endereco').value = dados.logradouro || ''; campo('cc-bairro').value = dados.bairro || '';
+            campo('cc-cidade').value = dados.cidade || ''; campo('cc-uf').value = dados.uf || '';
 
             // Coordenadas de CEP não representam necessariamente a porta da loja.
 
-            campo('cc-status-cep').textContent = ' (Encontrado)';
+            campo('cc-status-cep').textContent = dados.logradouro ? ' (Encontrado)' : ' (Informe o logradouro)';
 
         } catch (erro) {
 

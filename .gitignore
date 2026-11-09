@@ -4,3 +4,4 @@ exports/
 .env
 service-account*.json
 *-service-account*.json
+dist/

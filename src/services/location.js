@@ -22,21 +22,66 @@ export function dadosLocalizacaoCadastro(coords, centro) {
     return {lat:null,lng:null,statusLocalizacao:'incerto',origemCoordenadas:null,centroCidade:centro || null};
 }
 
-export async function buscarCentroCidade(cidade, uf) {
-    if (!String(cidade||'').trim() || !/^[A-Z]{2}$/.test(normalizarLocal(uf))) return null;
-    const params=new URLSearchParams({format:'jsonv2',countrycodes:'br',addressdetails:'1',limit:'5',city:cidade,state:uf,country:'Brasil'});
-    const data=await buscarJson('https://nominatim.openstreetmap.org/search?'+params);
-    if (!Array.isArray(data)) return null;
-    for (const result of data) {
-        if (!['city','town','village','municipality','administrative'].includes(result.addresstype) || !coordenadasValidas(result.lat,result.lon)) continue;
-        const name=result.address?.city || result.address?.town || result.address?.municipality || result.name;
-        if (normalizarLocal(name)!==normalizarLocal(cidade)) continue;
-        const state=result.address?.['ISO3166-2-lvl4'];
-        if (state && state!==`BR-${normalizarLocal(uf)}`) continue;
-        return {lat:Number(result.lat),lng:Number(result.lon),cidade:String(cidade).trim(),uf:normalizarLocal(uf)};
-    }
-    return null;
+const cepDigitos = value => String(value || '').replace(/\D/g, '');
+const ufGeoapify = result => normalizarLocal(result.state_code).replace(/^BR-/, '');
+const cidadeGeoapify = result => result.city || result.town || result.municipality || result.village;
+const resultadoComCoordenadas = result => coordenadasValidas(result.lat, result.lon);
+const coordenadasGeoapify = result => ({ lat: Number(result.lat), lng: Number(result.lon) });
+
+async function buscarGeoapify(operacao, campos) {
+    const config = await buscarJson(new URL('../../geoapify-config.json', import.meta.url).href);
+    if (!config?.apiKey) throw new Error('Geoapify indisponível neste ambiente.');
+    const params = new URLSearchParams({ ...campos, format: 'json', lang: 'pt', apiKey: config.apiKey });
+    if (operacao === 'search') params.set('filter', 'countrycode:br');
+    const { results } = await buscarJson(`https://api.geoapify.com/v1/geocode/${operacao}?${params}`);
+    if (!Array.isArray(results)) throw new Error('O serviço de localização retornou uma resposta inválida.');
+    return results;
 }
+
+export async function buscarEnderecoPorCep(cep) {
+    const puro = cepDigitos(cep);
+    if (puro.length !== 8) return null;
+
+    let endereco;
+    try {
+        const resultados = await buscarGeoapify('search', { postcode: `${puro.slice(0, 5)}-${puro.slice(5)}`, limit: '5' });
+        const exatos = resultados.filter(result => cepDigitos(result.postcode) === puro);
+        const resultado = exatos.find(result => result.street && cidadeGeoapify(result) && /^[A-Z]{2}$/.test(ufGeoapify(result))) || exatos[0];
+        if (resultado) {
+            endereco = {
+                logradouro: resultado.street,
+                bairro: resultado.suburb || resultado.district || resultado.neighbourhood,
+                cidade: cidadeGeoapify(resultado),
+                uf: ufGeoapify(resultado)
+            };
+            if (endereco.logradouro && endereco.cidade && /^[A-Z]{2}$/.test(endereco.uf)) return endereco;
+        }
+    } catch {
+        // A consulta complementar também atende ambientes sem chave do Geoapify.
+    }
+
+    try {
+        const dados = await buscarJson(`https://viacep.com.br/ws/${puro}/json/`);
+        if (!dados.erro && dados.localidade && dados.uf) {
+            return { logradouro: dados.logradouro, bairro: dados.bairro, cidade: dados.localidade, uf: dados.uf };
+        }
+    } catch (erro) {
+        if (!endereco?.cidade || !/^[A-Z]{2}$/.test(endereco.uf)) throw erro;
+    }
+    return endereco?.cidade && /^[A-Z]{2}$/.test(endereco.uf) ? endereco : null;
+}
+
+export async function buscarCentroCidade(cidade, uf) {
+    const cidadeConsultada = String(cidade || '').trim();
+    const ufConsultada = normalizarLocal(uf);
+    if (!cidadeConsultada || !/^[A-Z]{2}$/.test(ufConsultada)) return null;
+    const resultados = await buscarGeoapify('search', { city: cidadeConsultada, state: ufConsultada, type: 'city', limit: '5' });
+    const resultado = resultados.find(result => result.result_type === 'city' && resultadoComCoordenadas(result) &&
+        normalizarLocal(cidadeGeoapify(result) || result.name) === normalizarLocal(cidadeConsultada) &&
+        ufGeoapify(result) === ufConsultada);
+    return resultado ? { ...coordenadasGeoapify(resultado), cidade: cidadeConsultada, uf: ufConsultada } : null;
+}
+
 export async function buscarJson(url) {
 
     const controller = new AbortController();
@@ -80,43 +125,48 @@ export function obterPosicao() {
 }
 
 export async function obterEnderecoPorCoords(lat, lng) {
-
     try {
-
-        const data = await buscarJson(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`); return data.display_name || "Endereço não encontrado na base de mapas.";
-
-    } catch(e) { return "Erro ao traduzir coordenadas para endereço."; }
-
+        const resultados = await buscarGeoapify('reverse', { lat, lon: lng, limit: '1' });
+        return resultados[0]?.formatted || 'Endereço não encontrado na base de mapas.';
+    } catch {
+        return 'Erro ao traduzir coordenadas para endereço.';
+    }
 }
 
-// Recebe os campos separados para evitar que o bairro seja interpretado como rua.
+// Usa campos separados para preservar o número e evitar que o bairro seja interpretado como rua.
 export async function obterCoordsPorEndereco(endereco) {
-    const params = new URLSearchParams({ format: 'jsonv2', countrycodes: 'br', limit: '1', addressdetails: '1' });
+    let campos;
     if (typeof endereco === 'string') {
-        params.set('q', endereco);
+        if (!endereco.trim()) return null;
+        campos = { text: endereco.trim() };
     } else {
-        const rua = String(endereco?.logradouro || '').trim();
-        const numero = String(endereco?.numero || '').trim();
-        const cidade = String(endereco?.cidade || '').trim();
-        const uf = String(endereco?.uf || '').trim();
-        if (!rua || !numero || !cidade || !uf) return null;
-        params.set('street', `${numero} ${rua}`);
-        params.set('city', cidade);
-        params.set('state', uf);
-        params.set('country', 'Brasil');
+        const street = String(endereco?.logradouro || '').trim();
+        const housenumber = String(endereco?.numero || '').trim();
+        const city = String(endereco?.cidade || '').trim();
+        const state = normalizarLocal(endereco?.uf);
+        if (!street || !housenumber || !city || !state) return null;
+        campos = { street, housenumber, city, state };
+        const cep = cepDigitos(endereco.cep);
+        if (cep.length === 8) campos.postcode = `${cep.slice(0, 5)}-${cep.slice(5)}`;
     }
-    let data;
+
+    let resultados;
     try {
-        data = await buscarJson(`https://nominatim.openstreetmap.org/search?${params}`);
+        resultados = await buscarGeoapify('search', { ...campos, limit: '5' });
     } catch (erro) {
         throw new Error('O serviço de localização está indisponível. Tente salvar novamente em alguns instantes.', { cause: erro });
     }
-    if (!Array.isArray(data)) throw new Error('O serviço de localização retornou uma resposta inválida. Tente novamente.');
-    const resultado = data[0];
-    if (!resultado || !coordenadasValidas(resultado.lat, resultado.lon)) return null;
-    // Uma cidade, bairro ou CEP não representa a posição da loja para check-in.
-    if (['city', 'town', 'village', 'municipality', 'administrative', 'suburb', 'postcode'].includes(resultado.addresstype)) return null;
-    return { lat: Number(resultado.lat), lng: Number(resultado.lon) };
+    // Coordenadas aproximadas de rua, bairro, cidade ou CEP não representam a loja.
+    const resultado = resultados.find(result => resultadoComCoordenadas(result) &&
+        ['building', 'amenity'].includes(result.result_type) && result.housenumber &&
+        (!campos.housenumber || (
+            normalizarLocal(result.housenumber) === normalizarLocal(campos.housenumber) &&
+            normalizarLocal(cidadeGeoapify(result)) === normalizarLocal(campos.city) &&
+            ufGeoapify(result) === campos.state &&
+            (normalizarLocal(result.street) === normalizarLocal(campos.street) || result.rank?.confidence_street_level === 1) &&
+            (!campos.postcode || !result.postcode || cepDigitos(result.postcode) === cepDigitos(campos.postcode))
+        )));
+    return resultado ? coordenadasGeoapify(resultado) : null;
 }
 
 export function calcularDistancia(lat1, lon1, lat2, lon2) {

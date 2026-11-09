@@ -25,6 +25,12 @@ Com Node.js 22 ou superior, execute `npm run check` e `npm test`. Esses comandos
 
 O app precisa ser servido por HTTP/HTTPS, não aberto como arquivo local. Para desenvolvimento, um servidor estático como `python3 -m http.server 8080` é suficiente. O preview utiliza o projeto definido em `firebase-config.js`: criar uma branch não cria um banco de testes.
 
+## Busca de endereço e coordenadas
+
+Configure `ADVANCE_GEOAPIFY_API_KEY` no ambiente Preview do projeto Advance App na Vercel e gere um novo deploy da branch. Use uma chave do Geoapify autorizada para os domínios em que o app roda, pois o navegador consulta a API diretamente. O build gera `dist/geoapify-config.json` para entregar a configuração pública ao navegador.
+
+Para testar localmente com a chave carregada no ambiente do terminal, execute `npm run build` e sirva `dist/` com `python3 -m http.server 8080 --directory dist`. Em ambientes sem chave ou com falha do Geoapify, o CEP usa o ViaCEP e o cadastro continua aceitando endereço manual. Coordenadas aproximadas de CEP ou rua não são salvas como localização da loja.
+
 ## Dados e compatibilidade
 
 - Novos clientes com CNPJ usam `codigoCnpj` com o número real, conforme a correção da main. A busca também reconhece `cnpj` e o código hexadecimal antigo.

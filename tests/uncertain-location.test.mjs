@@ -34,18 +34,21 @@ test('missing city reference blocks distance validation; stale city/UF cannot gr
     assert.equal(referenciaLocalizacao({...store,lat:-23.3,lng:-47.4,precisaoCoordenadas:'rua',centroCidade:centro}).raio,50000);
 });
 
-test('city lookup accepts municipality only, rejecting a street, another town and another state',async()=>{
-    const original=globalThis.fetch;
-    try {
-        globalThis.fetch=async url=>{
-            const p=new URL(url).searchParams;assert.equal(p.get('city'),'Itu');assert.equal(p.get('state'),'SP');assert.equal(p.has('street'),false);
-            return {ok:true,json:async()=>[
-                {lat:'-23',lon:'-47',name:'Itu',addresstype:'road'},
-                {lat:'-23',lon:'-47',name:'Salto',addresstype:'city'},
-                {lat:'-23',lon:'-47',name:'Itu',addresstype:'city',address:{'ISO3166-2-lvl4':'BR-RS'}},
-                {lat:'-23.26',lon:'-47.3',name:'Itu',addresstype:'city',address:{'ISO3166-2-lvl4':'BR-SP'}}
-            ]};
-        };
-        assert.deepEqual(await buscarCentroCidade('Itu','SP'),centro);
-    } finally {globalThis.fetch=original;}
+test('city lookup accepts municipality only, rejecting a street, another town and another state', async t => {
+    t.mock.method(globalThis, 'fetch', async url => {
+        const parsed = new URL(url);
+        if (parsed.pathname.endsWith('/geoapify-config.json')) return { ok: true, json: async () => ({ apiKey: 'teste' }) };
+        const params = parsed.searchParams;
+        assert.equal(params.get('city'), 'Itu');
+        assert.equal(params.get('state'), 'SP');
+        assert.equal(params.get('type'), 'city');
+        assert.equal(params.has('street'), false);
+        return { ok: true, json: async () => ({ results: [
+            { lat: -23, lon: -47, city: 'Itu', result_type: 'street', state_code: 'SP' },
+            { lat: -23, lon: -47, city: 'Salto', result_type: 'city', state_code: 'SP' },
+            { lat: -23, lon: -47, city: 'Itu', result_type: 'city', state_code: 'RS' },
+            { lat: -23.26, lon: -47.3, city: 'Itu', result_type: 'city', state_code: 'BR-SP' }
+        ] }) };
+    });
+    assert.deepEqual(await buscarCentroCidade('Itu', 'SP'), centro);
 });
