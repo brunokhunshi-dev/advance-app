@@ -1,4 +1,4 @@
-const CACHE_NAME = 'advance-pwa-stability-v90';
+const CACHE_NAME = 'advance-pwa-stability-v91';
 const APP_SHELL = [
   './', './index.html', './styles.css', './motion.css', './script.js',
   './technical-report-editor.js', './firebase-config.js', './pwa-mobile.css',
@@ -14,6 +14,7 @@ const APP_SHELL = [
   './data/produtos-advance.json',
   './src/domain/products.js',
   './src/data/cnpj-lookup.js',
+  './src/services/cnpj-provider.js',
   './src/domain/formatters.js',
   './src/domain/history.js', './src/domain/cancellation.js', './src/services/cancellation.js',
   './src/domain/identifiers.js',
@@ -24,6 +25,7 @@ const APP_SHELL = [
   './src/services/location.js',
   './src/services/location-audit.js',
   './src/domain/visit-location.js', './src/ui/visit-stop.js',
+  './src/ui/manual-location.js',
   './src/services/commercial-save.js',
   './src/ui/assistance.js',
   './src/ui/agenda-calendar.js',

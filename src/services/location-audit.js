@@ -8,7 +8,7 @@ export async function capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPor
         pos = await obterPosicao();
     } catch (error) {
         return { lat:null, lng:null, accuracy:null, endereco:null, gpsStatus:'indisponivel',
-            gpsErro:String(error?.message || 'Falha ao obter GPS'), capturadoEm:null };
+            gpsErro:String(error?.message || 'Falha ao obter GPS'), codigoGps:error?.codigoGps ?? null, capturadoEm:null };
     }
     const lat = pos?.coords?.latitude, lng = pos?.coords?.longitude;
     if (!coordenadasValidas(lat,lng)) {
@@ -52,7 +52,9 @@ export function montarAuditoriaLocalizacao({evento, atividadeId, atividade, clie
         coordenadasCadastro:{lat:cadastroValido ? Number(cliente.lat) : null,
             lng:cadastroValido ? Number(cliente.lng) : null,
             origem:cliente?.origemCoordenadas || null, distanciaMetros:distanciaCadastroMetros},
-        gps:{lat:temGps ? Number(lat) : null, lng:temGps ? Number(lng) : null,
+        origemLocalizacao:localizacao?.origem || 'gps',
+        ...(localizacao?.origem === 'endereco_manual' ? { enderecoManual:{lat:Number(lat), lng:Number(lng), endereco:localizacao.endereco} } : {}),
+        gps:{lat:temGps && localizacao?.origem !== 'endereco_manual' ? Number(lat) : null, lng:temGps && localizacao?.origem !== 'endereco_manual' ? Number(lng) : null,
             precisaoMetros:localizacao?.accuracy ?? null, endereco:localizacao?.endereco || null,
             status:localizacao?.gpsStatus || 'indisponivel', erro:localizacao?.gpsErro || null,
             capturadoEm:localizacao?.capturadoEm || null},

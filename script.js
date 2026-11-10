@@ -1,4 +1,6 @@
 import { configurarParada } from './src/ui/visit-stop.js';
+import { consultarDadosCnpj } from './src/services/cnpj-provider.js';
+import { resolverLocalizacao, solicitarEnderecoManual } from './src/ui/manual-location.js';
 import { RAIO_VISITA_METROS, LIMITE_PARADAS, ErroLocalizacaoVisita, paradasDaVisita, referenciaInicialVisita, referenciaCheckout, exigirLocalizacaoVisita } from './src/domain/visit-location.js';
 import { setupChangePassword, changeAccountPassword } from './src/ui/change-password.js';
 import { cancelarAgendamento } from './src/services/cancellation.js';
@@ -1838,7 +1840,7 @@ function configurarTelaCadastroCliente() {
 
             }
 
-            const dados = await buscarJson(`https://brasilapi.com.br/api/cnpj/v1/${puro}`);
+            const dados = await consultarDadosCnpj(puro, buscarJson);
 
             if (!sessaoValida(sessao) || pedido !== versaoConsultaCnpj) return;
 
@@ -1846,13 +1848,13 @@ function configurarTelaCadastroCliente() {
 
             const ids = ['cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'];
 
-            const valores = [dados.nome_fantasia || dados.razao_social || '', String(dados.cep || '').replace(/\D/g,''), [dados.descricao_tipo_de_logradouro, dados.logradouro].filter(Boolean).join(' ').trim(), dados.numero || '', dados.bairro || '', dados.municipio || '', dados.uf || ''];
+            const valores = [dados.nome, dados.cep.replace(/\D/g,''), dados.logradouro, dados.numero, dados.bairro, dados.cidade, dados.uf];
 
             if (enderecoVersao === versaoConsultaEndereco && ids.every((id,i) => campo(id).value === valoresAntes[i])) {
 
                 invalidarCoordenadas(); ids.forEach((id,i) => campo(id).value = valores[i]);
 
-                if (dados.logradouro && dados.municipio) mostrarMapa(valoresEndereco());
+                if (dados.logradouro && dados.cidade) mostrarMapa(valoresEndereco());
 
             }
 
@@ -1862,6 +1864,7 @@ function configurarTelaCadastroCliente() {
 
             if (sessaoValida(sessao) && pedido === versaoConsultaCnpj) {
 
+                cnpjNovoCliente = null;
                 lbl.textContent = ' (Confira/preencha os dados manualmente)'; console.error('Consulta de CNPJ:', erro);
 
             }
@@ -2156,7 +2159,9 @@ function configurarBotoesModal() {
         try {
 
             const sessao = sessaoAtual();
-            const localizacao = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+            const captura = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+            const localizacao = await resolverLocalizacao(captura, solicitarEnderecoManual, obterCoordsPorEndereco);
+            if (!localizacao) return;
             exigirSessao(sessao);
 
             await processarCheckin(localizacao, id, clienteId, sessao);
@@ -2212,7 +2217,7 @@ async function processarCheckin(localizacao, id, clienteId, sessao, motivo = nul
         tx.update(ref, { status:'Em andamento', checkinDataHora:agora, localizacaoInicial: referencia,
             ...(motivo ? { checkinAnaliseStatus: 'Pendente de análise', motivoCheckinManual: motivo,
                 checkinSolicitadoEm: serverTimestamp(), checkinSolicitadoPor: sessao.id } : {}),
-            checkinGps:coordenadasValidas(lat,lng) ? `${lat}, ${lng}` : null,
+            checkinGps:localizacao.origem !== 'endereco_manual' && coordenadasValidas(lat,lng) ? `${lat}, ${lng}` : null,
             checkinGpsAccuracy:accuracy, checkinEndereco:endereco, atualizadoEm:agora,
             'auditoriaLocalizacao.checkin':{...auditoria, registradoServidorEm:serverTimestamp()} });
         return auditoria;
@@ -2244,7 +2249,9 @@ async function encerrarVisita(id, btn) {
     let localizacao;
     try {
         const sessao = sessaoAtual();
-        localizacao = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+        const captura = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+        localizacao = await resolverLocalizacao(captura, solicitarEnderecoManual, obterCoordsPorEndereco);
+        if (!localizacao) return;
         exigirSessao(sessao);
 
         const ref = doc(db, 'atividades', id);
@@ -2840,7 +2847,9 @@ function configurarEventosGlobais() {
         let saida;
         try {
             const sessao = sessaoAtual();
-            saida = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+            const captura = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+            saida = await resolverLocalizacao(captura, solicitarEnderecoManual, obterCoordsPorEndereco);
+            if (!saida) return;
             exigirSessao(sessao);
             btn.textContent = 'Concluindo...';
 
@@ -2881,7 +2890,7 @@ function configurarEventosGlobais() {
                 const dadosCheckout = {
                     tipoVisita: tipo,
                     checkoutDataHora: agora,
-                    checkoutGps: coordenadasValidas(saida.lat,saida.lng) ? String(saida.lat) + ', ' + String(saida.lng) : null,
+                    checkoutGps: saida.origem !== 'endereco_manual' && coordenadasValidas(saida.lat,saida.lng) ? String(saida.lat) + ', ' + String(saida.lng) : null,
                     checkoutGpsAccuracy: saida.accuracy,
                     checkoutEndereco: saida.endereco
                 };

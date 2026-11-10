@@ -23,6 +23,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         obterPosicao(){}, obterEnderecoPorCoords(){},
         capturarLocalizacaoOpcional:async()=>({lat:1,lng:2,accuracy:10,endereco:'Loja'}),
+        resolverLocalizacao:async localizacao=>localizacao, solicitarEnderecoManual(){}, obterCoordsPorEndereco(){},
         abrirModalFechamentoManual:(_id,mensagem)=>{throw new Error(mensagem);},
         validarResponsavel:atv=>{if(atv.ptvId!=='user')throw new Error('responsável');},
         gerarIdRelatorio:()=> 'report',mediaStore:{},activityRepository:{invalidate(){}},
