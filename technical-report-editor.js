@@ -384,7 +384,7 @@ function hydrate(root) {
                 const url = await mediaStore.readUrl(activityId, id, 'original');
                 showViewer(url, type, name);
             } catch (error) {
-                showMediaError(describeOperationError(error, 'abertura do arquivo'));
+                showMediaError(describeOperationError(error));
             } finally {
                 button.disabled = false;
             }

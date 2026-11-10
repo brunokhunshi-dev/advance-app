@@ -180,6 +180,16 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .alert-actions button { flex: 1; background: none; border: none; padding: 16px; font-size: 1.05rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .alert-actions button:active { background: #F5F5F5; }
 .alert-actions.split button:first-child { border-right: 1px solid #EBEBEB; }
+#modal-alerta-generico {
+    margin: auto;
+    padding: 0;
+    border: 0;
+    max-height: calc(100dvh - 40px);
+    overflow: auto;
+}
+#modal-alerta-generico:not([open]) { display: none; }
+#modal-alerta-generico::backdrop { background: rgba(0, 0, 0, .5); }
+#modal-alerta-generico button:focus-visible { outline-offset: -3px; }
 .alert-btn-red { color: var(--color-red); }
 .alert-btn-black { color: var(--color-dark); }
 

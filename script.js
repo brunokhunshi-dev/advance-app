@@ -260,10 +260,7 @@ function validarResponsavel(dados, sessao) {
 
 function informarErro(titulo, erro) {
     console.error(titulo, erro);
-    const contexto = /check-in/i.test(titulo) ? 'check-in' :
-        /check-out/i.test(titulo) ? 'check-out' :
-        /relat[oó]rio/i.test(titulo) ? 'salvamento de relatório' : 'operação';
-    window.mostrarAlerta(titulo, describeOperationError(erro, contexto));
+    window.mostrarAlerta(titulo, describeOperationError(erro));
 }
 
 function referenciaRelatorio(atividade, relatorioId = atividade?.relatorioId, paraNovo = false) {
@@ -570,7 +567,7 @@ function inicializarAplicativo() {
 
             }
 
-            if (!perfil) throw new Error("E-mail não encontrado nas coleções 'assistencia' ou 'promotores'.");
+            if (!perfil) throw new Error("Esta conta não tem acesso ao Advance Check.");
 
             if (versao !== versaoSessao) return;
 
@@ -608,16 +605,11 @@ else queueMicrotask(inicializarAplicativo);
 // === FUNÇÕES DE ALERTA NATIVO ===
 
 window.mostrarAlerta = function(titulo, msg) {
-
+    const alerta = document.getElementById('modal-alerta-generico');
     document.getElementById('alerta-titulo').textContent = titulo;
-
     document.getElementById('alerta-msg').textContent = msg;
-
-    document.getElementById('modal-alerta-generico').style.display = 'flex';
-
+    if (!alerta.open) alerta.showModal();
 };
-
-window.fecharAlerta = function() { document.getElementById('modal-alerta-generico').style.display = 'none'; };
 
 window.mostrarAvisoAndamento = function() { document.getElementById('modal-aviso-andamento').style.display = 'flex'; };
 
@@ -2141,7 +2133,6 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
 }
 
 function configurarBotoesModal() {
-    document.getElementById('btn-fechar-alerta')?.addEventListener('click', () => window.fecharAlerta());
     document.getElementById('btn-fechar-aviso-andamento')?.addEventListener('click', () => { document.getElementById('modal-aviso-andamento').style.display = 'none'; });
     document.getElementById('btn-cancelar-exclusao')?.addEventListener('click', () => window.fecharConfirmacaoExclusao());
     document.getElementById('btn-confirmar-exclusao')?.addEventListener('click', () => window.confirmarExclusao());
@@ -2827,16 +2818,16 @@ function configurarEventosGlobais() {
 
         if (tipo === 'Treinamento') {
             const pendentes = modulosTreinamentoPendentes(objetoRelatorioGlobal);
-            if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos antes de finalizar: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
+            if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Falta preencher: ' + pendentes.join(', ') + '.');
         } else if (tipo === ASSISTENCIA_TECNICA_TIPO) {
             const pendentes = camposAssistenciaPendentes(objetoRelatorioGlobal);
-            if (pendentes.length) return window.mostrarAlerta('Relatório incompleto', 'Preencha antes de concluir o check-out: ' + pendentes.join(', ') + '. Volte ao relatório para continuar.');
+            if (pendentes.length) return window.mostrarAlerta('Relatório incompleto', 'Falta preencher: ' + pendentes.join(', ') + '.');
             if (!atAcoes) return window.mostrarAlerta('Atenção', 'Informe as ações definidas.');
             if (!atConclusao) return window.mostrarAlerta('Atenção', 'Informe a conclusão técnica.');
             if (!atResultado) return window.mostrarAlerta('Atenção', 'Selecione o resultado da assistência.');
         } else if (modular) {
             const pendentes = modulosComerciaisPendentes(objetoRelatorioGlobal);
-            if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Conclua os módulos obrigatórios antes de finalizar o check-out: ' + pendentes.join(', ') + '. Volte ao relatório para continuar o preenchimento.');
+            if (pendentes.length) return window.mostrarAlerta('Módulos pendentes', 'Falta preencher: ' + pendentes.join(', ') + '.');
         } else {
             if (!objetivo) return window.mostrarAlerta('Atenção', 'Selecione o objetivo da visita comercial.');
             if (!oportunidade) return window.mostrarAlerta('Atenção', 'Informe se houve oportunidade identificada.');

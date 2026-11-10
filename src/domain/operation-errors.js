@@ -1,46 +1,27 @@
-// Mensagens operacionais: explicar a falha sem expor tokens nem URLs assinadas.
-export function describeOperationError(error, operation = 'operação') {
-    const code = String(error?.code || '').replace(/^.*\//, '').toLowerCase();
+export function describeOperationError(error) {
+    const code = String(error?.code || '').split('/').pop().toLowerCase();
     const status = Number(error?.status || 0);
     const raw = String(error?.message || '');
-    const quota = code === 'resource-exhausted' || /quota exceeded|resource[-.]exhausted|limite (de consultas|preventivo|de imagens)/i.test(raw);
-    const limited = status === 429 || /consultas de imagens temporariamente suspensas|aguarde um minuto/i.test(raw);
-    const identifier = [code && 'Firebase: ' + code, status && 'HTTP ' + status].filter(Boolean).join(' | ');
-    const suffix = identifier ? '\nIdentificação técnica: ' + identifier + '.' : '';
 
-    if (quota || limited) return (
-        'O serviço bloqueou temporariamente novas solicitações para proteger o banco de dados. ' +
-        (quota ? 'A cota de uso do Firestore pode ter sido atingida.' : 'O limite preventivo de requisições foi atingido.') +
-        '\n\nO que fazer: não pressione repetidamente o botão. Aguarde a recuperação do serviço e avise o administrador. ' +
-        'Se você estava preenchendo um relatório, mantenha a tela aberta e preserve as fotos até conseguir salvar. ' +
-        'Se era um check-in ou check-out, NÃO considere a operação concluída sem confirmar o status na agenda.' + suffix
-    );
-    if (code === 'permission-denied' || status === 403) return (
-        'O servidor recusou a autorização para esta ' + operation + '. O registro pode pertencer a outro usuário, ' +
-        'ou o seu perfil pode não ter a permissão necessária. Verifique se está na conta correta e peça ao administrador ' +
-        'para conferir seu acesso. Não continue tentando repetidamente.' + suffix
-    );
-    if (code === 'unauthenticated' || status === 401) return (
-        'Sua autenticação expirou ou não foi aceita. Antes de sair, preserve qualquer relatório não salvo. ' +
-        'Depois, entre novamente na sua conta.' + suffix
-    );
-    if (code === 'unavailable' || /failed to fetch|networkerror|network request failed/i.test(raw)) return (
-        'Não foi possível comunicar com o serviço. Pode haver instabilidade na internet ou indisponibilidade do servidor. ' +
-        'Verifique a conexão e tente novamente após a estabilização. Não presuma que a ' + operation +
-        ' foi salva: confirme o status antes de repetir.' + suffix
-    );
-    if (code === 'failed-precondition') return (
-        'O banco de dados recusou esta ação porque uma condição necessária não foi atendida. ' +
-        'Anote em qual tela ocorreu e avise o administrador. Não altere os dados apenas para tentar contornar o erro.' + suffix
-    );
-    if (code === 'not-found' || status === 404) return (
-        'O registro ou serviço solicitado não foi encontrado. O item pode ter sido alterado ou a versão do aplicativo ' +
-        'pode estar desatualizada. Confirme a identificação do registro e contate o administrador.' + suffix
-    );
-    return (
-        'Não foi possível concluir esta ' + operation + '. ' +
-        'Confira a conexão e o estado da atividade antes de tentar novamente, para evitar registros duplicados. ' +
-        'Se o problema persistir, informe ao administrador a tela e o horário do erro.' + suffix +
-        (raw && raw.length < 160 && !/https?:\/\/|Bearer |token|password|senha/i.test(raw) ? '\nDetalhe: ' + raw : '')
-    );
+    if (code === 'resource-exhausted' || /quota exceeded|resource[-.]exhausted/i.test(raw)) {
+        return 'O serviço atingiu o limite de uso. Tente mais tarde.';
+    }
+    if (status === 429 || /limite (de consultas|preventivo)|consultas de imagens temporariamente suspensas/i.test(raw)) {
+        return 'Muitas solicitações em pouco tempo. Aguarde e tente novamente.';
+    }
+    if (code === 'permission-denied' || status === 403) return 'Você não tem permissão para esta ação.';
+    if (code === 'unauthenticated' || status === 401) return 'Entre novamente para continuar.';
+    if (code === 'unavailable' || /failed to fetch|networkerror|network request failed/i.test(raw)) {
+        return 'Falha na comunicação com o serviço. Confira sua conexão.';
+    }
+    if (code === 'not-found' || status === 404) return 'O item solicitado não foi encontrado.';
+    if (code === 'failed-precondition') return 'O serviço recusou a ação no estado atual. Atualize a tela.';
+
+    // Preserve mensagens curtas do próprio app. Erros técnicos ficam no console.
+    const mensagem = raw.replace(/\s+/g, ' ').trim();
+    const textoTecnico = /https?:\/\/|\b(?:Bearer|token|password|senha|FirebaseError|Firestore|HTTP|stack)\b|^\w+Error:|(?:api[-_ ]?key|authorization|session[-_ ]?id)\s*[:=]/i;
+    if (!code && !status && mensagem && mensagem.length <= 150 && !textoTecnico.test(mensagem)) {
+        return mensagem;
+    }
+    return 'Falha inesperada. Tente novamente.';
 }

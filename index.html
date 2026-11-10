@@ -1022,17 +1022,15 @@
         </div>
 
         <!-- MODAIS DE ALERTA NATIVOS (POPOUTS) -->
-        <div id="modal-alerta-generico" class="modal-overlay alert-modal">
-            <div class="alert-box">
-                <div class="alert-content">
-                    <h3 id="alerta-titulo">Sucesso</h3>
-                    <p id="alerta-msg">Ação realizada.</p>
-                </div>
-                <div class="alert-actions">
-                    <button id="btn-fechar-alerta" class="alert-btn-red">OK</button>
-                </div>
+        <dialog id="modal-alerta-generico" class="alert-box" role="alertdialog" aria-labelledby="alerta-titulo" aria-describedby="alerta-msg">
+            <div class="alert-content">
+                <h3 id="alerta-titulo"></h3>
+                <p id="alerta-msg"></p>
             </div>
-        </div>
+            <form class="alert-actions" method="dialog">
+                <button type="submit" class="alert-btn-red" autofocus>OK</button>
+            </form>
+        </dialog>
 
         <div id="modal-aviso-andamento" class="modal-overlay alert-modal">
             <div class="alert-box">
