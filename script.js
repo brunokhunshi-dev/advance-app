@@ -20,7 +20,7 @@ import { limitesAgendamento, validarAgendamento } from './src/domain/scheduling.
 import { createCnpjLookup } from './src/data/cnpj-lookup.js';
 import './src/ui/pwa.js';
 import { escaparHtml, tempoData, lerDataHora, formatarDataHoraPT, formatarDataAgenda, formatarDataCheckout, formatarHoraCheckout, formatarDuracaoVisita, serializarEstavel } from './src/domain/formatters.js';
-import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, gerarIdClienteProvisorio, cnpjValido } from './src/domain/identifiers.js';
+import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, gerarIdClienteSemCnpj, colecaoCliente, cnpjValido } from './src/domain/identifiers.js';
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
@@ -154,7 +154,7 @@ let fechamentoManualPendente = null;
 let listaClientes = [];
 let clientesAutocompleteCarregados = false;
 const clientesRepository = createClientRepository(async clienteId => {
-    const snap = await getDoc(doc(db, 'clientes', clienteId));
+    const snap = await getDoc(doc(db, colecaoCliente(clienteId), clienteId));
     return snap.exists() ? { ...snap.data(), id: snap.id } : null;
 });
 const obterCliente = clientesRepository.get;
@@ -409,6 +409,11 @@ function invalidarCoordenadas() {
 function limparCadastroCliente() {
 
     versaoConsultaCnpj++; cnpjNovoCliente = null; invalidarCoordenadas();
+    const semCnpj = document.getElementById('cc-sem-cnpj');
+    const cnpj = document.getElementById('cc-cnpj');
+    semCnpj.checked = false;
+    cnpj.disabled = false;
+    cnpj.required = true;
 
     ['cc-cnpj','cc-nome','cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => {
 
@@ -687,7 +692,7 @@ function mostrarApenasTela(idTelaAlvo) {
         else el.removeAttribute('aria-current');
     });
 
-    document.body.classList.toggle('screen-form-mode', idTelaAlvo === 'tela-nova-visita' || idTelaAlvo === 'tela-detalhes-visita');
+    document.body.classList.toggle('screen-form-mode', ['tela-nova-visita', 'tela-detalhes-visita', 'tela-cadastro-cliente'].includes(idTelaAlvo));
 
     if (idTelaAlvo === 'tela-relatorio') {
 
@@ -713,7 +718,7 @@ function mostrarApenasTela(idTelaAlvo) {
     } else {
 
 
-        document.querySelector('.bottom-nav').style.display = 'flex';
+        document.querySelector('.bottom-nav').style.display = idTelaAlvo === 'tela-cadastro-cliente' ? 'none' : 'flex';
 
     }
 
@@ -1745,10 +1750,13 @@ async function carregarDadosParaAutocomplete() {
     }
 
     try {
-        const snap = await getDocs(query(collection(db,'clientes'), where('status','in',['Ativo','Provisorio'])));
+        const colecoes = ['clientes', 'clientes_sem_cnpj'];
+        const resultados = await Promise.all(colecoes.map(nome =>
+            getDocs(query(collection(db, nome), where('status', 'in', ['Ativo', 'Provisorio'])))
+        ));
         if (!sessaoValida(sessao)) return;
 
-        listaClientes = snap.docs.map(d => {
+        listaClientes = resultados.flatMap(snap => snap.docs).map(d => {
             const dados = d.data();
             const cliente = { id: d.id, ...dados, nome: String(dados.nome || 'Cliente sem nome') };
             clientesRepository.set(d.id, cliente);
@@ -1767,7 +1775,7 @@ function configurarTelaCadastroCliente() {
 
     const campo = id => document.getElementById(id);
 
-    const cnpj = campo('cc-cnpj'), cep = campo('cc-cep');
+    const cnpj = campo('cc-cnpj'), cep = campo('cc-cep'), semCnpj = campo('cc-sem-cnpj');
 
     const valoresEndereco = () => ['cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].map(id => campo(id).value.trim()).join(', ');
 
@@ -1801,32 +1809,16 @@ function configurarTelaCadastroCliente() {
 
     campo('cc-cidade').readOnly = false; campo('cc-uf').readOnly = false; campo('cc-uf').maxLength = 2;
 
-    cnpj.addEventListener('input', () => {
-
-        cnpjNovoCliente = null; versaoConsultaCnpj++; invalidarCoordenadas(); campo('cc-status-cnpj').textContent = '';
-
-    });
-
-    ['cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => campo(id).addEventListener('input', invalidarCoordenadas));
-
-    cnpj.addEventListener('blur', async () => {
-
-        if (!idUsuarioLogado || cadastroSalvando) return;
-
+    const consultarCnpj = async (mostrarInvalido = false) => {
+        if (!idUsuarioLogado || cadastroSalvando || semCnpj.checked) return;
         const puro = cnpj.value.replace(/\D/g, '');
-
-        // CNPJ é opcional. Sem CNPJ, o cadastro segue como provisório e não dispara consulta externa.
-        if (!puro) {
-            cnpjNovoCliente = null;
-            campo('cc-status-cnpj').textContent = ' (Opcional)';
+        const lbl = campo('cc-status-cnpj');
+        if (!cnpjValido(puro)) {
+            if (puro && mostrarInvalido) lbl.textContent = ' (CNPJ inválido)';
             return;
         }
-
+        if (cnpjNovoCliente === puro) return;
         const pedido = ++versaoConsultaCnpj, sessao = sessaoAtual();
-
-        const lbl = campo('cc-status-cnpj');
-
-        if (!cnpjValido(puro)) { cnpjNovoCliente = null; lbl.textContent = ' (CNPJ inválido)'; return; }
 
         cnpjNovoCliente = puro;
 
@@ -1884,7 +1876,27 @@ function configurarTelaCadastroCliente() {
 
         } finally { consultasCadastro--; atualizarBotaoCadastro(); }
 
+    };
+
+    cnpj.addEventListener('input', () => {
+        cnpjNovoCliente = null;
+        versaoConsultaCnpj++;
+        invalidarCoordenadas();
+        campo('cc-status-cnpj').textContent = '';
+        void consultarCnpj();
     });
+    cnpj.addEventListener('blur', () => void consultarCnpj(true));
+
+    semCnpj.addEventListener('change', () => {
+        cnpjNovoCliente = null;
+        versaoConsultaCnpj++;
+        cnpj.value = '';
+        cnpj.disabled = semCnpj.checked;
+        cnpj.required = !semCnpj.checked;
+        campo('cc-status-cnpj').textContent = '';
+    });
+
+    ['cc-cep','cc-endereco','cc-numero','cc-bairro','cc-cidade','cc-uf'].forEach(id => campo(id).addEventListener('input', invalidarCoordenadas));
 
     cep.addEventListener('blur', async () => {
 
@@ -1948,9 +1960,12 @@ function configurarTelaCadastroCliente() {
 
             const sessao = sessaoAtual(), puro = cnpj.value.replace(/\D/g,'');
 
-            if (puro && !cnpjValido(puro)) throw new Error('Informe um CNPJ válido, incluindo os dígitos verificadores.');
+            if (!semCnpj.checked && !cnpjValido(puro)) {
+                cnpj.focus();
+                throw new Error('Informe um CNPJ válido ou marque “O cliente não tem CNPJ”.');
+            }
 
-            const cnpjReal = puro || null;
+            const cnpjReal = semCnpj.checked ? null : puro;
             const nome = campo('cc-nome').value.trim();
 
             const cidade = campo('cc-cidade').value.trim(), uf = campo('cc-uf').value.trim().toUpperCase();
@@ -1988,7 +2003,7 @@ function configurarTelaCadastroCliente() {
                     localizacaoSalva = coords;
 
                     clienteId = gerarIdClienteCnpj(cnpjReal);
-                    const ref = doc(db,'clientes',clienteId);
+                    const ref = doc(db, colecaoCliente(clienteId), clienteId);
 
                     const resultado = await runTransaction(db, async tx => {
                         const atual = await tx.get(ref); exigirSessao(sessao);
@@ -2010,8 +2025,8 @@ function configurarTelaCadastroCliente() {
                 localizacaoSalva = coords;
 
                 const agora = new Date();
-                const clienteProvisorioId = gerarIdClienteProvisorio(agora, nomeUsuarioLogado);
-                const ref = doc(db, 'clientes', clienteProvisorioId);
+                const colecao = collection(db, 'clientes_sem_cnpj');
+                const ref = doc(colecao, gerarIdClienteSemCnpj(doc(colecao).id));
                 await runTransaction(db, async tx => {
                     tx.set(ref, { nome, cidade, uf, enderecoCompleto,
                         ...coords, status: 'Provisorio',
@@ -2032,12 +2047,12 @@ function configurarTelaCadastroCliente() {
             limparCadastroCliente(); voltarNavegacao('tela-nova-visita');
 
             if (!localizado && localizacaoSalva?.statusLocalizacao === 'incerto') {
-                window.mostrarAlerta('Loja salva', 'Endereço cadastrado com localização incerta. O check-in será permitido até 50 km do centro da cidade. As coordenadas da loja poderão ser corrigidas no painel admin.');
+                window.mostrarAlerta('Loja salva', 'Endereço cadastrado com localização incerta. Use o check-in manual enquanto as coordenadas do endereço não estiverem confirmadas.');
                 return;
             }
             window.mostrarAlerta('Sucesso', cnpjReal
                 ? (localizado ? 'Cliente existente selecionado.' : 'Loja salva com CNPJ e coordenadas do endereço informado.')
-                : 'Loja provisória salva. Ela poderá ser revisada posteriormente.');
+                : 'Loja sem CNPJ cadastrada.');
 
         } catch (erro) { informarErro('Não foi possível salvar a loja', erro); }
 
@@ -2178,7 +2193,7 @@ async function processarCheckin(localizacao, id, clienteId, sessao, motivo = nul
 
         const ref = doc(db,'atividades',id), snap = await tx.get(ref);
 
-        const cliente = await tx.get(doc(db,'clientes',clienteId));
+        const cliente = await tx.get(doc(db, colecaoCliente(clienteId), clienteId));
 
         if (!snap.exists() || !cliente.exists()) throw new Error('Visita ou cliente não encontrado.');
 
@@ -2604,7 +2619,7 @@ async function enviarFechamentoManual() {
             const relRef = referenciaRelatorio(atividade);
             const relSnap = await tx.get(relRef);
             if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
-            const clienteSnap = atividade.clienteId ? await tx.get(doc(db,'clientes',atividade.clienteId)) : null;
+            const clienteSnap = atividade.clienteId ? await tx.get(doc(db, colecaoCliente(atividade.clienteId), atividade.clienteId)) : null;
             const clienteAtual = clienteSnap?.exists() ? clienteSnap.data() : null;
             const relatorio = relSnap.data();
             if (relatorio.atividadeId !== atividadeId || relatorio.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorio, normalizarTipoVisita(atividade))) throw new Error('O relatório não está válido.');
@@ -2853,7 +2868,7 @@ function configurarEventosGlobais() {
                 const relSnap = await tx.get(relRef);
                 if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
                 // Releitura no commit garante coordenadas cadastradas atuais na auditoria.
-                const clienteSnap = atividade.clienteId ? await tx.get(doc(db,'clientes',atividade.clienteId)) : null;
+                const clienteSnap = atividade.clienteId ? await tx.get(doc(db, colecaoCliente(atividade.clienteId), atividade.clienteId)) : null;
                 const clienteAtual = clienteSnap?.exists() ? clienteSnap.data() : null;
 
                 const relatorioAtual = relSnap.data();

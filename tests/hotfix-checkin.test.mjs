@@ -1,3 +1,4 @@
+import {colecaoCliente, gerarIdClienteSemCnpj} from '../src/domain/identifiers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -12,13 +13,13 @@ const inicio=source.indexOf('async function processarCheckin(');
 const fim=source.indexOf('async function encerrarVisita(',inicio);
 if(inicio < 0 || fim < 0) throw Error('Função de check-in não localizada');
 
-function create({localizacao,motivo,status='Pendente',client={lat:-23.1,lng:-47.2,nome:'Loja',cidade:'Itu',uf:'SP'}}={}) {
-    const writes=[]; let commitCount=0,copyCount=0;
-    const atividade={ptvId:'promotor',clienteId:'cliente',status,tipoVisita:'Visita comercial'};
+function create({localizacao,motivo,clienteId='cliente',status='Pendente',client={lat:-23.1,lng:-47.2,nome:'Loja',cidade:'Itu',uf:'SP'}}={}) {
+    const writes=[], reads=[]; let commitCount=0,copyCount=0;
+    const atividade={ptvId:'promotor',clienteId,status,tipoVisita:'Visita comercial'};
     const context=vm.createContext({
         document:{getElementById:()=>({textContent:'',style:{display:'flex'}})},
         estadoNavegacaoAtual:null, nomeUsuarioLogado:'Colaborador', db:{}, atividadeSelecionadaId:'visita',
-        ...visitLocation,coordenadasValidas,montarAuditoriaLocalizacao,normalizarTipoVisita,
+        ...visitLocation,colecaoCliente,coordenadasValidas,montarAuditoriaLocalizacao,normalizarTipoVisita,
         serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),
         setDoc:async()=>{copyCount++;throw Error('permission-denied: audit collection');},
         console:{warn(){}}, 
@@ -29,7 +30,7 @@ function create({localizacao,motivo,status='Pendente',client={lat:-23.1,lng:-47.
         runTransaction:async(_,callback)=>{
             const pending=[];
             const result=await callback({
-                get:async ref=>({exists:()=>true,data:()=>ref.collection==='atividades'?atividade:client}),
+                get:async ref=>{reads.push(ref);return {exists:()=>true,data:()=>ref.collection==='atividades'?atividade:client};},
                 set:(ref,data)=>pending.push({op:'set',ref,data}),
                 update:(ref,data)=>pending.push({op:'update',ref,data})
             });
@@ -37,7 +38,7 @@ function create({localizacao,motivo,status='Pendente',client={lat:-23.1,lng:-47.
         }
     });
     vm.runInContext(source.slice(inicio,fim),context);
-    return {run:()=>context.processarCheckin(localizacao || {lat:null,lng:null,accuracy:null,endereco:null,gpsStatus:'indisponivel',gpsErro:'GPS negado'},'visita','cliente',{id:'promotor',uid:'auth-1'},motivo),writes,commits:()=>commitCount,copies:()=>copyCount};
+    return {run:()=>context.processarCheckin(localizacao || {lat:null,lng:null,accuracy:null,endereco:null,gpsStatus:'indisponivel',gpsErro:'GPS negado'},'visita',clienteId,{id:'promotor',uid:'auth-1'},motivo),writes,reads,commits:()=>commitCount,copies:()=>copyCount};
 }
 
 test('check-in without GPS requires the manual request and performs no normal write',async()=>{
@@ -79,4 +80,13 @@ test('visit outside pending state remains blocked and does not write audit',asyn
     const app=create({status:'Concluída'});
     await assert.rejects(app.run(),/iniciada ou encerrada/);
     assert.equal(app.commits(),0);assert.equal(app.writes.length,0);
+});
+
+test('check-in reads clients without CNPJ from their dedicated collection', async () => {
+    const clienteId = gerarIdClienteSemCnpj('novo');
+    const app = create({clienteId, localizacao:{lat:-23.1,lng:-47.2,accuracy:20,gpsStatus:'disponivel'}});
+    await app.run();
+    assert.equal(app.reads[1].collection, 'clientes_sem_cnpj');
+    assert.equal(app.reads[1].id, clienteId);
+    assert.equal(colecaoCliente('CLI-PROV-LEGADO'), 'clientes');
 });

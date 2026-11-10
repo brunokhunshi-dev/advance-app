@@ -1,3 +1,4 @@
+import {colecaoCliente} from '../src/domain/identifiers.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -17,7 +18,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
     if(report) records.set((activity.relatorioColecao || 'relatorios')+'/'+activity.relatorioId,report);
     records.set('clientes/client', {lat:1,lng:2});
     const writes=[];
-    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,...visitLocation,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),setDoc:async()=>{throw Error('permission-denied');},console:{warn(){}},
+    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,...visitLocation,colecaoCliente,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),setDoc:async()=>{throw Error('permission-denied');},console:{warn(){}},
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         obterPosicao(){}, obterEnderecoPorCoords(){},

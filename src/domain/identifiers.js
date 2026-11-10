@@ -60,6 +60,16 @@ export function gerarIdClienteProvisorio(dataCriacao, nomeResponsavel) {
     return 'CLI-PROV-' + formatarDataId(dataCriacao) + '-' + obterIniciais(nomeResponsavel) + '-' + gerarSufixoId();
 }
 
+const PREFIXO_CLIENTE_SEM_CNPJ = 'CLI-SEM-CNPJ-';
+
+export function gerarIdClienteSemCnpj(idAutomatico) {
+    return PREFIXO_CLIENTE_SEM_CNPJ + idAutomatico;
+}
+
+export function colecaoCliente(clienteId) {
+    return clienteId.startsWith(PREFIXO_CLIENTE_SEM_CNPJ) ? 'clientes_sem_cnpj' : 'clientes';
+}
+
 export function cnpjValido(valor) {
 
     if (!/^\d{14}$/.test(valor) || /^(\d)\1{13}$/.test(valor)) return false;
