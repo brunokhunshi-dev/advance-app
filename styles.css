@@ -1423,7 +1423,7 @@ svg.heroicon { fill:none; stroke:currentColor; stroke-width:1.5; flex-shrink:0; 
     padding: 4px 0;
     border: 0;
     background: transparent;
-    color: #bb1224;
+    color: var(--color-red);
     font: inherit;
     cursor: pointer;
 }

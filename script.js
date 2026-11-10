@@ -2380,6 +2380,12 @@ function atualizarInterfaceVisitaAtual() {
     htmlTimeline += '<hr class="va-divider" style="margin: 15px 0;">';
     htmlTimeline += '<div class="timeline-container">';
 
+    const botaoParada = paradas.length < LIMITE_PARADAS
+        ? '<button type="button" class="btn-adicionar-parada" id="btn-adicionar-parada">' +
+          '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21S5 16 5 9a7 7 0 0 1 14 0M18 13v8m-4-4h8"/><circle cx="12" cy="9" r="2.5"/></svg>Adicionar parada</button>'
+        : '';
+
     etapas.forEach((etapa, index) => {
         const isComplete = index <= currentIndex;
         const isLinkComplete = index < currentIndex;
@@ -2391,6 +2397,7 @@ function atualizarInterfaceVisitaAtual() {
         htmlTimeline += '<div class="timeline-header"><strong>' + etapa.titulo + '</strong><span>' + etapa.hora + '</span></div>';
         htmlTimeline += '<p class="timeline-desc"' + (etapa.relatorioAtual ? ' style="margin-bottom: 12px;"' : '') + '>' + etapa.descricao + '</p>';
         if (etapa.relatorioAtual) htmlTimeline += '<button class="btn-outline-red" id="btn-ver-relatorio-inicio">Ver ou editar relatório</button>';
+        if (index === currentIndex) htmlTimeline += botaoParada;
         htmlTimeline += '</div></div>';
     });
 
@@ -2398,12 +2405,7 @@ function atualizarInterfaceVisitaAtual() {
         ? '<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>'
         : '<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>';
 
-    const botaoParada = paradas.length < LIMITE_PARADAS
-        ? '<button type="button" class="btn-adicionar-parada" id="btn-adicionar-parada">' +
-          '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21S5 16 5 9a7 7 0 0 1 14 0M18 13v8m-4-4h8"/><circle cx="12" cy="9" r="2.5"/></svg>Adicionar parada</button>'
-        : '';
-    htmlTimeline += '</div>' + botaoParada + htmlBotoes + '</div>';
+    htmlTimeline += '</div>' + htmlBotoes + '</div>';
     areaVisitas.innerHTML = htmlTimeline;
     const idDaVisita = atividadeSelecionadaId;
     document.getElementById('btn-adicionar-parada')?.addEventListener('click', () => {
