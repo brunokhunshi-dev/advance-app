@@ -1,3 +1,5 @@
+import { configurarParada } from './src/ui/visit-stop.js';
+import { RAIO_VISITA_METROS, LIMITE_PARADAS, ErroLocalizacaoVisita, paradasDaVisita, referenciaInicialVisita, referenciaCheckout, exigirLocalizacaoVisita } from './src/domain/visit-location.js';
 import { setupChangePassword, changeAccountPassword } from './src/ui/change-password.js';
 import { cancelarAgendamento } from './src/services/cancellation.js';
 import { atividadePodeSerCancelada } from './src/domain/cancellation.js';
@@ -22,7 +24,7 @@ import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, 
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
-import { buscarCentroCidade, buscarEnderecoPorCep, referenciaLocalizacao, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco, calcularDistancia } from './src/services/location.js';
+import { buscarCentroCidade, buscarEnderecoPorCep, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco } from './src/services/location.js';
 import { capturarLocalizacaoOpcional, montarAuditoriaLocalizacao } from './src/services/location-audit.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
@@ -370,7 +372,6 @@ function mostrarEditorRelatorioPorTipo(tipo) {
     if (personalizado) personalizado.style.display = assistencia ? 'block' : 'none';
 }
 
-class ErroCheckoutLocalizacao extends Error {}
 
 function limparEstadoVisita() {
     visualizadorScope.invalidate();
@@ -421,7 +422,10 @@ function limparCadastroCliente() {
 
 // === INICIALIZAÇÃO E AUTENTICAÇÃO ===
 
+let abrirParada;
+
 function inicializarAplicativo() {
+    abrirParada = configurarParada({ salvar: salvarParada });
     // Alertas precisam continuar visíveis quando o app-container está oculto.
 
     ['modal-alerta-generico','modal-aviso-andamento','modal-confirmar-exclusao','modal-fechamento-manual'].forEach(id => {
@@ -516,6 +520,7 @@ function inicializarAplicativo() {
         technicalEditor?.reset();
 
         document.getElementById('modal-cancelar-agendamento')?.close();
+        document.getElementById('modal-adicionar-parada')?.close();
         document.getElementById('tela-confirmacao').style.display = 'none';
 
         window.fecharConfirmacaoExclusao();
@@ -1203,6 +1208,13 @@ function renderizarHistoricoVisitas(visitas) {
                         });
 
                         card.append(topo, horario, endereco);
+                        const paradas = paradasDaVisita(visita);
+                        if (paradas.length) {
+                            const resumo = document.createElement('div');
+                            resumo.className = 'hist-info';
+                            resumo.textContent = paradas.length === 1 ? '1 parada' : paradas.length + ' paradas';
+                            card.append(resumo);
+                        }
                         blocoDia.appendChild(card);
                     });
 
@@ -2143,7 +2155,10 @@ function configurarBotoesModal() {
 
             await processarCheckin(localizacao, id, clienteId, sessao);
 
-        } catch (erro) { informarErro('Erro no check-in', erro); }
+        } catch (erro) {
+            if (erro instanceof ErroLocalizacaoVisita) abrirModalFechamentoManual(id, erro.message, 'checkin', clienteId, erro.localizacao);
+            else informarErro('Erro no check-in', erro);
+        }
 
         finally { operacaoEmCurso = false; btn.disabled = false; btn.textContent = 'Iniciar'; }
 
@@ -2151,38 +2166,13 @@ function configurarBotoesModal() {
 
 }
 
-async function centroParaCliente(cliente) {
-    if (!cliente || referenciaLocalizacao(cliente)) return null;
-    if (cliente.statusLocalizacao !== 'incerto' && cliente.precisaoCoordenadas !== 'rua') return null;
-    try { return await buscarCentroCidade(cliente.cidade, cliente.uf); }
-    catch (error) { console.warn('Não foi possível consultar o centro da cidade.', error); return null; }
-}
-
-async function processarCheckin(localizacao, id, clienteId, sessao) {
-
+async function processarCheckin(localizacao, id, clienteId, sessao, motivo = null) {
     const { lat, lng, accuracy, endereco } = localizacao;
-
-    const btn = document.getElementById('btn-iniciar'); btn.textContent = 'Validando visita...';
-
-    // Esta consulta impede o segundo check-in no fluxo normal. A exclusividade
-
-    // entre dispositivos exige também uma trava validada no servidor/regras.
+    document.getElementById('btn-iniciar').textContent = 'Validando visita...';
 
     const abertas = await getDocs(query(collection(db,'atividades'), where('ptvId','==',sessao.id), where('status','==','Em andamento')));
-
     exigirSessao(sessao);
-
     if (abertas.docs.some(d => d.id !== id)) throw new Error('Encerre a visita em andamento antes de iniciar outra.');
-
-    // Endereço e coordenadas são opcionais durante o hotfix.
-    exigirSessao(sessao);
-
-    const clienteLocalizacao = await obterCliente(clienteId, { refresh: true }).catch(error => {
-        console.warn('Referência da loja indisponível antes do check-in.', error);
-        return null;
-    });
-    const centroConsultado = await centroParaCliente(clienteLocalizacao);
-    exigirSessao(sessao);
 
     const auditoriaConfirmada = await runTransaction(db, async tx => {
 
@@ -2198,15 +2188,24 @@ async function processarCheckin(localizacao, id, clienteId, sessao) {
 
         if (atividade.status !== 'Pendente') throw new Error('Esta visita já foi iniciada ou encerrada. Atualize a tela.');
 
-        const referencia = referenciaLocalizacao(dados, centroConsultado);
+        const referencia = referenciaInicialVisita(dados);
+        if (!motivo) {
+            try {
+                exigirLocalizacaoVisita(localizacao, [referencia], 'Faça o check-in a até 1 km do endereço da visita.');
+            } catch (erro) {
+                erro.localizacao = localizacao;
+                throw erro;
+            }
+        }
         const agora = new Date();
         const auditoria = montarAuditoriaLocalizacao({
             evento:'checkin', atividadeId:id, atividade:{...atividade, tipoVisita:normalizarTipoVisita(atividade)},
-            cliente:dados, sessao:{...sessao, nome:nomeUsuarioLogado}, localizacao, referencia, agora
+            cliente:dados, sessao:{...sessao, nome:nomeUsuarioLogado}, localizacao, referencia, agora,
+            modo: motivo ? 'manual' : 'normal', motivo, raioMetros: RAIO_VISITA_METROS
         });
-        // Arquivo primário no documento que já era gravado: não depende da Rule de coleção nova.
-        if (referencia?.incerto && centroConsultado) tx.update(doc(db,'clientes',clienteId), { centroCidade: centroConsultado });
-        tx.update(ref, { status:'Em andamento', checkinDataHora:agora,
+        tx.update(ref, { status:'Em andamento', checkinDataHora:agora, localizacaoInicial: referencia,
+            ...(motivo ? { checkinAnaliseStatus: 'Pendente de análise', motivoCheckinManual: motivo,
+                checkinSolicitadoEm: serverTimestamp(), checkinSolicitadoPor: sessao.id } : {}),
             checkinGps:coordenadasValidas(lat,lng) ? `${lat}, ${lng}` : null,
             checkinGpsAccuracy:accuracy, checkinEndereco:endereco, atualizadoEm:agora,
             'auditoriaLocalizacao.checkin':{...auditoria, registradoServidorEm:serverTimestamp()} });
@@ -2236,11 +2235,11 @@ async function encerrarVisita(id, btn) {
     btn.disabled = true;
     btn.textContent = 'Obtendo GPS de saída...';
 
+    let localizacao;
     try {
         const sessao = sessaoAtual();
-        const localizacao = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+        localizacao = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
         exigirSessao(sessao);
-        const {lat,lng,accuracy,endereco} = localizacao;
 
         const ref = doc(db, 'atividades', id);
         const snap = await getDoc(ref);
@@ -2254,15 +2253,14 @@ async function encerrarVisita(id, btn) {
             console.warn('Referência da loja indisponível antes do check-out.', error);
             return null;
         }) : null;
-        const centroConsultado = await centroParaCliente(cliente);
-        exigirSessao(sessao);
         exigirSessao(sessao);
         const relatorio = await carregarRelatorioDaAtividade(atividade);
         const tipo = normalizarTipoVisita(atividade);
         if (!relatorio || relatorio.atividadeId !== id || relatorio.ptvId !== sessao.id || (tipo !== ASSISTENCIA_TECNICA_TIPO && !relatorioValidoParaCheckout(relatorio, tipo))) {
             throw new Error('O relatório não está válido. Abra e salve o relatório antes de iniciar o check-out.');
         }
-        const saida = { ...localizacao, dataHora: new Date(), cliente, centroConsultado };
+        referenciaCheckout(atividade, cliente, localizacao);
+        const saida = { ...localizacao, dataHora: new Date() };
         objetoAtividadeGlobal = atividade;
         objetoRelatorioGlobal = relatorio;
         if (tipo === 'Visita comercial' && relatorio.dadosComerciais?.versao === 1) {
@@ -2277,7 +2275,7 @@ async function encerrarVisita(id, btn) {
         }
         preencherCheckout(atividade, relatorio, saida);
     } catch (erro) {
-        if (erro instanceof ErroCheckoutLocalizacao) abrirModalFechamentoManual(id, erro.message);
+        if (erro instanceof ErroLocalizacaoVisita) abrirModalFechamentoManual(id, erro.message, 'checkout', null, localizacao);
         else informarErro('Erro no check-out', erro);
     } finally {
         operacaoEmCurso = false;
@@ -2285,6 +2283,43 @@ async function encerrarVisita(id, btn) {
         btn.textContent = 'Encerrar visita';
     }
 }
+async function salvarParada(id, parada) {
+    if (operacaoEmCurso || atividadeSelecionadaId !== id) throw new Error('Reabra a visita para adicionar uma parada.');
+    const sessao = sessaoAtual();
+    const ref = doc(db, 'atividades', id);
+    const registradoEm = new Date();
+    operacaoEmCurso = true;
+    try {
+        const paradas = await runTransaction(db, async tx => {
+            exigirSessao(sessao);
+            const snap = await tx.get(ref);
+            if (!snap.exists()) throw new Error('Visita não encontrada.');
+            const atividade = snap.data();
+            exigirSessao(sessao);
+            validarResponsavel(atividade, sessao);
+            if (atividade.status !== 'Em andamento') throw new Error('A visita não está mais em andamento.');
+            const existentes = paradasDaVisita(atividade);
+            if (existentes.length >= LIMITE_PARADAS) throw new Error('Esta visita já tem três paradas registradas.');
+            const novas = [...existentes, { ...parada, registradoEm }];
+            tx.update(ref, { paradas: novas, atualizadoEm: serverTimestamp() });
+            return novas;
+        });
+        activityRepository.invalidate();
+        if (sessaoValida(sessao) && atividadeSelecionadaId === id && objetoAtividadeGlobal) {
+            objetoAtividadeGlobal = { ...objetoAtividadeGlobal, paradas };
+            atualizarInterfaceVisitaAtual();
+            requestAnimationFrame(() => {
+                const foco = document.getElementById('btn-adicionar-parada')
+                    || document.getElementById('btn-encerrar-visita-inicio')
+                    || document.getElementById('btn-escrever-relatorio-inicio');
+                foco?.focus();
+            });
+        }
+    } finally {
+        operacaoEmCurso = false;
+    }
+}
+
 function atualizarInterfaceVisitaAtual() {
     if (!objetoAtividadeGlobal) return;
 
@@ -2295,9 +2330,12 @@ function atualizarInterfaceVisitaAtual() {
     const temRelatorio = !!(tipoAtual === 'Treinamento' && trainingReport?.hasSaved(atividadeSelecionadaId)) || !!(tipoAtual === 'Visita comercial' && commercialReport?.hasSaved(atividadeSelecionadaId)) || (tipoAtual === ASSISTENCIA_TECNICA_TIPO ? Boolean(relatorioInterface) : relatorioValidoParaCheckout(relatorioInterface, tipoAtual));
 
     const etapas = [{
-        titulo: 'Check-in',
+        titulo: objetoAtividadeGlobal.motivoCheckinManual ? 'Check-in manual' : 'Check-in',
+        data: objetoAtividadeGlobal.checkinDataHora,
         hora: objData.hora,
-        descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' chegou a ' + escaparHtml(clienteSelecionadoNome) + ' às ' + objData.hora + '.'
+        descricao: objetoAtividadeGlobal.motivoCheckinManual
+            ? escaparHtml(objetoAtividadeGlobal.checkinAnaliseStatus) + ' · ' + escaparHtml(objetoAtividadeGlobal.motivoCheckinManual)
+            : escaparHtml(nomeUsuarioLogado || 'Técnico') + ' chegou a ' + escaparHtml(clienteSelecionadoNome) + ' às ' + objData.hora + '.'
     }];
 
     if (temRelatorio) {
@@ -2313,6 +2351,7 @@ function atualizarInterfaceVisitaAtual() {
             etapas.push({
                 titulo: index === 0 ? 'Relatório adicionado' : 'Relatório atualizado',
                 hora: horaReg,
+                data: registro.salvoEm,
                 descricao: escaparHtml(nomeUsuarioLogado || 'Técnico') + ' ' +
                     (tipoAtual === ASSISTENCIA_TECNICA_TIPO
                         ? (index === 0 ? 'preencheu o relatório técnico.' : 'atualizou o relatório técnico.')
@@ -2322,6 +2361,16 @@ function atualizarInterfaceVisitaAtual() {
         });
     }
 
+    const paradas = paradasDaVisita(objetoAtividadeGlobal);
+    paradas.forEach((parada, indice) => {
+        etapas.push({
+            titulo: 'Parada ' + (indice + 1),
+            data: parada.registradoEm,
+            hora: formatarDataHoraPT(parada.registradoEm).hora,
+            descricao: escaparHtml(parada.tipo) + ' · ' + escaparHtml(parada.endereco || 'Localização registrada por GPS')
+        });
+    });
+    etapas.sort((a, b) => tempoData(a.data) - tempoData(b.data));
     const currentIndex = etapas.length - 1;
 
     let htmlTimeline = '';
@@ -2349,8 +2398,17 @@ function atualizarInterfaceVisitaAtual() {
         ? '<button class="btn-checkin" id="btn-encerrar-visita-inicio" style="margin-top: 15px;">Encerrar visita</button>'
         : '<button class="btn-checkin" id="btn-escrever-relatorio-inicio" style="margin-top: 15px;">Escrever relatório</button>';
 
-    htmlTimeline += '</div>' + htmlBotoes + '</div>';
+    const botaoParada = paradas.length < LIMITE_PARADAS
+        ? '<button type="button" class="btn-adicionar-parada" id="btn-adicionar-parada">' +
+          '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M12 21S5 16 5 9a7 7 0 0 1 14 0M18 13v8m-4-4h8"/><circle cx="12" cy="9" r="2.5"/></svg>Adicionar parada</button>'
+        : '';
+    htmlTimeline += '</div>' + botaoParada + htmlBotoes + '</div>';
     areaVisitas.innerHTML = htmlTimeline;
+    const idDaVisita = atividadeSelecionadaId;
+    document.getElementById('btn-adicionar-parada')?.addEventListener('click', () => {
+        if (!operacaoEmCurso) void abrirParada(idDaVisita);
+    });
 
     const btnEscrever = document.getElementById('btn-escrever-relatorio-inicio');
     const btnVerEditar = document.getElementById('btn-ver-relatorio-inicio');
@@ -2491,8 +2549,15 @@ function atualizarInterfaceVisitaAtual() {
     }
 }
 
-function abrirModalFechamentoManual(atividadeId, mensagem) {
-    fechamentoManualPendente = { atividadeId };
+function abrirModalFechamentoManual(atividadeId, mensagem, evento = 'checkout', clienteId = null, localizacao = null) {
+    fechamentoManualPendente = { atividadeId, evento, clienteId, localizacao };
+    const acao = evento === 'checkin' ? 'check-in' : 'check-out';
+    document.getElementById('fechamento-manual-titulo').textContent = 'Não foi possível validar o ' + acao;
+    document.getElementById('fechamento-manual-convite').textContent = evento === 'checkin'
+        ? 'Você pode iniciar a visita com um check-in manual, sujeito à análise do gestor.'
+        : 'Deseja solicitar um fechamento manual para o seu gestor?';
+    document.querySelector('label[for="fechamento-manual-motivo"]').textContent = 'Motivo do ' + acao + ' manual';
+    document.getElementById('fechamento-manual-motivo').placeholder = 'Explique por que o ' + acao + ' não pôde ser validado.';
     const modal = document.getElementById('modal-fechamento-manual');
     document.getElementById('fechamento-manual-mensagem').textContent = mensagem || 'A localização de saída não pôde ser validada.';
     document.getElementById('fechamento-manual-pergunta').style.display = 'block';
@@ -2511,15 +2576,20 @@ async function enviarFechamentoManual() {
     if (operacaoEmCurso || !fechamentoManualPendente?.atividadeId) return;
     const motivoEl = document.getElementById('fechamento-manual-motivo');
     const motivo = motivoEl.value.trim();
-    if (motivo.length < 5) return window.mostrarAlerta('Atenção', 'Informe o motivo do fechamento manual.');
+    if (motivo.length < 5) return window.mostrarAlerta('Atenção', 'Informe o motivo da solicitação manual.');
 
     const btn = document.getElementById('btn-enviar-fechamento-manual');
-    const atividadeId = fechamentoManualPendente.atividadeId;
+    const { atividadeId, evento, clienteId, localizacao } = fechamentoManualPendente;
     operacaoEmCurso = true;
     btn.disabled = true;
     btn.textContent = 'ENVIANDO...';
     try {
         const sessao = sessaoAtual();
+        if (evento === 'checkin') {
+            await processarCheckin(localizacao, atividadeId, clienteId, sessao, motivo);
+            fecharModalFechamentoManual();
+            return;
+        }
         const auditoriaConfirmada = await runTransaction(db, async tx => {
             const atvRef = doc(db, 'atividades', atividadeId);
             const atvSnap = await tx.get(atvRef);
@@ -2563,8 +2633,8 @@ async function enviarFechamentoManual() {
                 evento:'checkout', modo:'manual', atividadeId,
                 atividade:{...atividade, tipoVisita:normalizarTipoVisita(atividade)},
                 cliente:clienteAtual, sessao:{...sessao,nome:nomeUsuarioLogado},
-                localizacao:{gpsStatus:'indisponivel',gpsErro:'Fechamento manual sem GPS coletado'},
-                referencia:referenciaLocalizacao(clienteAtual), agora, motivo
+                localizacao, referencia:atividade.localizacaoInicial ?? referenciaInicialVisita(clienteAtual),
+                agora, motivo, raioMetros: RAIO_VISITA_METROS
             });
             tx.update(atvRef, { ...manual, status: 'Concluída',
                 'auditoriaLocalizacao.checkout':{...auditoria, registradoServidorEm:serverTimestamp()} });
@@ -2584,7 +2654,7 @@ async function enviarFechamentoManual() {
         await carregarHistoricoVisitas();
         window.mostrarAlerta('Sucesso', 'Fechamento manual enviado para análise do gestor.');
     } catch (erro) {
-        informarErro('Não foi possível solicitar o fechamento manual', erro);
+        informarErro('Não foi possível enviar a solicitação manual', erro);
     } finally {
         operacaoEmCurso = false;
         btn.disabled = false;
@@ -2757,12 +2827,14 @@ function configurarEventosGlobais() {
 
         operacaoEmCurso = true;
         btn.disabled = true;
-        btn.textContent = 'Concluindo...';
+        btn.textContent = 'Validando localização…';
 
+        let saida;
         try {
             const sessao = sessaoAtual();
-            const saida = checkoutPendenteGlobal.posicao;
-            if (!saida) throw new Error('Os dados do check-out não estão mais disponíveis.');
+            saida = await capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPorCoords);
+            exigirSessao(sessao);
+            btn.textContent = 'Concluindo...';
 
             const auditoriaConfirmada = await runTransaction(db, async tx => {
                 const atvRef = doc(db, 'atividades', atividadeId);
@@ -2780,7 +2852,7 @@ function configurarEventosGlobais() {
                 if (!relSnap.exists()) throw new Error('Relatório não encontrado.');
                 // Releitura no commit garante coordenadas cadastradas atuais na auditoria.
                 const clienteSnap = atividade.clienteId ? await tx.get(doc(db,'clientes',atividade.clienteId)) : null;
-                const clienteAtual = clienteSnap?.exists() ? clienteSnap.data() : saida.cliente;
+                const clienteAtual = clienteSnap?.exists() ? clienteSnap.data() : null;
 
                 const relatorioAtual = relSnap.data();
                 if (relatorioAtual.atividadeId !== atividadeId || relatorioAtual.ptvId !== sessao.id || !relatorioValidoParaCheckout(relatorioAtual, tipo)) {
@@ -2857,7 +2929,8 @@ function configurarEventosGlobais() {
                 const auditoria = montarAuditoriaLocalizacao({
                     evento:'checkout', atividadeId, atividade:{...atividade, tipoVisita:tipo},
                     cliente:clienteAtual, sessao:{...sessao, nome:nomeUsuarioLogado},
-                    localizacao:saida, referencia:referenciaLocalizacao(clienteAtual, saida.centroConsultado), agora
+                    localizacao:saida, referencia:referenciaCheckout(atividade, clienteAtual, saida),
+                    agora, raioMetros: RAIO_VISITA_METROS
                 });
                 tx.update(atvRef, { ...dadosCheckout, status: 'Concluída', atualizadoEm: agora,
                     'auditoriaLocalizacao.checkout':{...auditoria, registradoServidorEm:serverTimestamp()} });
@@ -2877,7 +2950,8 @@ function configurarEventosGlobais() {
             await carregarHistoricoVisitas();
             window.mostrarAlerta('Sucesso', tipo === ASSISTENCIA_TECNICA_TIPO ? 'Assistência técnica concluída.' : 'Visita concluída.');
         } catch (erro) {
-            informarErro('Erro ao concluir visita', erro);
+            if (erro instanceof ErroLocalizacaoVisita) abrirModalFechamentoManual(atividadeId, erro.message, 'checkout', null, saida);
+            else informarErro('Erro ao concluir visita', erro);
         } finally {
             operacaoEmCurso = false;
             btn.disabled = false;

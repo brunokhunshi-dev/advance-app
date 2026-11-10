@@ -114,11 +114,11 @@ export function obterPosicao() {
 
         if (!navigator.geolocation) return reject(new Error('Este navegador não disponibiliza geolocalização.'));
 
-        navigator.geolocation.getCurrentPosition(resolve, erro => reject(new Error(
-
-            erro.code === 1 ? 'Permita o acesso à localização para continuar.' : 'Não foi possível obter o GPS. Tente novamente em um local com melhor sinal.'
-
-        )), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+        navigator.geolocation.getCurrentPosition(resolve, erro => {
+            const mensagem = erro.code === 1 ? 'Ative a localização e permita o acesso ao GPS.'
+                : 'Não foi possível obter o GPS. Tente novamente em um local com melhor sinal.';
+            reject(Object.assign(new Error(mensagem), { codigoGps: erro.code }));
+        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
 
     });
 

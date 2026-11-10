@@ -31,7 +31,7 @@
                 // Preservar rascunhos, formulários, check-out e confirmação de check-in.
                 if (document.querySelector('dialog[open]') ||
                     document.getElementById('tela-confirmacao')?.style.display === 'flex' ||
-                    document.getElementById('modal-fechamento-manual')?.style.display === 'flex') return false;
+                    (document.getElementById('modal-fechamento-manual')?.style.display === 'flex' || document.getElementById('modal-adicionar-parada')?.open)) return false;
                 return ['tela-login','tela-inicio','tela-agenda','tela-historico','tela-perfil','tela-visualizador-visita']
                     .some(id => document.getElementById(id)?.getClientRects().length);
             };
@@ -266,6 +266,14 @@
                 <div class="visualizador-duracao" id="visu-duracao">Tempo de visita: --.</div>
             </section>
 
+            <section class="visualizador-section" id="visu-paradas" hidden>
+                <div class="visualizador-campo-titulo">Paradas</div>
+                <ol id="visu-paradas-lista"></ol>
+            </section>
+            <section class="visualizador-section" id="visu-checkin-manual" hidden>
+                <div class="visualizador-campo-titulo">Check-in manual</div>
+                <div class="visualizador-texto-box" id="visu-checkin-manual-detalhe"></div>
+            </section>
             <section class="visualizador-tipo-section" id="visu-tecnica">
                 <h2>Visita comercial</h2>
 
@@ -386,6 +394,12 @@
                     </tbody>
                 </table>
 
+                <table class="pdf-sheet-table" id="pdf-paradas-table" style="display:none">
+                    <tbody id="pdf-paradas-lista"></tbody>
+                </table>
+                <table class="pdf-sheet-table" id="pdf-checkin-manual-table" style="display:none">
+                    <tbody><tr><th>Check-in manual</th><td id="pdf-checkin-manual-detalhe">—</td></tr></tbody>
+                </table>
                 <table class="pdf-sheet-table" id="pdf-tecnica-table">
                     <thead><tr><th colspan="4">VISITA COMERCIAL</th></tr></thead>
                     <tbody>
@@ -982,12 +996,12 @@
         <div id="modal-fechamento-manual" class="modal-overlay alert-modal" style="display: none;">
             <div class="alert-box fechamento-manual-box">
                 <div class="alert-content">
-                    <h3>Não foi possível validar o check-out</h3>
+                    <h3 id="fechamento-manual-titulo">Não foi possível validar o check-out</h3>
                     <p id="fechamento-manual-mensagem">A localização de saída não pôde ser validada.</p>
                 </div>
 
                 <div id="fechamento-manual-pergunta" class="fechamento-manual-conteudo">
-                    <p class="fechamento-manual-pergunta-texto">Deseja solicitar um fechamento manual para o seu gestor?</p>
+                    <p id="fechamento-manual-convite" class="fechamento-manual-pergunta-texto">Deseja solicitar um fechamento manual para o seu gestor?</p>
                     <div class="alert-actions split">
                         <button id="btn-fechamento-manual-nao" class="alert-btn-black">NÃO</button>
                         <button id="btn-fechamento-manual-sim" class="alert-btn-red">SIM</button>
@@ -1064,6 +1078,40 @@
                 </div>
                 <p id="cancelamento-erro" role="alert"></p>
                 <button type="submit" id="btn-confirmar-cancelamento" class="btn-checkin">Confirmar cancelamento</button>
+            </form>
+        </dialog>
+
+        <dialog id="modal-adicionar-parada" class="cancellation-dialog" aria-labelledby="parada-titulo">
+            <h2 id="parada-titulo">Adicionar parada?</h2>
+            <p>Vamos registrar essa localização como sua parada. Você pode fazer checkout aqui ou no local de checkin.</p>
+            <div id="parada-mapa" class="home-map-canvas" hidden></div>
+            <p id="parada-mapa-status" class="home-map-status" role="status"></p>
+            <form id="form-parada">
+                <label for="parada-tipo">Tipo de parada</label>
+                <select id="parada-tipo" name="tipo" class="input-box" required>
+                    <option value="">Selecione</option>
+                    <option>Obra do cliente</option>
+                    <option>Outra loja do cliente</option>
+                    <option>Depósito ou centro de distribuição</option>
+                    <option>Local de treinamento</option>
+                    <option>Outro</option>
+                </select>
+                <fieldset id="parada-endereco" class="parada-endereco" hidden disabled>
+                    <legend>Endereço da parada</legend>
+                    <label for="parada-logradouro">Rua</label>
+                    <input id="parada-logradouro" name="logradouro" class="input-box" required maxlength="160">
+                    <label for="parada-numero">Número</label>
+                    <input id="parada-numero" name="numero" class="input-box" required maxlength="20">
+                    <label for="parada-cidade">Cidade</label>
+                    <input id="parada-cidade" name="cidade" class="input-box" required maxlength="100">
+                    <label for="parada-uf">UF</label>
+                    <input id="parada-uf" name="uf" class="input-box" required maxlength="2" pattern="[A-Za-z]{2}" autocapitalize="characters">
+                </fieldset>
+                <p id="parada-erro" role="alert"></p>
+                <div class="alert-actions split">
+                    <button type="button" class="alert-btn-black" id="btn-cancelar-parada">Cancelar</button>
+                    <button type="submit" class="alert-btn-red" id="btn-confirmar-parada" disabled>Adicionar parada</button>
+                </div>
             </form>
         </dialog>
 

@@ -1414,3 +1414,21 @@ svg.heroicon { fill:none; stroke:currentColor; stroke-width:1.5; flex-shrink:0; 
 #btn-cancelar-agendamento[hidden], #visu-cancelamento[hidden], #visu-horarios[hidden], #visu-localizacao[hidden] { display:none; }
 #tela-detalhes-visita .screen-action-dock { flex-direction:column; gap:8px; }
 #tela-detalhes-visita { padding-bottom:calc(176px + env(safe-area-inset-bottom)) !important; }
+
+.btn-adicionar-parada {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: #bb1224;
+    font: inherit;
+    cursor: pointer;
+}
+#modal-adicionar-parada h2 { padding-right: 0; }
+#modal-adicionar-parada .alert-actions { margin-top: 16px; }
+#modal-adicionar-parada button:disabled { opacity: .55; cursor: default; }
+#parada-erro:empty, #parada-mapa-status:empty { display: none; }
+.parada-endereco { margin: 16px 0 0; padding: 0; border: 0; }

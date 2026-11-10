@@ -25,13 +25,13 @@ export async function capturarLocalizacaoOpcional(obterPosicao, obterEnderecoPor
         gpsErro:null, capturadoEm:Number.isFinite(pos?.timestamp) ? new Date(pos.timestamp) : null};
 }
 
-export function montarAuditoriaLocalizacao({evento, atividadeId, atividade, cliente, sessao, localizacao, referencia, agora, modo = 'normal', motivo = null}) {
+export function montarAuditoriaLocalizacao({evento, atividadeId, atividade, cliente, sessao, localizacao, referencia, agora, modo = 'normal', motivo = null, raioMetros = null}) {
     if (!['checkin','checkout'].includes(evento)) throw new Error('Evento de auditoria inválido.');
     const lat = localizacao?.lat ?? null, lng = localizacao?.lng ?? null;
     const temGps = coordenadasValidas(lat,lng);
     const temReferencia = referencia && coordenadasValidas(referencia.lat,referencia.lng);
     const distanciaMetros = temGps && temReferencia ? Math.round(calcularDistancia(Number(lat),Number(lng),referencia.lat,referencia.lng)) : null;
-    const limiteComparacao = temReferencia ? (referencia.incerto ? 50000 : 1500) : null;
+    const limiteComparacao = temReferencia ? (raioMetros ?? (referencia.incerto ? 50000 : 1500)) : null;
     // Snapshot das coordenadas originais mesmo quando a referência operacional é o centro da cidade.
     const cadastroValido = cliente && coordenadasValidas(cliente.lat, cliente.lng);
     const distanciaCadastroMetros = temGps && cadastroValido
@@ -39,7 +39,7 @@ export function montarAuditoriaLocalizacao({evento, atividadeId, atividade, clie
     const dataLocal = [agora.getFullYear(),String(agora.getMonth()+1).padStart(2,'0'),String(agora.getDate()).padStart(2,'0')].join('-');
     const horaLocal = [agora.getHours(),agora.getMinutes(),agora.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
     return {
-        esquema:1, politica:'distancia_nao_bloqueante_temporaria', evento, modo, atividadeId,
+        esquema:1, politica:raioMetros === null ? 'distancia_nao_bloqueante_temporaria' : 'raio_visita_com_solicitacao_manual', evento, modo, atividadeId,
         clienteId:atividade?.clienteId || null, ptvId:atividade?.ptvId || sessao?.id || null,
         uid:sessao?.uid || null, promotorNome:sessao?.nome || null,
         tipoVisita:atividade?.tipoVisita || null, agendadoPara:atividade?.data || null,
@@ -58,9 +58,10 @@ export function montarAuditoriaLocalizacao({evento, atividadeId, atividade, clie
             capturadoEm:localizacao?.capturadoEm || null},
         referencia:{lat:temReferencia ? Number(referencia.lat) : null,
             lng:temReferencia ? Number(referencia.lng) : null,
-            tipo:temReferencia ? (referencia.incerto ? 'centro_cidade' : 'loja') : 'ausente',
-            raioComparacaoMetros:limiteComparacao},
+            tipo:temReferencia ? (referencia.tipo || (referencia.incerto ? 'centro_cidade' : 'loja')) : 'ausente',
+            raioComparacaoMetros:limiteComparacao,
+            ...(referencia?.paradaNumero ? { paradaNumero: referencia.paradaNumero } : {})},
         distanciaMetros, foraRaioDeReferencia:distanciaMetros === null ? null : distanciaMetros > limiteComparacao,
-        localizacaoNaoBloqueante:true, motivoFechamentoManual:motivo
+        localizacaoNaoBloqueante:raioMetros === null || modo === 'manual', motivoFechamentoManual:motivo
     };
 }

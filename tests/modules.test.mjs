@@ -16,7 +16,11 @@ function mockDom(t) {
     const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => [id, {
         textContent: '', innerHTML: '', value: '', style: {setProperty(name,value){this[name]=value;}}, blur() {}
     }]));
+    const createElement = () => ({textContent:'',append(...children){this.children=children;},replaceChildren(...children){this.children=children;}});
+    elements.get('pdf-paradas-table').tBodies = [createElement()];
+    elements.set('visu-paradas-lista',createElement());
     globalThis.document = {
+        createElement,
         getElementById: id => elements.get(id) || null,
         querySelectorAll: () => [], querySelector: () => null
     };
@@ -84,13 +88,15 @@ test('assistance form retains entered fields after module extraction', t => {
 
 test('viewer and print use explicit report/client/professional data', t => {
     const el=mockDom(t);
-    const activity={id:'v1',tipoVisita:'Assistência técnica',status:'Concluída'};
+    const activity={id:'v1',tipoVisita:'Assistência técnica',status:'Concluída',paradas:[{tipo:'Obra do cliente',endereco:'Rua B',origem:'endereco_manual',registradoEm:new Date()}]};
     const client={nome:'Loja A',enderecoCompleto:'Rua A'};
     const report=secoesAssistenciaParaDocumento({produto:'Epóxi',queixa:'Queixa',constatacoes:'Relato correto'});
     renderizarVisualizadorVisita(activity,client,report);
     prepararImpressaoVisualizador(activity,client,report,'Técnico A');
     assert.equal(el.get('visu-cliente').textContent,'Loja A');
     assert.match(el.get('visu-at-relatorio-visual').innerHTML,/Relato correto/);
+    assert.match(el.get('visu-paradas-lista').children[0].textContent,/Obra do cliente.*Rua B/);
+    assert.match(el.get('pdf-paradas-table').tBodies[0].children[0].children[1].textContent,/Rua B.*Endereço informado/);
     assert.equal(el.get('pdf-tecnico').textContent,'Técnico A');
     assert.equal(el.get('pdf-at-constatacoes').textContent,'Relato correto');
 });

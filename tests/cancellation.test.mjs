@@ -87,7 +87,7 @@ test('history viewer shows cancellation text safely and clears its section when 
     const elements=new Map();
     const previous=globalThis.document;
     globalThis.document={getElementById(id){
-        if(!elements.has(id))elements.set(id,{style:{},hidden:false,textContent:'',innerHTML:'',blur(){}});
+        if(!elements.has(id))elements.set(id,{style:{},hidden:false,textContent:'',innerHTML:'',blur(){},replaceChildren(){}});
         return elements.get(id);
     }};
     t.after(()=>{ if(previous===undefined)delete globalThis.document; else globalThis.document=previous; });

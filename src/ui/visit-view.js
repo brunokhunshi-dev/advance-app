@@ -1,3 +1,4 @@
+import { paradasDaVisita } from '../domain/visit-location.js';
 import { resumoTreinamento } from '../domain/training.js';
 import { renderTrainingSummary } from './training-report.js';
 import {nomeProduto} from '../domain/products.js';
@@ -42,6 +43,16 @@ export function resumoComercial(relatorio) {
     ];
 }
 
+function descreverParada(parada) {
+    const local = parada.endereco || [parada.lat, parada.lng].join(', ');
+    const origem = parada.origem === 'endereco_manual' ? 'Endereço informado' : 'GPS';
+    return [parada.tipo, formatarDataHoraPT(parada.registradoEm).completo, local, origem].filter(Boolean).join(' · ');
+}
+
+function descreverCheckinManual(atividade) {
+    return [atividade.checkinAnaliseStatus, atividade.motivoCheckinManual].filter(Boolean).join(' · ');
+}
+
 export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nomeUsuarioLogado) {
     const resultado = obterResultadoHistorico(atividade);
     const tipo = normalizarTipoVisita(atividade);
@@ -56,6 +67,24 @@ export function prepararImpressaoVisualizador(atividade, cliente, relatorio, nom
     if (cancelamentoPdf) cancelamentoPdf.style.display = atividade.status === 'Cancelada' ? 'table' : 'none';
     preencherCelulaPdf('pdf-motivo-cancelamento', motivoCancelamentoTexto(atividade));
     preencherCelulaPdf('pdf-cancelamento-data', atividade.canceladoEm ? formatarDataHoraPT(atividade.canceladoEm).completo : null);
+
+    const paradas = paradasDaVisita(atividade);
+    const tabela = document.getElementById('pdf-paradas-table');
+    if (tabela) {
+        tabela.style.display = paradas.length ? 'table' : 'none';
+        tabela.tBodies[0].replaceChildren(...paradas.map((parada, indice) => {
+            const linha = document.createElement('tr');
+            const titulo = document.createElement('th');
+            const detalhes = document.createElement('td');
+            titulo.textContent = 'Parada ' + (indice + 1);
+            detalhes.textContent = descreverParada(parada);
+            linha.append(titulo, detalhes);
+            return linha;
+        }));
+    }
+    const manualCheckin = document.getElementById('pdf-checkin-manual-table');
+    if (manualCheckin) manualCheckin.style.display = atividade.motivoCheckinManual ? 'table' : 'none';
+    preencherCelulaPdf('pdf-checkin-manual-detalhe', descreverCheckinManual(atividade));
 
     preencherCelulaPdf('pdf-chegada-data', formatarDataCheckout(atividade.checkinDataHora));
     preencherCelulaPdf('pdf-chegada-hora', formatarHoraCheckout(atividade.checkinDataHora));
@@ -178,6 +207,20 @@ export function renderizarVisualizadorVisita(atividade, cliente, relatorio) {
     document.getElementById('visu-manual').style.display = manual ? 'block' : 'none';
     preencherCampoVisualizador('visu-motivo-manual', atividade.motivoFechamentoManual);
     preencherCampoVisualizador('visu-manual-data', atividade.fechamentoSolicitadoEm ? formatarDataHoraPT(atividade.fechamentoSolicitadoEm).completo : null);
+
+    const paradas = paradasDaVisita(atividade);
+    const secaoParadas = document.getElementById('visu-paradas');
+    if (secaoParadas) {
+        secaoParadas.hidden = !paradas.length;
+        document.getElementById('visu-paradas-lista').replaceChildren(...paradas.map(parada => {
+            const item = document.createElement('li');
+            item.textContent = descreverParada(parada);
+            return item;
+        }));
+    }
+    const manualCheckin = document.getElementById('visu-checkin-manual');
+    if (manualCheckin) manualCheckin.hidden = !atividade.motivoCheckinManual;
+    preencherCampoVisualizador('visu-checkin-manual-detalhe', descreverCheckinManual(atividade));
 
     preencherCampoVisualizador('visu-checkin-endereco', atividade.checkinEndereco);
     preencherCampoVisualizador('visu-checkout-endereco', atividade.checkoutEndereco);
