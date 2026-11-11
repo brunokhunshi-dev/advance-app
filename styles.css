@@ -101,8 +101,9 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 .home-map-destination svg { display: block; width: 30px; height: 30px; }
 .home-visit-map .maplibregl-map { font-family: var(--font-body); }
 .home-visit-map .maplibregl-ctrl-attrib { font-size: 9px; line-height: 16px; }
-.home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact { background: transparent; }
-.home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button { width: 28px; height: 28px; margin: 4px; border-radius: 50%; background-color: rgba(255, 255, 255, .78); opacity: .72; }
+.home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact { margin: 5px; background: transparent; box-shadow: none; }
+.home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button { background-color: rgba(255, 255, 255, .55); opacity: .55; }
+.home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact-show { background: #fff; }
 .home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button:hover,
 .home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button:focus-visible { opacity: 1; }
 .home-visit-map .maplibregl-popup-content { color: var(--color-dark); border-radius: 12px; font-family: var(--font-body); }
