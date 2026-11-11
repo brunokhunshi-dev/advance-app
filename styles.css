@@ -99,8 +99,10 @@ input[type="date"].box-cinza, input[type="time"].box-cinza { padding-right: 40px
 .home-map-person { width: 20px; height: 20px; box-sizing: border-box; background-color: #4285F4; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 6px #4285F426; }
 .home-map-destination { width: 30px; height: 30px; color:#EA4335; }
 .home-map-destination svg { display: block; width: 30px; height: 30px; }
+.home-map-destination .visit-map-pin { filter: drop-shadow(0 2px 3px rgba(4, 4, 56, .25)); }
 .home-visit-map .maplibregl-map { font-family: var(--font-body); }
 .home-visit-map .maplibregl-ctrl-attrib { font-size: 9px; line-height: 16px; }
+.home-map-canvas:not(.attribution-ready) .maplibregl-ctrl-attrib-inner { display: none; }
 .home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact { margin: 5px; background: transparent; box-shadow: none; }
 .home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button { background-color: rgba(255, 255, 255, .55); opacity: .55; }
 .home-visit-map .maplibregl-ctrl-attrib.maplibregl-compact-show { background: #fff; }
@@ -173,6 +175,7 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .perfil-label { font-size: 0.75rem; font-weight: 800; color: var(--color-dark); margin-bottom: 4px; }
 .perfil-nome { font-size: 1.15rem; font-weight: 400; color: var(--color-dark); }
 .data-hora-bloco { margin-top: 10px; margin-bottom: 40px; text-align: center; }
+.checkin-visit-map { width: 100%; flex: 0 0 auto; margin: 0 0 24px; }
 .botoes-acao { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-top: auto; }
 
 /* 9. MODAIS NATIVOS (POPOUTS) */
