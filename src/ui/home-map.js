@@ -90,6 +90,9 @@ export class HomeVisitMap {
             this.map = map;
             map.touchZoomRotate.disableRotation();
             map.addControl(new gl.AttributionControl({ compact: true }), 'bottom-right');
+            const attribution = this.canvas.querySelector?.('.maplibregl-ctrl-attrib');
+            attribution?.classList.remove('maplibregl-compact-show');
+            attribution?.removeAttribute('open');
             let loaded = false, failed = false, locating = true, gpsMessage = '';
             const updateStatus = () => {
                 if (version !== this.version) return;
