@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { HomeVisitMap, mapTheme } from '../src/ui/home-map.js';
 import { AgendaCalendar, filtrarAgenda } from '../src/ui/agenda-calendar.js';
 
-function setup(getPosition) {
+function setup(getPosition, onPosition = () => {}) {
     const markers = [], bounds = [], removed = [], maps = [];
     const attribution = { removedClasses: [], removedAttributes: [], classList: { remove(name) { attribution.removedClasses.push(name); } }, removeAttribute(name) { this.removedAttributes.push(name); } };
     const canvas = { replaceChildren() {}, querySelector: () => attribution, ownerDocument: { createElement: () => ({ setAttribute() {}, removeAttribute(name) { delete this[name]; } }) } }, status = { textContent: '' };
@@ -32,12 +32,19 @@ function setup(getPosition) {
             addTo() { markers.push(this); return this; }
         }
     };
-    const controller = new HomeVisitMap(canvas, status, { getPosition, loadLibrary: async () => gl });
+    const controller = new HomeVisitMap(canvas, status, { getPosition, onPosition, loadLibrary: async () => gl });
     controllers.push(controller);
     return { controller, markers, bounds, removed, status, maps, attribution };
 }
 
 const cliente = { lat: -23.09, lng: -47.21, nome: '<Loja>' };
+
+test('check-in map receives the real position and selected client for distance display', async () => {
+    const received = [];
+    const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }), (...args) => received.push(args));
+    await s.controller.update(cliente);
+    assert.deepEqual(received, [[{ lat: -23.1, lng: -47.2 }, cliente]]);
+});
 
 test('home map shows real person and destination positions and fits both into view', async () => {
     const s = setup(async () => ({ coords: { latitude: -23.1, longitude: -47.2 } }));
