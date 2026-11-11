@@ -89,7 +89,7 @@ export class HomeVisitMap {
                 dragRotate: false, pitchWithRotate: false, touchZoomRotate: true, attributionControl: false });
             this.map = map;
             map.touchZoomRotate.disableRotation();
-            map.addControl(new gl.AttributionControl({ compact: false }), 'bottom-right');
+            map.addControl(new gl.AttributionControl({ compact: true }), 'bottom-right');
             let loaded = false, failed = false, locating = true, gpsMessage = '';
             const updateStatus = () => {
                 if (version !== this.version) return;
