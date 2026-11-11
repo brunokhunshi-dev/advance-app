@@ -8,7 +8,8 @@ import { AgendaCalendar, filtrarAgenda } from '../src/ui/agenda-calendar.js';
 
 function setup(getPosition) {
     const markers = [], bounds = [], removed = [], maps = [];
-    const canvas = { replaceChildren() {}, ownerDocument: { createElement: () => ({ setAttribute() {}, removeAttribute(name) { delete this[name]; } }) } }, status = { textContent: '' };
+    const attribution = { removedClasses: [], removedAttributes: [], classList: { remove(name) { attribution.removedClasses.push(name); } }, removeAttribute(name) { this.removedAttributes.push(name); } };
+    const canvas = { replaceChildren() {}, querySelector: () => attribution, ownerDocument: { createElement: () => ({ setAttribute() {}, removeAttribute(name) { delete this[name]; } }) } }, status = { textContent: '' };
     const gl = {
         Map: class {
             constructor(options) { this.options = options; this.handlers = {}; this.paint = []; this.layout = []; this.touchZoomRotate = { disableRotation() {} }; maps.push(this); }
@@ -33,7 +34,7 @@ function setup(getPosition) {
     };
     const controller = new HomeVisitMap(canvas, status, { getPosition, loadLibrary: async () => gl });
     controllers.push(controller);
-    return { controller, markers, bounds, removed, status, maps };
+    return { controller, markers, bounds, removed, status, maps, attribution };
 }
 
 const cliente = { lat: -23.09, lng: -47.21, nome: '<Loja>' };
@@ -47,6 +48,8 @@ test('home map shows real person and destination positions and fits both into vi
     assert.equal(s.maps[0].options.dragPan, true);
     assert.equal(s.maps[0].options.cooperativeGestures, false);
     assert.equal(s.maps[0].options.scrollZoom, false);
+    assert.deepEqual(s.attribution.removedClasses, ['maplibregl-compact-show']);
+    assert.deepEqual(s.attribution.removedAttributes, ['open']);
     s.maps[0].handlers['style.load']();
     assert.deepEqual(s.maps[0].paint[0], ['water', 'fill-color', '#A3C7F3']);
     s.maps[0].handlers.load();
