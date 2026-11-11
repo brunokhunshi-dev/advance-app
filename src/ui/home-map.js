@@ -41,7 +41,7 @@ export function mapTheme(style) {
     });
 }
 
-const PIN = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" data-heroicon="map-pin" width="24" height="24"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/> <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/> </svg>';
+const PIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="visit-map-pin" width="30" height="30"><path fill-rule="evenodd" d="M12 22s8-5.2 8-12a8 8 0 1 0-16 0c0 6.8 8 12 8 12Zm0-8.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clip-rule="evenodd"/><circle cx="12" cy="10" r="3.5" fill="white"/></svg>';
 
 export class HomeVisitMap {
     constructor(canvas, status, { getPosition, loadLibrary = loadMapLibrary }) {
@@ -58,6 +58,7 @@ export class HomeVisitMap {
         clearTimeout(this.loadingTimer);
         this.map?.remove();
         this.map = null;
+        this.canvas.classList?.remove('attribution-ready');
         this.canvas.replaceChildren();
         this.status.textContent = message;
     }
@@ -89,10 +90,15 @@ export class HomeVisitMap {
                 dragRotate: false, pitchWithRotate: false, touchZoomRotate: true, attributionControl: false });
             this.map = map;
             map.touchZoomRotate.disableRotation();
-            map.addControl(new gl.AttributionControl({ compact: true }), 'bottom-right');
-            const attribution = this.canvas.querySelector?.('.maplibregl-ctrl-attrib');
-            attribution?.classList.remove('maplibregl-compact-show');
-            attribution?.removeAttribute('open');
+            const attributionControl = new gl.AttributionControl({ compact: true });
+            map.addControl(attributionControl, 'bottom-right');
+            const fecharAtribuicaoInicial = (pronto = false) => {
+                const attribution = attributionControl._container;
+                attribution?.classList.remove('maplibregl-compact-show');
+                attribution?.removeAttribute('open');
+                if (pronto) this.canvas.classList?.add('attribution-ready');
+            };
+            fecharAtribuicaoInicial();
             let loaded = false, failed = false, locating = true, gpsMessage = '';
             const updateStatus = () => {
                 if (version !== this.version) return;
@@ -107,7 +113,7 @@ export class HomeVisitMap {
                     for (const [key, value] of Object.entries(layer.layout)) map.setLayoutProperty(layer.id, key, value);
                 }
             });
-            map.on('load', () => { loaded = true; failed = false; updateStatus(); });
+            map.on('load', () => { fecharAtribuicaoInicial(true); loaded = true; failed = false; updateStatus(); });
             map.on('error', () => { failed = true; updateStatus(); });
             const marker = (person, position, label, secondary = false, store = null) => {
                 const element = this.canvas.ownerDocument.createElement('div');
