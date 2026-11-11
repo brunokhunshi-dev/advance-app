@@ -27,7 +27,7 @@ import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, 
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
-import { buscarCentroCidade, buscarEnderecoPorCep, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco } from './src/services/location.js';
+import { buscarCentroCidade, buscarEnderecoPorCep, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, calcularDistancia, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco } from './src/services/location.js';
 import { capturarLocalizacaoOpcional } from './src/services/location-audit.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
@@ -181,7 +181,13 @@ const homeCalendar = new AgendaCalendar(document.getElementById('home-calendar')
     navegarParaTela('tela-agenda');
 }, 'home-calendar-title', false);
 const homeVisitMap = new HomeVisitMap(document.getElementById('home-map-canvas'), document.getElementById('home-map-status'), { getPosition: obterPosicao });
-const checkinVisitMap = new HomeVisitMap(document.getElementById('checkin-map-canvas'), document.getElementById('checkin-map-status'), { getPosition: obterPosicao });
+const checkinVisitMap = new HomeVisitMap(document.getElementById('checkin-map-canvas'), document.getElementById('checkin-map-status'), { getPosition: obterPosicao,
+    onPosition(posicao, cliente) {
+        document.getElementById('checkin-current-key').hidden = false;
+        if (!coordenadasValidas(cliente?.lat, cliente?.lng)) return;
+        const metros = Math.round(calcularDistancia(posicao.lat, posicao.lng, Number(cliente.lat), Number(cliente.lng)));
+        document.getElementById('checkin-distance').textContent = `Distância até o check-in: ${metros < 1000 ? metros + ' m' : (metros / 1000).toFixed(1).replace('.', ',') + ' km'}`;
+    } });
 let checkinMapRequest = 0;
 function limparMapaCheckin() {
     checkinMapRequest++;
@@ -2129,14 +2135,18 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
     const telaConfirmacao = document.getElementById('tela-confirmacao');
 
     document.getElementById('conf-nome-cliente').textContent = clienteNome;
-
-    document.getElementById('conf-img-cliente').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(clienteNome)}&background=e2e8f0&color=333`;
-
-    document.getElementById('conf-nome-tecnico').textContent = nomeUsuarioLogado || "Técnico";
-
-    document.getElementById('conf-img-tecnico').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nomeUsuarioLogado || 'Tecnico')}&background=e2e8f0&color=333`;
-
-    document.getElementById('data-hora-atual').textContent = formatarDataHoraPT(new Date()).completo; 
+    document.getElementById('conf-endereco-cliente').textContent = '';
+    document.getElementById('conf-tipo-visita').textContent = 'Carregando…';
+    document.getElementById('checkin-distance').textContent = '';
+    document.getElementById('checkin-current-key').hidden = true;
+    document.getElementById('checkin-destination-key').hidden = true;
+    const directions = document.getElementById('checkin-directions');
+    directions.hidden = true;
+    directions.removeAttribute('href');
+    const agora = new Date();
+    const dia = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' }).format(agora);
+    const horario = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(agora).replace(':', 'h');
+    document.getElementById('data-hora-atual').textContent = `${dia}, às ${horario}`;
 
     telaConfirmacao.style.display = 'flex';
     const pedidoMapa = ++checkinMapRequest;
@@ -2145,9 +2155,25 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
         try {
             const cliente = clienteId ? await obterCliente(clienteId) : null;
             if (pedidoMapa !== checkinMapRequest || telaConfirmacao.style.display === 'none') return;
-            await checkinVisitMap.update(cliente);
+            const endereco = cliente?.enderecoCompleto?.trim() || '';
+            document.getElementById('conf-endereco-cliente').textContent = endereco || 'Endereço não disponível';
+            const destino = coordenadasValidas(cliente?.lat, cliente?.lng)
+                ? `${Number(cliente.lat)},${Number(cliente.lng)}` : endereco;
+            document.getElementById('checkin-destination-key').hidden = !coordenadasValidas(cliente?.lat, cliente?.lng);
+            if (destino) {
+                directions.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}`;
+                directions.hidden = false;
+            }
+            void checkinVisitMap.update(cliente);
+            const atividade = listaAtividadesAgenda.find(item => item.id === atividadeId)
+                || (await activityRepository.listActive(sessaoAtual()?.id)).find(item => item.id === atividadeId);
+            if (pedidoMapa !== checkinMapRequest || telaConfirmacao.style.display === 'none') return;
+            document.getElementById('conf-tipo-visita').textContent = atividade ? normalizarTipoVisita(atividade) : 'Visita';
         } catch (erro) {
-            if (pedidoMapa === checkinMapRequest) checkinVisitMap.clear('Não foi possível carregar o mapa.');
+            if (pedidoMapa === checkinMapRequest) {
+                document.getElementById('conf-tipo-visita').textContent = 'Visita';
+                checkinVisitMap.clear('Não foi possível carregar o mapa.');
+            }
         }
     })();
     abrirCamadaHistorica('checkin');
