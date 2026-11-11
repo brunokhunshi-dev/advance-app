@@ -861,30 +861,29 @@
 
         <!-- MODAL DE CHECK-IN -->
         <div id="tela-confirmacao" class="tela-fullscreen">
-            <h1 class="titulo-confirmacao">iniciar visita?</h1>
-            <div class="perfil-bloco">
-                <img src="" id="conf-img-cliente" class="avatar-img" alt="Cliente">
+            <header class="checkin-header">
+                <h1 class="titulo-confirmacao">Iniciar a visita?</h1>
+                <button class="screen-close" id="btn-voltar" type="button" aria-label="Fechar confirmação de visita"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" class="heroicon" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg></button>
+            </header>
+            <section class="checkin-client-card" aria-label="Local do check-in">
+                <div class="home-visit-map checkin-visit-map" aria-label="Mapa da sua localização e do local de check-in">
+                    <div id="checkin-map-canvas" class="home-map-canvas"></div>
+                    <p id="checkin-map-status" class="home-map-status" role="status"></p>
+                </div>
+                <div class="checkin-map-key"><span id="checkin-current-key" hidden><i class="checkin-key-current"></i>Você está aqui</span><span id="checkin-destination-key" hidden><i class="checkin-key-destination"></i>Local do check-in</span></div>
+                <p id="checkin-distance" class="checkin-distance" role="status"></p>
                 <p class="perfil-label">Cliente</p>
                 <p class="perfil-nome" id="conf-nome-cliente">...</p>
-            </div>
-
-            <div class="perfil-bloco">
-                <img src="" id="conf-img-tecnico" class="avatar-img" alt="Técnico">
-                <p class="perfil-label">Profissional Responsável</p>
-                <p class="perfil-nome" id="conf-nome-tecnico">...</p>
-            </div>
-
-            <div class="data-hora-bloco" style="margin-top: 20px;">
+                <p id="conf-endereco-cliente" class="checkin-address"></p>
+                <a id="checkin-directions" class="checkin-directions" target="_blank" rel="noopener noreferrer" hidden>Como chegar <span aria-hidden="true">↗</span></a>
+            </section>
+            <div class="checkin-detail-card">
                 <p class="perfil-label">Data e Hora do Check-in</p>
                 <p class="perfil-nome" id="data-hora-atual">--:-- | --/--/----</p>
             </div>
-            <section class="home-visit-map checkin-visit-map" aria-label="Mapa da sua localização e do local de check-in">
-                <div id="checkin-map-canvas" class="home-map-canvas"></div>
-                <p id="checkin-map-status" class="home-map-status" role="status"></p>
-            </section>
+            <div class="checkin-detail-card"><p class="perfil-label">Tipo da Visita</p><p class="perfil-nome" id="conf-tipo-visita">Visita</p></div>
             <div class="botoes-acao">
                 <button class="btn-iniciar" id="btn-iniciar">Iniciar</button>
-                <button class="btn-voltar" id="btn-voltar">Voltar</button>
             </div>
         </div>
 
