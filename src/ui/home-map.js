@@ -44,11 +44,12 @@ export function mapTheme(style) {
 const PIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="visit-map-pin" width="30" height="30"><path fill-rule="evenodd" d="M12 22s8-5.2 8-12a8 8 0 1 0-16 0c0 6.8 8 12 8 12Zm0-8.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" clip-rule="evenodd"/><circle cx="12" cy="10" r="3.5" fill="white"/></svg>';
 
 export class HomeVisitMap {
-    constructor(canvas, status, { getPosition, loadLibrary = loadMapLibrary }) {
+    constructor(canvas, status, { getPosition, loadLibrary = loadMapLibrary, onPosition = () => {} }) {
         this.canvas = canvas;
         this.status = status;
         this.getPosition = getPosition;
         this.loadLibrary = loadLibrary;
+        this.onPosition = onPosition;
         this.version = 0;
         this.ready = Promise.resolve();
     }
@@ -150,6 +151,7 @@ export class HomeVisitMap {
                 if (!coordenadasValidas(lat, lng)) throw new Error('Localização indisponível.');
                 const pessoa = [Number(lng), Number(lat)];
                 marker(true, pessoa, 'Você está aqui');
+                this.onPosition({ lat: Number(lat), lng: Number(lng) }, cliente);
                 map.resize();
                 if (destino) map.fitBounds(new gl.LngLatBounds(destino, destino).extend(pessoa), { padding: 36, maxZoom: 16, duration: 0 });
                 locating = false;
