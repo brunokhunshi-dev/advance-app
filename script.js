@@ -27,7 +27,7 @@ import { obterIniciais, gerarIdAtividade, gerarIdRelatorio, gerarIdClienteCnpj, 
 import { normalizarTipoVisita, colecaoRelatorioPorTipo, colecaoRelatorioDaAtividade, blocosPersistidosRelatorio, dadosAssistenciaDoRelatorio, secoesAssistenciaParaDocumento, relatorioValidoParaCheckout, normalizarAssistenciaComparacao, modulosComerciaisPendentes } from './src/domain/reports.js';
 import { ASSISTENCIA_TECNICA_TIPO } from './src/domain/reports.js';
 import { obterResultadoHistorico, obterClasseResultadoHistorico, obterDataHistorico, formatarDiaHistorico, formatarHorarioVisitaHistorico, periodoHistorico, aplicarFiltrosHistorico } from './src/domain/history.js';
-import { buscarCentroCidade, buscarEnderecoPorCep, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, calcularDistancia, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco } from './src/services/location.js';
+import { buscarCentroCidade, buscarEnderecoPorCep, dadosLocalizacaoCadastro, buscarJson, coordenadasValidas, obterPosicao, obterEnderecoPorCoords, obterCoordsPorEndereco } from './src/services/location.js';
 import { capturarLocalizacaoOpcional } from './src/services/location-audit.js';
 import { radioAssistencia, lerFormularioAssistencia, preencherFormularioAssistencia, renderFichaAssistencia } from './src/ui/assistance.js';
 import { preencherCampoVisualizador, prepararImpressaoVisualizador, renderizarVisualizadorVisita, preencherConteudoRelatorio } from './src/ui/visit-view.js';
@@ -181,13 +181,13 @@ const homeCalendar = new AgendaCalendar(document.getElementById('home-calendar')
     navegarParaTela('tela-agenda');
 }, 'home-calendar-title', false);
 const homeVisitMap = new HomeVisitMap(document.getElementById('home-map-canvas'), document.getElementById('home-map-status'), { getPosition: obterPosicao });
-const checkinVisitMap = new HomeVisitMap(document.getElementById('checkin-map-canvas'), document.getElementById('checkin-map-status'), { getPosition: obterPosicao,
-    onPosition(posicao, cliente) {
-        document.getElementById('checkin-current-key').hidden = false;
-        if (!coordenadasValidas(cliente?.lat, cliente?.lng)) return;
-        const metros = Math.round(calcularDistancia(posicao.lat, posicao.lng, Number(cliente.lat), Number(cliente.lng)));
-        document.getElementById('checkin-distance').textContent = `Distância até o check-in: ${metros < 1000 ? metros + ' m' : (metros / 1000).toFixed(1).replace('.', ',') + ' km'}`;
-    } });
+const checkinVisitMap = new HomeVisitMap(document.getElementById('checkin-map-canvas'), document.getElementById('checkin-map-status'), { getPosition: obterPosicao });
+function textoNormalCheckin(valor) {
+    return String(valor || '').toLocaleLowerCase('pt-BR').replace(/(^|[\s,./-])([\p{L}])/gu,
+        (_, separador, letra) => separador + letra.toLocaleUpperCase('pt-BR'))
+        .replace(/\b(De|Da|Do|Das|Dos|E)\b/g, palavra => palavra.toLocaleLowerCase('pt-BR'))
+        .replace(/\b(Ac|Al|Ap|Am|Ba|Ce|Df|Es|Go|Ma|Mg|Ms|Mt|Pa|Pb|Pe|Pi|Pr|Rj|Rn|Ro|Rr|Rs|Sc|Se|Sp|To)\b(?=\s*$)/, uf => uf.toUpperCase());
+}
 let checkinMapRequest = 0;
 function limparMapaCheckin() {
     checkinMapRequest++;
@@ -2134,12 +2134,9 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
 
     const telaConfirmacao = document.getElementById('tela-confirmacao');
 
-    document.getElementById('conf-nome-cliente').textContent = clienteNome;
+    document.getElementById('conf-nome-cliente').textContent = textoNormalCheckin(clienteNome);
     document.getElementById('conf-endereco-cliente').textContent = '';
     document.getElementById('conf-tipo-visita').textContent = 'Carregando…';
-    document.getElementById('checkin-distance').textContent = '';
-    document.getElementById('checkin-current-key').hidden = true;
-    document.getElementById('checkin-destination-key').hidden = true;
     const directions = document.getElementById('checkin-directions');
     directions.hidden = true;
     directions.removeAttribute('href');
@@ -2156,10 +2153,9 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
             const cliente = clienteId ? await obterCliente(clienteId) : null;
             if (pedidoMapa !== checkinMapRequest || telaConfirmacao.style.display === 'none') return;
             const endereco = cliente?.enderecoCompleto?.trim() || '';
-            document.getElementById('conf-endereco-cliente').textContent = endereco || 'Endereço não disponível';
+            document.getElementById('conf-endereco-cliente').textContent = endereco ? textoNormalCheckin(endereco) : 'Endereço não disponível';
             const destino = coordenadasValidas(cliente?.lat, cliente?.lng)
                 ? `${Number(cliente.lat)},${Number(cliente.lng)}` : endereco;
-            document.getElementById('checkin-destination-key').hidden = !coordenadasValidas(cliente?.lat, cliente?.lng);
             if (destino) {
                 directions.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}`;
                 directions.hidden = false;
