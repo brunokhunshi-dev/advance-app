@@ -184,17 +184,11 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 .checkin-client-card .checkin-visit-map { height: 214px; margin: 0 0 10px; border-radius: 12px; }
 .checkin-client-card .home-map-canvas { height: 214px; }
 .checkin-client-card .perfil-label, .checkin-detail-card .perfil-label { color: var(--color-muted); font-weight: 500; }
-.checkin-client-card .perfil-nome { font-size: 1.4rem; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.checkin-client-card .perfil-nome { font-size: clamp(1.15rem, 5vw, 1.5rem); font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
 .checkin-address { color: var(--color-muted); font-size: .875rem; line-height: 1.4; margin: 3px 0 16px; overflow-wrap: anywhere; }
 .checkin-detail-card .perfil-nome { font-size: clamp(1.15rem, 5vw, 1.5rem); font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
 .checkin-directions { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 48px; border: 1px solid rgba(0,0,0,.06); border-radius: 24px; color: var(--color-red); font-size: .875rem; font-weight: 500; text-decoration: none; }
 .checkin-directions[hidden] { display: none; }
-.checkin-map-key { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--color-muted); font-size: .75rem; margin: 0 0 8px; }
-.checkin-map-key span { display: inline-flex; align-items: center; gap: 6px; }
-.checkin-map-key span[hidden] { display: none; }
-.checkin-map-key i { width: 9px; height: 9px; border-radius: 50%; background: #4285f4; }
-.checkin-map-key .checkin-key-destination { background: #ea4335; }
-.checkin-distance { min-height: 1em; color: var(--color-muted); font-size: .75rem; margin: 0 0 14px; }
 #tela-confirmacao .botoes-acao { margin-top: auto; padding-top: 12px; }
 .botoes-acao { width: 100%; display: flex; flex-direction: column; gap: 15px; margin-top: auto; }
 
