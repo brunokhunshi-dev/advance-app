@@ -22,7 +22,7 @@ function setup(getPosition) {
             setPaintProperty(...args) { this.paint.push(args); }
             setLayoutProperty(...args) { this.layout.push(args); }
         },
-        AttributionControl: class {},
+        AttributionControl: class { constructor() { this._container = attribution; } },
         Popup: class { constructor() { this.handlers = {}; } setText(text) { this.text = text; return this; } setDOMContent(node) { this.node = node; return this; } on(event, handler) { this.handlers[event] = handler; return this; } },
         LngLatBounds: class { constructor(point) { this.points = [point]; } extend(point) { this.points.push(point); return this; } },
         Marker: class {
@@ -53,6 +53,7 @@ test('home map shows real person and destination positions and fits both into vi
     s.maps[0].handlers['style.load']();
     assert.deepEqual(s.maps[0].paint[0], ['water', 'fill-color', '#A3C7F3']);
     s.maps[0].handlers.load();
+    assert.deepEqual(s.attribution.removedAttributes, ['open', 'open']);
     assert.deepEqual(s.bounds[0], [[-47.21, -23.09], [-47.2, -23.1]]);
     assert.equal(s.status.textContent, '');
 });
