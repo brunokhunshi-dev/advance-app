@@ -1,4 +1,5 @@
 import {colecaoCliente} from '../src/domain/identifiers.js';
+import {createVisitService} from '../src/services/visit-service.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -18,7 +19,7 @@ function setup(activity={ptvId:'user',clienteId:'client',status:'Em andamento',t
     if(report) records.set((activity.relatorioColecao || 'relatorios')+'/'+activity.relatorioId,report);
     records.set('clientes/client', {lat:1,lng:2});
     const writes=[];
-    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,...visitLocation,colecaoCliente,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),setDoc:async()=>{throw Error('permission-denied');},console:{warn(){}},
+    const context=vm.createContext({...reports,modulosTreinamentoPendentes,serializarEstavel,persistCommercialMedia,TextEncoder,Date,montarAuditoriaLocalizacao,...visitLocation,colecaoCliente,createVisitService,serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),setDoc:async()=>{throw Error('permission-denied');},console:{warn(){}},
         db:{},operacaoEmCurso:false,atividadeSelecionadaId:'visit',nomeUsuarioLogado:'Ana',objetoAtividadeGlobal:{id:'visit',...activity},objetoRelatorioGlobal:report,
         sessaoAtual:()=>({id:'user'}),exigirSessao(){},sessaoValida:()=>false,
         obterPosicao(){}, obterEnderecoPorCoords(){},
@@ -157,18 +158,17 @@ test('training checkout revalidates modules from server and persists completion 
 
 test('stop writes check the current visit state and reject a fourth stop without writing', async () => {
     const app = setup();
-    const start = source.indexOf('async function salvarParada(');
-    const end = source.indexOf('function atualizarInterfaceVisitaAtual(', start);
-    vm.runInContext(source.slice(start, end), app.context);
+    const service = createVisitService(app.context);
+    const salvar = parada => service.salvarParada({id:'visit', parada, sessao:{id:'user'}});
     const parada = { lat: 1, lng: 2, accuracy: 15, origem: 'gps', tipo: 'Outro', endereco: null };
-    for (let i = 0; i < 3; i++) await app.context.salvarParada('visit', parada);
-    await assert.rejects(app.context.salvarParada('visit', parada), /três paradas/);
+    for (let i = 0; i < 3; i++) await salvar(parada);
+    await assert.rejects(salvar(parada), /três paradas/);
     const saved = app.records.get('atividades/visit');
     assert.equal(saved.paradas.length, 3);
     assert.equal(app.writes.length, 3);
     assert.equal(saved.status, 'Em andamento');
 
     app.records.set('atividades/visit', { ...saved, status: 'Concluída', paradas: [] });
-    await assert.rejects(app.context.salvarParada('visit', parada), /não está mais em andamento/);
+    await assert.rejects(salvar(parada), /não está mais em andamento/);
     assert.equal(app.writes.length, 3);
 });

@@ -1,4 +1,5 @@
 import {colecaoCliente, gerarIdClienteSemCnpj} from '../src/domain/identifiers.js';
+import {createVisitService} from '../src/services/visit-service.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -19,7 +20,7 @@ function create({localizacao,motivo,clienteId='cliente',status='Pendente',client
     const context=vm.createContext({
         document:{getElementById:()=>({textContent:'',style:{display:'flex'}})},
         estadoNavegacaoAtual:null, nomeUsuarioLogado:'Colaborador', db:{}, atividadeSelecionadaId:'visita',
-        ...visitLocation,colecaoCliente,coordenadasValidas,montarAuditoriaLocalizacao,normalizarTipoVisita,
+        ...visitLocation,colecaoCliente,coordenadasValidas,montarAuditoriaLocalizacao,normalizarTipoVisita,createVisitService,
         serverTimestamp:()=>new Date('2026-10-23T12:00:00Z'),
         setDoc:async()=>{copyCount++;throw Error('permission-denied: audit collection');},
         console:{warn(){}}, 
