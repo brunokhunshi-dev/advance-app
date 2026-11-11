@@ -181,6 +181,12 @@ const homeCalendar = new AgendaCalendar(document.getElementById('home-calendar')
     navegarParaTela('tela-agenda');
 }, 'home-calendar-title', false);
 const homeVisitMap = new HomeVisitMap(document.getElementById('home-map-canvas'), document.getElementById('home-map-status'), { getPosition: obterPosicao });
+const checkinVisitMap = new HomeVisitMap(document.getElementById('checkin-map-canvas'), document.getElementById('checkin-map-status'), { getPosition: obterPosicao });
+let checkinMapRequest = 0;
+function limparMapaCheckin() {
+    checkinMapRequest++;
+    checkinVisitMap.clear();
+}
 
 let nvClienteSelecionadoId = null;
 
@@ -506,6 +512,7 @@ function inicializarAplicativo() {
         agendaCalendar.reset();
         homeCalendar.reset();
         homeVisitMap.clear();
+        limparMapaCheckin();
         document.getElementById('home-location-address').textContent = '';
         document.getElementById('home-upcoming-visits').replaceChildren();
         document.getElementById('home-agenda-more').hidden = true;
@@ -842,6 +849,7 @@ function configurarHistoricoNativo() {
 
         if (estadoNavegacaoAtual?.overlay === 'checkin') {
             document.getElementById('tela-confirmacao').style.display = 'none';
+            limparMapaCheckin();
             if (estadoAppValido(destino)) {
                 estadoNavegacaoAtual = destino;
                 mostrarApenasTela(destino.tela);
@@ -2131,6 +2139,17 @@ window.abrirConfirmacaoCheckin = function(atividadeId, clienteNome, clienteId) {
     document.getElementById('data-hora-atual').textContent = formatarDataHoraPT(new Date()).completo; 
 
     telaConfirmacao.style.display = 'flex';
+    const pedidoMapa = ++checkinMapRequest;
+    checkinVisitMap.clear('Carregando mapa…');
+    void (async () => {
+        try {
+            const cliente = clienteId ? await obterCliente(clienteId) : null;
+            if (pedidoMapa !== checkinMapRequest || telaConfirmacao.style.display === 'none') return;
+            await checkinVisitMap.update(cliente);
+        } catch (erro) {
+            if (pedidoMapa === checkinMapRequest) checkinVisitMap.clear('Não foi possível carregar o mapa.');
+        }
+    })();
     abrirCamadaHistorica('checkin');
 
 }
@@ -2143,7 +2162,7 @@ function configurarBotoesModal() {
     document.getElementById('btn-voltar')?.addEventListener('click', () => {
         if (operacaoEmCurso) return;
         if (estadoNavegacaoAtual?.overlay === 'checkin') history.back();
-        else document.getElementById('tela-confirmacao').style.display = 'none';
+        else { document.getElementById('tela-confirmacao').style.display = 'none'; limparMapaCheckin(); }
     });
 
     document.getElementById('btn-iniciar')?.addEventListener('click', async () => {
@@ -2165,6 +2184,7 @@ function configurarBotoesModal() {
             exigirSessao(sessao);
 
             await processarCheckin(localizacao, id, clienteId, sessao);
+            limparMapaCheckin();
 
         } catch (erro) {
             if (erro instanceof ErroLocalizacaoVisita) abrirModalFechamentoManual(id, erro.message, 'checkin', clienteId, erro.localizacao);
@@ -2547,6 +2567,7 @@ async function enviarFechamentoManual() {
         const sessao = sessaoAtual();
         if (evento === 'checkin') {
             await processarCheckin(localizacao, atividadeId, clienteId, sessao, motivo);
+            limparMapaCheckin();
             fecharModalFechamentoManual();
             return;
         }
